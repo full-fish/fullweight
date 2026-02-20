@@ -1,5 +1,17 @@
 import { SwipeableTab } from "@/components/swipeable-tab";
 import {
+  exchangeCodeForToken,
+  getBackupList,
+  getLastBackupTime,
+  getSignedInEmail,
+  isSignedIn,
+  performBackup,
+  performRestore,
+  shouldAutoBackup,
+  signOut,
+  useGoogleAuth,
+} from "@/utils/backup";
+import {
   calcAge,
   getDaysInMonth,
   getFirstDayOfWeek,
@@ -14,8 +26,9 @@ import {
   seedDummyData,
 } from "@/utils/storage";
 import { useFocusEffect } from "@react-navigation/native";
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Dimensions,
   FlatList,
@@ -352,6 +365,20 @@ export default function SettingsScreen() {
   const [newPin, setNewPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
 
+  // ── Google Drive 백업 상태 ──
+  const [googleEmail, setGoogleEmail] = useState<string | null>(null);
+  const [isGoogleSignedIn, setIsGoogleSignedIn] = useState(false);
+  const [backupLoading, setBackupLoading] = useState(false);
+  const [restoreLoading, setRestoreLoading] = useState(false);
+  const [lastBackupStr, setLastBackupStr] = useState<string | null>(null);
+  const [backupList, setBackupList] = useState<
+    { id: string; name: string; createdTime: string; size?: string }[]
+  >([]);
+  const [showBackupList, setShowBackupList] = useState(false);
+  const autoBackupTriggered = useRef(false);
+
+  const { request, response, promptAsync, redirectUri } = useGoogleAuth();
+
   useFocusEffect(
     useCallback(() => {
       loadRecords().then((data) => setRecordCount(data.length));
@@ -364,8 +391,161 @@ export default function SettingsScreen() {
         setLockPin(settings.lockPin ?? "");
         setLockBiometric(settings.lockBiometric ?? false);
       });
+
+      // Google 로그인 상태 & 마지막 백업 시간 불러오기
+      refreshGoogleState();
     }, [])
   );
+
+  /** Google 로그인 상태 & 마지막 백업 시간 갱신 */
+  const refreshGoogleState = async () => {
+    const signedIn = await isSignedIn();
+    setIsGoogleSignedIn(signedIn);
+    if (signedIn) {
+      const email = await getSignedInEmail();
+      setGoogleEmail(email);
+      const lastTs = await getLastBackupTime();
+      if (lastTs) {
+        const d = new Date(lastTs);
+        setLastBackupStr(
+          `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`
+        );
+      } else {
+        setLastBackupStr(null);
+      }
+    } else {
+      setGoogleEmail(null);
+      setLastBackupStr(null);
+    }
+  };
+
+  // Google OAuth 응답 처리
+  useEffect(() => {
+    if (response?.type === "success" && response.params?.code) {
+      const code = response.params.code;
+      const codeVerifier = request?.codeVerifier;
+      if (codeVerifier) {
+        (async () => {
+          try {
+            setBackupLoading(true);
+            const { email } = await exchangeCodeForToken(
+              code,
+              codeVerifier,
+              redirectUri
+            );
+            setIsGoogleSignedIn(true);
+            setGoogleEmail(email);
+            Alert.alert("로그인 성공", `${email}로 로그인했습니다.`);
+            await refreshGoogleState();
+          } catch (e: any) {
+            Alert.alert("로그인 실패", e?.message ?? "알 수 없는 오류");
+          } finally {
+            setBackupLoading(false);
+          }
+        })();
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [response]);
+
+  // 자동 백업 (24시간 간격, 탭 포커스 시 1회)
+  useFocusEffect(
+    useCallback(() => {
+      if (autoBackupTriggered.current) return;
+      (async () => {
+        const needBackup = await shouldAutoBackup();
+        if (needBackup) {
+          autoBackupTriggered.current = true;
+          const result = await performBackup();
+          if (result.success) {
+            await refreshGoogleState();
+          }
+        }
+      })();
+    }, [])
+  );
+
+  /** 수동 백업 */
+  const handleManualBackup = async () => {
+    setBackupLoading(true);
+    const result = await performBackup();
+    setBackupLoading(false);
+    if (result.success) {
+      Alert.alert("백업 완료 ✅", "Google Drive에 데이터가 백업되었습니다.");
+      await refreshGoogleState();
+    } else {
+      Alert.alert("백업 실패", result.error ?? "알 수 없는 오류");
+    }
+  };
+
+  /** 백업 목록 조회 & 표시 */
+  const handleShowBackups = async () => {
+    setBackupLoading(true);
+    const result = await getBackupList();
+    setBackupLoading(false);
+    if (result.error) {
+      Alert.alert("오류", result.error);
+      return;
+    }
+    setBackupList(result.backups);
+    setShowBackupList(true);
+  };
+
+  /** 복원 */
+  const handleRestore = (fileId: string, fileName: string) => {
+    Alert.alert(
+      "데이터 복원",
+      `"${fileName}" 백업에서 복원합니다.\n현재 데이터가 모두 덮어쓰기됩니다.`,
+      [
+        { text: "취소", style: "cancel" },
+        {
+          text: "복원",
+          style: "destructive",
+          onPress: async () => {
+            setRestoreLoading(true);
+            setShowBackupList(false);
+            const result = await performRestore(fileId);
+            setRestoreLoading(false);
+            if (result.success) {
+              // UI 새로고침
+              const data = await loadRecords();
+              setRecordCount(data.length);
+              const settings = await loadUserSettings();
+              setHeight(
+                settings.height != null ? String(settings.height) : ""
+              );
+              setBirthDate(settings.birthDate ?? "");
+              setGender(settings.gender);
+              Alert.alert(
+                "복원 완료 ✅",
+                "데이터가 성공적으로 복원되었습니다.\n앱을 다시 시작하면 모든 변경사항이 반영됩니다."
+              );
+            } else {
+              Alert.alert("복원 실패", result.error ?? "알 수 없는 오류");
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  /** Google 로그아웃 */
+  const handleGoogleSignOut = () => {
+    Alert.alert("Google 로그아웃", "로그아웃하면 자동 백업이 중지됩니다.", [
+      { text: "취소", style: "cancel" },
+      {
+        text: "로그아웃",
+        style: "destructive",
+        onPress: async () => {
+          await signOut();
+          setIsGoogleSignedIn(false);
+          setGoogleEmail(null);
+          setLastBackupStr(null);
+          setBackupList([]);
+        },
+      },
+    ]);
+  };
 
   const computedAge = birthDate ? calcAge(birthDate) : null;
 
@@ -855,6 +1035,170 @@ export default function SettingsScreen() {
           </View>
         </View>
 
+        {/* Google 드라이브 백업 */}
+        <View style={s.card}>
+          <Text style={s.cardTitle}>☁️ Google 드라이브 백업</Text>
+
+          {!isGoogleSignedIn ? (
+            // 로그인 안 된 상태
+            <View>
+              <Text style={s.backupDesc}>
+                Google 계정에 로그인하면 데이터와 사진이{"\n"}자동으로 백업됩니다
+                (매일 1회).
+              </Text>
+              <TouchableOpacity
+                style={s.googleSignInBtn}
+                onPress={() => promptAsync()}
+                disabled={!request || backupLoading}
+              >
+                {backupLoading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={s.googleSignInBtnText}>
+                    Google 계정으로 로그인
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          ) : (
+            // 로그인 된 상태
+            <View>
+              <View style={s.infoRow}>
+                <Text style={s.infoLabel}>계정</Text>
+                <Text
+                  style={[s.infoValue, { fontSize: 13 }]}
+                  numberOfLines={1}
+                >
+                  {googleEmail ?? "알 수 없음"}
+                </Text>
+              </View>
+              <View style={s.infoRow}>
+                <Text style={s.infoLabel}>마지막 백업</Text>
+                <Text style={s.infoValue}>
+                  {lastBackupStr ?? "없음"}
+                </Text>
+              </View>
+              <View style={s.infoRow}>
+                <Text style={s.infoLabel}>자동 백업</Text>
+                <Text style={[s.infoValue, { color: "#38A169" }]}>
+                  매일 1회
+                </Text>
+              </View>
+
+              <View style={s.backupBtnRow}>
+                <TouchableOpacity
+                  style={[s.backupActionBtn, { flex: 1 }]}
+                  onPress={handleManualBackup}
+                  disabled={backupLoading || restoreLoading}
+                >
+                  {backupLoading ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={s.backupActionBtnText}>📤 지금 백업</Text>
+                  )}
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    s.backupActionBtn,
+                    { flex: 1, backgroundColor: "#48BB78" },
+                  ]}
+                  onPress={handleShowBackups}
+                  disabled={backupLoading || restoreLoading}
+                >
+                  {restoreLoading ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={s.backupActionBtnText}>📥 복원</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+
+              <TouchableOpacity
+                style={s.signOutBtn}
+                onPress={handleGoogleSignOut}
+              >
+                <Text style={s.signOutBtnText}>로그아웃</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+
+        {/* 백업 목록 모달 */}
+        <Modal
+          visible={showBackupList}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowBackupList(false)}
+        >
+          <TouchableOpacity
+            style={s.pinModalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowBackupList(false)}
+          >
+            <View
+              style={[s.pinModalCard, { width: SCREEN_WIDTH * 0.9 }]}
+              onStartShouldSetResponder={() => true}
+            >
+              <Text style={[s.pinModalTitle, { marginBottom: 16 }]}>
+                백업 파일 목록
+              </Text>
+
+              {backupList.length === 0 ? (
+                <Text
+                  style={{
+                    fontSize: 14,
+                    color: "#A0AEC0",
+                    textAlign: "center",
+                    paddingVertical: 24,
+                  }}
+                >
+                  백업 파일이 없습니다
+                </Text>
+              ) : (
+                <View style={{ maxHeight: 300 }}>
+                  {backupList.map((item) => {
+                    const d = new Date(item.createdTime);
+                    const dateLabel = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+                    const sizeKB = item.size
+                      ? `${(parseInt(item.size, 10) / 1024).toFixed(1)}KB`
+                      : "";
+                    return (
+                      <TouchableOpacity
+                        key={item.id}
+                        style={s.backupListItem}
+                        onPress={() => handleRestore(item.id, item.name)}
+                      >
+                        <View style={{ flex: 1 }}>
+                          <Text style={s.backupListDate}>{dateLabel}</Text>
+                          {sizeKB ? (
+                            <Text style={s.backupListSize}>{sizeKB}</Text>
+                          ) : null}
+                        </View>
+                        <Text style={s.backupListRestore}>복원</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
+
+              <TouchableOpacity
+                style={{
+                  marginTop: 16,
+                  alignItems: "center",
+                  paddingVertical: 10,
+                }}
+                onPress={() => setShowBackupList(false)}
+              >
+                <Text
+                  style={{ fontSize: 14, fontWeight: "600", color: "#718096" }}
+                >
+                  닫기
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </Modal>
+
         {/* 개발자 도구 */}
         <View style={s.card}>
           <Text style={s.cardTitle}>개발자 도구</Text>
@@ -1132,6 +1476,75 @@ const s = StyleSheet.create({
   pinPadSpecial: {
     fontSize: 20,
     color: "#718096",
+  },
+
+  /* 백업 관련 */
+  backupDesc: {
+    fontSize: 13,
+    color: "#718096",
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  googleSignInBtn: {
+    backgroundColor: "#4285F4",
+    borderRadius: 10,
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+  googleSignInBtnText: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  backupBtnRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 14,
+  },
+  backupActionBtn: {
+    backgroundColor: "#4299E1",
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  backupActionBtnText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  signOutBtn: {
+    marginTop: 12,
+    alignItems: "center",
+    paddingVertical: 8,
+  },
+  signOutBtnText: {
+    fontSize: 13,
+    color: "#A0AEC0",
+    fontWeight: "500",
+  },
+  backupListItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F0F4F8",
+  },
+  backupListDate: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#2D3748",
+  },
+  backupListSize: {
+    fontSize: 11,
+    color: "#A0AEC0",
+    marginTop: 2,
+  },
+  backupListRestore: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#4299E1",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
   },
 });
 

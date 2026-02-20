@@ -21,12 +21,7 @@ import {
 } from "@/utils/format";
 import { loadRecords } from "@/utils/storage";
 import { useFocusEffect } from "@react-navigation/native";
-import React, {
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
   Dimensions,
   ScrollView,

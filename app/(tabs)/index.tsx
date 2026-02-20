@@ -1,7 +1,7 @@
 import { MiniCalendar } from "@/components/mini-calendar";
 import { SwipeableTab } from "@/components/swipeable-tab";
 import { UserSettings, WeightRecord } from "@/types";
-import { getBmiInfo, fmtDate } from "@/utils/format";
+import { fmtDate, getBmiInfo } from "@/utils/format";
 import { deletePhoto, pickPhoto, takePhoto } from "@/utils/photo";
 import {
   deleteRecord,
@@ -485,9 +485,7 @@ export default function HomeScreen() {
             records.map((record) => (
               <View key={record.id} style={styles.recordCard}>
                 <View style={styles.recordTop}>
-                  <Text style={styles.recordDate}>
-                    {fmtDate(record.date)}
-                  </Text>
+                  <Text style={styles.recordDate}>{fmtDate(record.date)}</Text>
                   <View style={styles.recordActions}>
                     <TouchableOpacity onPress={() => handleEdit(record)}>
                       <Text style={styles.editBtn}>✏️</Text>
