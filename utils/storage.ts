@@ -1,7 +1,8 @@
-import { WeightRecord } from "@/types";
+import { Challenge, WeightRecord } from "@/types";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const STORAGE_KEY = "weight_records_v1";
+const CHALLENGE_KEY = "weight_challenge_v1";
 
 /** 로컬 날짜를 YYYY-MM-DD 형식으로 반환 */
 export function getLocalDateString(date: Date = new Date()): string {
@@ -106,9 +107,9 @@ export async function seedDummyData(): Promise<WeightRecord[]> {
       date,
       weight: Math.max(60, Math.min(100, weight)),
       waist,
-      muscleMass: Math.random() < 0.3 ? rand(28, 38) : undefined,
-      bodyFatPercent: Math.random() < 0.3 ? rand(15, 30) : undefined,
-      bodyFatMass: Math.random() < 0.2 ? rand(8, 25) : undefined,
+      muscleMass: Math.random() < 0.7 ? rand(28, 38) : undefined,
+      bodyFatPercent: Math.random() < 0.65 ? rand(15, 30) : undefined,
+      bodyFatMass: Math.random() < 0.55 ? rand(8, 25) : undefined,
       exercised: Math.random() < 0.4,
       drank: Math.random() < 0.25,
     };
@@ -116,4 +117,24 @@ export async function seedDummyData(): Promise<WeightRecord[]> {
 
   await saveRecords(records);
   return records;
+}
+
+/* ───── 챌린지 저장/불러오기 ───── */
+
+export async function loadChallenge(): Promise<Challenge | null> {
+  try {
+    const data = await AsyncStorage.getItem(CHALLENGE_KEY);
+    if (!data) return null;
+    return JSON.parse(data) as Challenge;
+  } catch {
+    return null;
+  }
+}
+
+export async function saveChallenge(challenge: Challenge): Promise<void> {
+  await AsyncStorage.setItem(CHALLENGE_KEY, JSON.stringify(challenge));
+}
+
+export async function deleteChallenge(): Promise<void> {
+  await AsyncStorage.removeItem(CHALLENGE_KEY);
 }

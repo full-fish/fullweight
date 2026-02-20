@@ -26,7 +26,7 @@ import { LineChart } from "react-native-chart-kit";
 const { width } = Dimensions.get("window");
 const CHART_WIDTH = width - 48;
 
-/* helpers */
+/* ───── helpers ───── */
 
 function fmtLabel(dateStr: string) {
   const [, m, d] = dateStr.split("-");
@@ -35,7 +35,7 @@ function fmtLabel(dateStr: string) {
 
 function fmtDate(dateStr: string) {
   const [y, m, d] = dateStr.split("-");
-  return `${y}\ub144 ${parseInt(m)}\uc6d4 ${parseInt(d)}\uc77c`;
+  return `${y}년 ${parseInt(m)}월 ${parseInt(d)}일`;
 }
 
 function weekKey(dateStr: string) {
@@ -70,10 +70,6 @@ function getMetricValue(r: WeightRecord, key: MetricKey): number | null {
   return null;
 }
 
-function safeData(arr: number[]) {
-  return arr.length > 0 ? arr : [0];
-}
-
 function hexToRGBA(hex: string, opacity: number) {
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
@@ -81,7 +77,7 @@ function hexToRGBA(hex: string, opacity: number) {
   return `rgba(${r},${g},${b},${opacity})`;
 }
 
-/* date picker */
+/* ───── DatePickerRow ───── */
 
 function DatePickerRow({
   label,
@@ -110,91 +106,13 @@ function DatePickerRow({
   );
 }
 
-/* Single Metric Chart */
-
-function SingleMetricChart({
-  metricKey,
-  slicedData,
-  chartLabels,
-  onDotPress,
-  compact,
-}: {
-  metricKey: MetricKey;
-  slicedData: WeightRecord[];
-  chartLabels: string[];
-  onDotPress: (idx: number) => void;
-  compact?: boolean;
-}) {
-  const color = METRIC_COLORS[metricKey];
-  const data = safeData(
-    slicedData.map((r) => getMetricValue(r, metricKey) ?? 0)
-  );
-  const hasData = slicedData.length >= 2;
-
-  if (!hasData) {
-    return (
-      <View style={s.emptyMiniChart}>
-        <Text style={s.emptyText}>
-          {METRIC_LABELS[metricKey]} \ub370\uc774\ud130\uac00 \ubd80\uc871\ud569\ub2c8\ub2e4.
-        </Text>
-      </View>
-    );
-  }
-
-  return (
-    <View style={compact ? s.miniChartWrap : undefined}>
-      {compact && (
-        <View style={s.miniChartHeader}>
-          <View style={[s.legendDot, { backgroundColor: color }]} />
-          <Text style={s.miniChartTitle}>
-            {METRIC_LABELS[metricKey]} ({METRIC_UNITS[metricKey]})
-          </Text>
-        </View>
-      )}
-      <LineChart
-        data={{
-          labels: chartLabels,
-          datasets: [
-            {
-              data,
-              color: (opacity = 1) => hexToRGBA(color, opacity),
-              strokeWidth: 2,
-            },
-          ],
-        }}
-        width={CHART_WIDTH}
-        height={compact ? 160 : 220}
-        chartConfig={{
-          backgroundGradientFrom: "#fff",
-          backgroundGradientTo: "#fff",
-          color: (opacity = 1) => hexToRGBA(color, opacity),
-          labelColor: (opacity = 1) => `rgba(113,128,150,${opacity})`,
-          strokeWidth: 2,
-          propsForDots: {
-            r: "3.5",
-            strokeWidth: "1.5",
-            stroke: color,
-            fill: "#fff",
-          },
-          propsForBackgroundLines: { stroke: "#F0F4F8" },
-          decimalPlaces: 1,
-        }}
-        bezier
-        style={s.chart}
-        withVerticalLines={false}
-        withShadow={false}
-        formatYLabel={(v) => parseFloat(v).toFixed(1)}
-        onDataPointClick={({ index }) => onDotPress(index)}
-      />
-    </View>
-  );
-}
-
-/* MAIN */
+/* ───── MAIN ───── */
 
 export default function ChartScreen() {
   const [allRecords, setAllRecords] = useState<WeightRecord[]>([]);
-  const [selectedMetrics, setSelectedMetrics] = useState<MetricKey[]>(["weight"]);
+  const [selectedMetrics, setSelectedMetrics] = useState<MetricKey[]>([
+    "weight",
+  ]);
   const [periodMode, setPeriodMode] = useState<PeriodMode>("daily");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
@@ -202,6 +120,7 @@ export default function ChartScreen() {
   const [statsStart, setStatsStart] = useState("");
   const [activityStart, setActivityStart] = useState("");
   const [selectedPoint, setSelectedPoint] = useState<WeightRecord | null>(null);
+  const [overlayMode, setOverlayMode] = useState(true);
 
   useFocusEffect(
     useCallback(() => {
@@ -211,6 +130,7 @@ export default function ChartScreen() {
     }, [])
   );
 
+  /* ── 기간 필터 ── */
   const filteredRecords = useMemo(() => {
     let recs = allRecords;
     if (periodMode === "custom") {
@@ -233,6 +153,7 @@ export default function ChartScreen() {
     return recs;
   }, [allRecords, periodMode, customStart, customEnd]);
 
+  /* ── 주/월별 집계 ── */
   const chartData = useMemo(() => {
     if (periodMode === "daily" || periodMode === "custom") {
       return filteredRecords;
@@ -258,7 +179,8 @@ export default function ChartScreen() {
           weight: avg(recs.map((r) => r.weight)) ?? 0,
           waist: avg(recs.map((r) => r.waist ?? null)) ?? undefined,
           muscleMass: avg(recs.map((r) => r.muscleMass ?? null)) ?? undefined,
-          bodyFatPercent: avg(recs.map((r) => r.bodyFatPercent ?? null)) ?? undefined,
+          bodyFatPercent:
+            avg(recs.map((r) => r.bodyFatPercent ?? null)) ?? undefined,
           bodyFatMass: avg(recs.map((r) => r.bodyFatMass ?? null)) ?? undefined,
           exercised: recs.some((r) => r.exercised),
           drank: recs.some((r) => r.drank),
@@ -266,19 +188,78 @@ export default function ChartScreen() {
       });
   }, [filteredRecords, periodMode]);
 
-  const chartLabels = useMemo(() => {
-    const recs = chartData.slice(-30);
-    const step = recs.length > 10 ? Math.ceil(recs.length / 6) : 1;
-    return recs.map((r, i) => {
-      if (i % step !== 0) return "";
-      if (periodMode === "monthly") return fmtMonthLabel(r.date);
-      if (periodMode === "weekly") return fmtWeekLabel(r.date);
-      return fmtLabel(r.date);
-    });
-  }, [chartData, periodMode]);
-
   const slicedData = chartData.slice(-30);
 
+  /* ── 차트 라벨 생성 ── */
+  const makeLabels = useCallback(
+    (recs: WeightRecord[]) => {
+      const step = recs.length > 10 ? Math.ceil(recs.length / 6) : 1;
+      return recs.map((r, i) => {
+        if (i % step !== 0) return "";
+        if (periodMode === "monthly") return fmtMonthLabel(r.date);
+        if (periodMode === "weekly") return fmtWeekLabel(r.date);
+        return fmtLabel(r.date);
+      });
+    },
+    [periodMode]
+  );
+
+  /* ── 단일 수치 차트 데이터 (null 제외) ── */
+  const singleChartInfo = useMemo(() => {
+    if (selectedMetrics.length !== 1) return null;
+    const key = selectedMetrics[0];
+    const filtered = slicedData.filter((r) => getMetricValue(r, key) !== null);
+    const values = filtered.map((r) => getMetricValue(r, key)!);
+    const labels = makeLabels(filtered);
+    return { key, filtered, values: values.length > 0 ? values : [0], labels };
+  }, [slicedData, selectedMetrics, makeLabels]);
+
+  /* ── 오버레이 차트 데이터 (정규화) ── */
+  const overlayInfo = useMemo(() => {
+    if (selectedMetrics.length <= 1 || !overlayMode) return null;
+    const filtered = slicedData.filter((r) =>
+      selectedMetrics.every((key) => getMetricValue(r, key) !== null)
+    );
+    if (filtered.length < 2) return null;
+    const labels = makeLabels(filtered);
+    const ranges: Record<string, { min: number; max: number }> = {};
+    const datasets = selectedMetrics.map((key) => {
+      const vals = filtered.map((r) => getMetricValue(r, key)!);
+      const min = Math.min(...vals);
+      const max = Math.max(...vals);
+      ranges[key] = { min, max };
+      const span = max - min || 1;
+      const normalized = vals.map(
+        (v) => Math.round(((v - min) / span) * 100 * 10) / 10
+      );
+      return {
+        data: normalized,
+        color: (opacity = 1) => hexToRGBA(METRIC_COLORS[key], opacity),
+        strokeWidth: 2,
+      };
+    });
+    return { filtered, labels, datasets, ranges };
+  }, [slicedData, selectedMetrics, overlayMode, makeLabels]);
+
+  /* ── 개별 차트 데이터 (null 제외) ── */
+  const separateCharts = useMemo(() => {
+    if (selectedMetrics.length <= 1) return null;
+    return selectedMetrics.map((key) => {
+      const filtered = slicedData.filter(
+        (r) => getMetricValue(r, key) !== null
+      );
+      const values = filtered.map((r) => getMetricValue(r, key)!);
+      const labels = makeLabels(filtered);
+      return {
+        key,
+        filtered,
+        values: values.length > 0 ? values : [0],
+        labels,
+      };
+    });
+  }, [slicedData, selectedMetrics, makeLabels]);
+
+  /* ── 통계 ── */
   const statsRecords = useMemo(() => {
     let recs = allRecords;
     if (statsStart) recs = recs.filter((r) => r.date >= statsStart);
@@ -297,12 +278,14 @@ export default function ChartScreen() {
     return { current, max, min, avg, diff, unit };
   }, [statsRecords, statsMetric]);
 
+  /* ── 활동 요약 ── */
   const activityRecords = useMemo(() => {
     let recs = allRecords;
     if (activityStart) recs = recs.filter((r) => r.date >= activityStart);
     return recs;
   }, [allRecords, activityStart]);
 
+  /* ── 수치 토글 ── */
   const toggleMetric = (key: MetricKey) => {
     setSelectedMetrics((prev) => {
       if (prev.includes(key)) {
@@ -312,19 +295,27 @@ export default function ChartScreen() {
     });
   };
 
-  const handleDotPress = (dataIdx: number) => {
-    if (periodMode !== "daily" && periodMode !== "custom") return;
-    const rec = slicedData[dataIdx];
+  /* ── 점 클릭 → 팝업 ── */
+  const handleDotPress = (filteredRecs: WeightRecord[], idx: number) => {
+    const rec = filteredRecs[idx];
     if (rec) setSelectedPoint(rec);
   };
 
-  const METRICS: MetricKey[] = ["weight", "waist", "muscleMass", "bodyFatPercent", "bodyFatMass"];
-  const isSingleMetric = selectedMetrics.length === 1;
+  const METRICS: MetricKey[] = [
+    "weight",
+    "waist",
+    "muscleMass",
+    "bodyFatPercent",
+    "bodyFatMass",
+  ];
+  const isSingle = selectedMetrics.length === 1;
+  const isMulti = selectedMetrics.length > 1;
 
   return (
     <ScrollView style={s.container} contentContainerStyle={s.content}>
-      <Text style={s.title}>{"\ud83d\udcca"} \uae30\ub85d \uadf8\ub798\ud504</Text>
+      <Text style={s.title}>📊 기록 그래프</Text>
 
+      {/* 수치 선택 칩 */}
       <View style={s.metricRow}>
         {METRICS.map((key) => {
           const active = selectedMetrics.includes(key);
@@ -343,7 +334,9 @@ export default function ChartScreen() {
               <View
                 style={[
                   s.metricDot,
-                  { backgroundColor: active ? METRIC_COLORS[key] : "#CBD5E0" },
+                  {
+                    backgroundColor: active ? METRIC_COLORS[key] : "#CBD5E0",
+                  },
                 ]}
               />
               <Text
@@ -359,6 +352,7 @@ export default function ChartScreen() {
         })}
       </View>
 
+      {/* 기간 모드 */}
       <View style={s.periodRow}>
         {(["daily", "weekly", "monthly", "custom"] as PeriodMode[]).map((m) => (
           <TouchableOpacity
@@ -371,10 +365,10 @@ export default function ChartScreen() {
             >
               {
                 {
-                  daily: "\uc77c\ubcc4",
-                  weekly: "\uc8fc\ubcc4",
-                  monthly: "\uc6d4\ubcc4",
-                  custom: "\uae30\uac04",
+                  daily: "일별",
+                  weekly: "주별",
+                  monthly: "월별",
+                  custom: "기간",
                 }[m]
               }
             </Text>
@@ -384,137 +378,387 @@ export default function ChartScreen() {
 
       {periodMode === "custom" && (
         <View style={s.customDateCard}>
-          <DatePickerRow label={"\uc2dc\uc791\uc77c"} value={customStart} onChange={setCustomStart} />
-          <DatePickerRow label={"\uc885\ub8cc\uc77c"} value={customEnd} onChange={setCustomEnd} />
+          <DatePickerRow
+            label="시작일"
+            value={customStart}
+            onChange={setCustomStart}
+          />
+          <DatePickerRow
+            label="종료일"
+            value={customEnd}
+            onChange={setCustomEnd}
+          />
         </View>
       )}
 
+      {/* 차트 카드 */}
       <View style={s.chartCard}>
         <Text style={s.chartTitle}>
-          {selectedMetrics.map((k) => METRIC_LABELS[k]).join(" \u00b7 ")} \ucd94\uc774
+          {selectedMetrics.map((k) => METRIC_LABELS[k]).join(" · ")} 추이
         </Text>
 
-        {isSingleMetric ? (
-          <SingleMetricChart
-            metricKey={selectedMetrics[0]}
-            slicedData={slicedData}
-            chartLabels={chartLabels}
-            onDotPress={handleDotPress}
-          />
-        ) : (
+        {/* 오버레이 토글 (다중 선택 시) */}
+        {isMulti && (
+          <View style={s.overlayToggleRow}>
+            <TouchableOpacity
+              style={[s.overlayBtn, overlayMode && s.overlayBtnActive]}
+              onPress={() => setOverlayMode(true)}
+            >
+              <Text
+                style={[
+                  s.overlayBtnText,
+                  overlayMode && s.overlayBtnTextActive,
+                ]}
+              >
+                겹쳐보기
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[s.overlayBtn, !overlayMode && s.overlayBtnActive]}
+              onPress={() => setOverlayMode(false)}
+            >
+              <Text
+                style={[
+                  s.overlayBtnText,
+                  !overlayMode && s.overlayBtnTextActive,
+                ]}
+              >
+                따로보기
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* 단일 수치 차트 */}
+        {isSingle &&
+          singleChartInfo &&
+          singleChartInfo.filtered.length >= 2 && (
+            <LineChart
+              data={{
+                labels: singleChartInfo.labels,
+                datasets: [
+                  {
+                    data: singleChartInfo.values,
+                    color: (opacity = 1) =>
+                      hexToRGBA(METRIC_COLORS[singleChartInfo.key], opacity),
+                    strokeWidth: 2,
+                  },
+                ],
+              }}
+              width={CHART_WIDTH}
+              height={220}
+              chartConfig={{
+                backgroundGradientFrom: "#fff",
+                backgroundGradientTo: "#fff",
+                color: (opacity = 1) =>
+                  hexToRGBA(METRIC_COLORS[singleChartInfo.key], opacity),
+                labelColor: (opacity = 1) => `rgba(113,128,150,${opacity})`,
+                strokeWidth: 2,
+                propsForDots: {
+                  r: "3.5",
+                  strokeWidth: "1.5",
+                  stroke: METRIC_COLORS[singleChartInfo.key],
+                  fill: "#fff",
+                },
+                propsForBackgroundLines: { stroke: "#F0F4F8" },
+                decimalPlaces: 1,
+              }}
+              bezier
+              style={s.chart}
+              withVerticalLines={false}
+              withShadow={false}
+              formatYLabel={(v) => parseFloat(v).toFixed(1)}
+              onDataPointClick={({ index }) =>
+                handleDotPress(singleChartInfo.filtered, index)
+              }
+            />
+          )}
+
+        {isSingle &&
+          (!singleChartInfo || singleChartInfo.filtered.length < 2) && (
+            <View style={s.emptyChart}>
+              <Text style={s.emptyIcon}>📈</Text>
+              <Text style={s.emptyText}>
+                {METRIC_LABELS[selectedMetrics[0]]} 데이터가 부족합니다.
+              </Text>
+            </View>
+          )}
+
+        {/* 다중 수치 - 오버레이 모드 */}
+        {isMulti && overlayMode && overlayInfo && (
           <>
             <Text style={s.multiAxisNote}>
-              {"\ud83d\udcd0"} \uac01 \uc218\uce58\ubcc4 \ub3c5\ub9bd Y\ucd95\uc73c\ub85c \ud45c\uc2dc\ub429\ub2c8\ub2e4
+              📐 정규화된 비교 (각 수치 0~100% 스케일)
             </Text>
-            {selectedMetrics.map((key) => (
-              <SingleMetricChart
-                key={key}
-                metricKey={key}
-                slicedData={slicedData}
-                chartLabels={chartLabels}
-                onDotPress={handleDotPress}
-                compact
-              />
+            <LineChart
+              data={{
+                labels: overlayInfo.labels,
+                datasets: overlayInfo.datasets,
+              }}
+              width={CHART_WIDTH}
+              height={240}
+              chartConfig={{
+                backgroundGradientFrom: "#fff",
+                backgroundGradientTo: "#fff",
+                color: (opacity = 1) => `rgba(113,128,150,${opacity})`,
+                labelColor: (opacity = 1) => `rgba(113,128,150,${opacity})`,
+                strokeWidth: 2,
+                propsForDots: {
+                  r: "3",
+                  strokeWidth: "1",
+                  stroke: "#718096",
+                  fill: "#fff",
+                },
+                propsForBackgroundLines: { stroke: "#F0F4F8" },
+                decimalPlaces: 0,
+              }}
+              bezier
+              style={s.chart}
+              withVerticalLines={false}
+              withShadow={false}
+              formatYLabel={(v) => `${parseFloat(v).toFixed(0)}%`}
+              onDataPointClick={({ index }) =>
+                handleDotPress(overlayInfo.filtered, index)
+              }
+            />
+            <View style={s.overlayLegend}>
+              {selectedMetrics.map((key) => {
+                const range = overlayInfo.ranges[key];
+                return (
+                  <View key={key} style={s.overlayLegendItem}>
+                    <View
+                      style={[
+                        s.legendDot,
+                        { backgroundColor: METRIC_COLORS[key] },
+                      ]}
+                    />
+                    <Text style={s.legendText}>
+                      {METRIC_LABELS[key]} ({range.min.toFixed(1)}~
+                      {range.max.toFixed(1)}
+                      {METRIC_UNITS[key]})
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+          </>
+        )}
+
+        {isMulti && overlayMode && !overlayInfo && (
+          <View style={s.emptyChart}>
+            <Text style={s.emptyIcon}>📈</Text>
+            <Text style={s.emptyText}>
+              선택한 수치들의 동시 기록이 부족합니다.
+            </Text>
+          </View>
+        )}
+
+        {/* 다중 수치 - 개별 차트 모드 */}
+        {isMulti && !overlayMode && separateCharts && (
+          <>
+            <Text style={s.multiAxisNote}>📐 각 수치별 독립 차트</Text>
+            {separateCharts.map((info) => (
+              <View key={info.key} style={s.miniChartWrap}>
+                <View style={s.miniChartHeader}>
+                  <View
+                    style={[
+                      s.legendDot,
+                      { backgroundColor: METRIC_COLORS[info.key] },
+                    ]}
+                  />
+                  <Text style={s.miniChartTitle}>
+                    {METRIC_LABELS[info.key]} ({METRIC_UNITS[info.key]})
+                  </Text>
+                </View>
+                {info.filtered.length >= 2 ? (
+                  <LineChart
+                    data={{
+                      labels: info.labels,
+                      datasets: [
+                        {
+                          data: info.values,
+                          color: (opacity = 1) =>
+                            hexToRGBA(METRIC_COLORS[info.key], opacity),
+                          strokeWidth: 2,
+                        },
+                      ],
+                    }}
+                    width={CHART_WIDTH}
+                    height={160}
+                    chartConfig={{
+                      backgroundGradientFrom: "#fff",
+                      backgroundGradientTo: "#fff",
+                      color: (opacity = 1) =>
+                        hexToRGBA(METRIC_COLORS[info.key], opacity),
+                      labelColor: (opacity = 1) =>
+                        `rgba(113,128,150,${opacity})`,
+                      strokeWidth: 2,
+                      propsForDots: {
+                        r: "3.5",
+                        strokeWidth: "1.5",
+                        stroke: METRIC_COLORS[info.key],
+                        fill: "#fff",
+                      },
+                      propsForBackgroundLines: {
+                        stroke: "#F0F4F8",
+                      },
+                      decimalPlaces: 1,
+                    }}
+                    bezier
+                    style={s.chart}
+                    withVerticalLines={false}
+                    withShadow={false}
+                    formatYLabel={(v) => parseFloat(v).toFixed(1)}
+                    onDataPointClick={({ index }) =>
+                      handleDotPress(info.filtered, index)
+                    }
+                  />
+                ) : (
+                  <View style={s.emptyMiniChart}>
+                    <Text style={s.emptyText}>
+                      {METRIC_LABELS[info.key]} 데이터가 부족합니다.
+                    </Text>
+                  </View>
+                )}
+              </View>
             ))}
           </>
         )}
       </View>
 
+      {/* 통계 */}
       <View style={s.card}>
         <View style={s.cardHeader}>
-          <Text style={s.cardTitle}>{"\ud1b5\uacc4"}</Text>
+          <Text style={s.cardTitle}>통계</Text>
           {statsStart ? (
             <TouchableOpacity onPress={() => setStatsStart("")}>
-              <Text style={s.resetBtn}>{"\ucd08\uae30\ud654"}</Text>
+              <Text style={s.resetBtn}>초기화</Text>
             </TouchableOpacity>
           ) : null}
         </View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.statsMetricScroll}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={s.statsMetricScroll}
+        >
           {METRICS.map((k) => (
             <TouchableOpacity
               key={k}
-              style={[s.statsMetricBtn, statsMetric === k && { backgroundColor: METRIC_COLORS[k] }]}
+              style={[
+                s.statsMetricBtn,
+                statsMetric === k && {
+                  backgroundColor: METRIC_COLORS[k],
+                },
+              ]}
               onPress={() => setStatsMetric(k)}
             >
-              <Text style={[s.statsMetricText, statsMetric === k && s.statsMetricTextActive]}>
+              <Text
+                style={[
+                  s.statsMetricText,
+                  statsMetric === k && s.statsMetricTextActive,
+                ]}
+              >
                 {METRIC_LABELS[k]}
               </Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
 
-        <DatePickerRow label={"\uc2dc\uc791\uc77c"} value={statsStart} onChange={setStatsStart} />
+        <DatePickerRow
+          label="시작일"
+          value={statsStart}
+          onChange={setStatsStart}
+        />
 
         {stats ? (
           <>
             <View style={s.statsGrid}>
               <View style={s.statItem}>
-                <Text style={s.statLabel}>{"\ucd5c\uadfc"}</Text>
+                <Text style={s.statLabel}>최근</Text>
                 <Text style={s.statValue}>{stats.current.toFixed(1)}</Text>
                 <Text style={s.statUnit}>{stats.unit}</Text>
               </View>
               <View style={s.statItem}>
-                <Text style={s.statLabel}>{"\ucd5c\uace0"}</Text>
-                <Text style={[s.statValue, { color: "#E53E3E" }]}>{stats.max.toFixed(1)}</Text>
+                <Text style={s.statLabel}>최고</Text>
+                <Text style={[s.statValue, { color: "#E53E3E" }]}>
+                  {stats.max.toFixed(1)}
+                </Text>
                 <Text style={s.statUnit}>{stats.unit}</Text>
               </View>
               <View style={s.statItem}>
-                <Text style={s.statLabel}>{"\ucd5c\uc800"}</Text>
-                <Text style={[s.statValue, { color: "#38A169" }]}>{stats.min.toFixed(1)}</Text>
+                <Text style={s.statLabel}>최저</Text>
+                <Text style={[s.statValue, { color: "#38A169" }]}>
+                  {stats.min.toFixed(1)}
+                </Text>
                 <Text style={s.statUnit}>{stats.unit}</Text>
               </View>
               <View style={s.statItem}>
-                <Text style={s.statLabel}>{"\ud3c9\uade0"}</Text>
+                <Text style={s.statLabel}>평균</Text>
                 <Text style={s.statValue}>{stats.avg.toFixed(1)}</Text>
                 <Text style={s.statUnit}>{stats.unit}</Text>
               </View>
             </View>
             {stats.diff !== null && (
               <View style={s.diffRow}>
-                <Text style={s.diffLabel}>{"\uc2dc\uc791 \ub300\ube44"}</Text>
+                <Text style={s.diffLabel}>시작 대비</Text>
                 <Text
-                  style={[s.diffValue, { color: stats.diff <= 0 ? "#38A169" : "#E53E3E" }]}
+                  style={[
+                    s.diffValue,
+                    {
+                      color: stats.diff <= 0 ? "#38A169" : "#E53E3E",
+                    },
+                  ]}
                 >
-                  {stats.diff > 0 ? "+" : ""}{stats.diff.toFixed(1)} {stats.unit}
+                  {stats.diff > 0 ? "+" : ""}
+                  {stats.diff.toFixed(1)} {stats.unit}
                 </Text>
               </View>
             )}
           </>
         ) : (
-          <Text style={s.noDataText}>{"\ud574\ub2f9 \uc218\uce58 \ub370\uc774\ud130\uac00 \uc5c6\uc2b5\ub2c8\ub2e4."}</Text>
+          <Text style={s.noDataText}>해당 수치 데이터가 없습니다.</Text>
         )}
       </View>
 
+      {/* 활동 요약 */}
       {allRecords.length > 0 && (
         <View style={s.card}>
           <View style={s.cardHeader}>
-            <Text style={s.cardTitle}>{"\ud65c\ub3d9 \uc694\uc57d"}</Text>
+            <Text style={s.cardTitle}>활동 요약</Text>
             {activityStart ? (
               <TouchableOpacity onPress={() => setActivityStart("")}>
-                <Text style={s.resetBtn}>{"\ucd08\uae30\ud654"}</Text>
+                <Text style={s.resetBtn}>초기화</Text>
               </TouchableOpacity>
             ) : null}
           </View>
-          <DatePickerRow label={"\uc2dc\uc791\uc77c"} value={activityStart} onChange={setActivityStart} />
+          <DatePickerRow
+            label="시작일"
+            value={activityStart}
+            onChange={setActivityStart}
+          />
           <View style={s.summaryRow}>
             <View style={s.summaryItem}>
-              <Text style={s.summaryEmoji}>{"\ud83d\udcc5"}</Text>
+              <Text style={s.summaryEmoji}>📅</Text>
               <Text style={s.summaryCount}>{activityRecords.length}</Text>
-              <Text style={s.summaryLabel}>{"\ucd1d \uae30\ub85d\uc77c"}</Text>
+              <Text style={s.summaryLabel}>총 기록일</Text>
             </View>
             <View style={s.summaryItem}>
-              <Text style={s.summaryEmoji}>{"\ud83c\udfc3"}</Text>
-              <Text style={s.summaryCount}>{activityRecords.filter((r) => r.exercised).length}</Text>
-              <Text style={s.summaryLabel}>{"\uc6b4\ub3d9\uc77c"}</Text>
+              <Text style={s.summaryEmoji}>🏃</Text>
+              <Text style={s.summaryCount}>
+                {activityRecords.filter((r) => r.exercised).length}
+              </Text>
+              <Text style={s.summaryLabel}>운동일</Text>
             </View>
             <View style={s.summaryItem}>
-              <Text style={s.summaryEmoji}>{"\ud83c\udf7a"}</Text>
-              <Text style={s.summaryCount}>{activityRecords.filter((r) => r.drank).length}</Text>
-              <Text style={s.summaryLabel}>{"\uc74c\uc8fc\uc77c"}</Text>
+              <Text style={s.summaryEmoji}>🍺</Text>
+              <Text style={s.summaryCount}>
+                {activityRecords.filter((r) => r.drank).length}
+              </Text>
+              <Text style={s.summaryLabel}>음주일</Text>
             </View>
             <View style={s.summaryItem}>
-              <Text style={s.summaryEmoji}>{"\ud83d\udcaa"}</Text>
+              <Text style={s.summaryEmoji}>💪</Text>
               <Text style={s.summaryCount}>
                 {activityRecords.length > 0
                   ? Math.round(
@@ -522,14 +766,16 @@ export default function ChartScreen() {
                         activityRecords.length) *
                         100
                     )
-                  : 0}%
+                  : 0}
+                %
               </Text>
-              <Text style={s.summaryLabel}>{"\uc6b4\ub3d9\uc728"}</Text>
+              <Text style={s.summaryLabel}>운동률</Text>
             </View>
           </View>
         </View>
       )}
 
+      {/* 점 클릭 팝업 모달 */}
       <Modal
         visible={!!selectedPoint}
         transparent
@@ -546,55 +792,67 @@ export default function ChartScreen() {
               <>
                 <Text style={s.modalDate}>{fmtDate(selectedPoint.date)}</Text>
                 <View style={s.modalRow}>
-                  <Text style={s.modalLabel}>{"\u2696\ufe0f \ubab8\ubb34\uac8c"}</Text>
+                  <Text style={s.modalLabel}>⚖️ 몸무게</Text>
                   <Text style={s.modalValue}>{selectedPoint.weight} kg</Text>
                 </View>
                 {selectedPoint.waist != null && (
                   <View style={s.modalRow}>
-                    <Text style={s.modalLabel}>{"\ud83d\udccf \ud5c8\ub9ac\ub458\ub808"}</Text>
+                    <Text style={s.modalLabel}>📏 허리둘레</Text>
                     <Text style={s.modalValue}>{selectedPoint.waist} cm</Text>
                   </View>
                 )}
                 {selectedPoint.muscleMass != null && (
                   <View style={s.modalRow}>
-                    <Text style={s.modalLabel}>{"\ud83d\udcaa \uace8\uaca9\uadfc\ub7c9"}</Text>
-                    <Text style={s.modalValue}>{selectedPoint.muscleMass} kg</Text>
+                    <Text style={s.modalLabel}>💪 골격근량</Text>
+                    <Text style={s.modalValue}>
+                      {selectedPoint.muscleMass} kg
+                    </Text>
                   </View>
                 )}
                 {selectedPoint.bodyFatPercent != null && (
                   <View style={s.modalRow}>
-                    <Text style={s.modalLabel}>{"\ud83d\udd25 \uccb4\uc9c0\ubc29\ub960"}</Text>
-                    <Text style={s.modalValue}>{selectedPoint.bodyFatPercent} %</Text>
+                    <Text style={s.modalLabel}>🔥 체지방률</Text>
+                    <Text style={s.modalValue}>
+                      {selectedPoint.bodyFatPercent} %
+                    </Text>
                   </View>
                 )}
                 {selectedPoint.bodyFatMass != null && (
                   <View style={s.modalRow}>
-                    <Text style={s.modalLabel}>{"\ud83d\udfe3 \uccb4\uc9c0\ubc29\ub7c9"}</Text>
-                    <Text style={s.modalValue}>{selectedPoint.bodyFatMass} kg</Text>
+                    <Text style={s.modalLabel}>🟣 체지방량</Text>
+                    <Text style={s.modalValue}>
+                      {selectedPoint.bodyFatMass} kg
+                    </Text>
                   </View>
                 )}
                 {selectedPoint.photoUri && (
-                  <Image source={{ uri: selectedPoint.photoUri }} style={s.modalPhoto} />
+                  <Image
+                    source={{ uri: selectedPoint.photoUri }}
+                    style={s.modalPhoto}
+                  />
                 )}
                 <View style={s.modalBadges}>
                   {selectedPoint.exercised && (
                     <View style={[s.badge, s.badgeGreen]}>
-                      <Text style={s.badgeText}>{"\ud83c\udfc3 \uc6b4\ub3d9"}</Text>
+                      <Text style={s.badgeText}>🏃 운동</Text>
                     </View>
                   )}
                   {selectedPoint.drank && (
                     <View style={[s.badge, s.badgeOrange]}>
-                      <Text style={s.badgeText}>{"\ud83c\udf7a \uc74c\uc8fc"}</Text>
+                      <Text style={s.badgeText}>🍺 음주</Text>
                     </View>
                   )}
                   {!selectedPoint.exercised && !selectedPoint.drank && (
-                    <Text style={s.noDataText}>{"\ud65c\ub3d9 \uae30\ub85d \uc5c6\uc74c"}</Text>
+                    <Text style={s.noDataText}>활동 기록 없음</Text>
                   )}
                 </View>
               </>
             )}
-            <TouchableOpacity style={s.modalClose} onPress={() => setSelectedPoint(null)}>
-              <Text style={s.modalCloseText}>{"\ub2eb\uae30"}</Text>
+            <TouchableOpacity
+              style={s.modalClose}
+              onPress={() => setSelectedPoint(null)}
+            >
+              <Text style={s.modalCloseText}>닫기</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -603,13 +861,27 @@ export default function ChartScreen() {
   );
 }
 
-/* styles */
+/* ───── styles ───── */
 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F0F4F8" },
-  content: { paddingTop: 60, paddingHorizontal: 20, paddingBottom: 40 },
-  title: { fontSize: 28, fontWeight: "700", color: "#1A202C", marginBottom: 20 },
-  metricRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 },
+  content: {
+    paddingTop: 60,
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: "700",
+    color: "#1A202C",
+    marginBottom: 20,
+  },
+  metricRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 12,
+  },
   metricChip: {
     flexDirection: "row",
     alignItems: "center",
@@ -620,8 +892,17 @@ const s = StyleSheet.create({
     borderColor: "#E2E8F0",
     backgroundColor: "#fff",
   },
-  metricDot: { width: 8, height: 8, borderRadius: 4, marginRight: 6 },
-  metricChipText: { fontSize: 13, fontWeight: "500", color: "#718096" },
+  metricDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 6,
+  },
+  metricChipText: {
+    fontSize: 13,
+    fontWeight: "500",
+    color: "#718096",
+  },
   periodRow: {
     flexDirection: "row",
     backgroundColor: "#E2E8F0",
@@ -629,7 +910,12 @@ const s = StyleSheet.create({
     padding: 3,
     marginBottom: 12,
   },
-  periodBtn: { flex: 1, paddingVertical: 7, borderRadius: 8, alignItems: "center" },
+  periodBtn: {
+    flex: 1,
+    paddingVertical: 7,
+    borderRadius: 8,
+    alignItems: "center",
+  },
   periodBtnActive: {
     backgroundColor: "#fff",
     shadowColor: "#000",
@@ -640,8 +926,17 @@ const s = StyleSheet.create({
   },
   periodText: { fontSize: 13, color: "#718096", fontWeight: "500" },
   periodTextActive: { color: "#2D3748", fontWeight: "600" },
-  customDateCard: { backgroundColor: "#fff", borderRadius: 12, padding: 12, marginBottom: 12 },
-  dateRow: { flexDirection: "row", alignItems: "center", marginBottom: 6 },
+  customDateCard: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+  },
+  dateRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 6,
+  },
   dateLabel: { fontSize: 13, color: "#4A5568", width: 50 },
   dateInput: {
     flex: 1,
@@ -665,19 +960,96 @@ const s = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
-  chartTitle: { fontSize: 15, fontWeight: "600", color: "#2D3748", marginBottom: 12 },
+  chartTitle: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#2D3748",
+    marginBottom: 12,
+  },
   chart: { borderRadius: 8, marginLeft: -10 },
   emptyChart: { alignItems: "center", paddingVertical: 48 },
   emptyMiniChart: { alignItems: "center", paddingVertical: 24 },
   emptyIcon: { fontSize: 40, marginBottom: 12 },
-  emptyText: { fontSize: 14, color: "#A0AEC0", textAlign: "center" },
-  multiAxisNote: { fontSize: 12, color: "#A0AEC0", textAlign: "center", marginBottom: 8 },
-  miniChartWrap: { marginBottom: 12, borderTopWidth: 1, borderTopColor: "#F0F4F8", paddingTop: 10 },
-  miniChartHeader: { flexDirection: "row", alignItems: "center", marginBottom: 4, paddingLeft: 4 },
-  miniChartTitle: { fontSize: 13, fontWeight: "600", color: "#4A5568", marginLeft: 6 },
-  legendRow: { flexDirection: "row", justifyContent: "center", gap: 16, marginTop: 10 },
+  emptyText: {
+    fontSize: 14,
+    color: "#A0AEC0",
+    textAlign: "center",
+  },
+  multiAxisNote: {
+    fontSize: 12,
+    color: "#A0AEC0",
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  overlayToggleRow: {
+    flexDirection: "row",
+    backgroundColor: "#EDF2F7",
+    borderRadius: 8,
+    padding: 2,
+    marginBottom: 12,
+  },
+  overlayBtn: {
+    flex: 1,
+    paddingVertical: 6,
+    borderRadius: 6,
+    alignItems: "center",
+  },
+  overlayBtnActive: {
+    backgroundColor: "#fff",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  overlayBtnText: {
+    fontSize: 13,
+    color: "#A0AEC0",
+    fontWeight: "500",
+  },
+  overlayBtnTextActive: { color: "#2D3748", fontWeight: "600" },
+  miniChartWrap: {
+    marginBottom: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#F0F4F8",
+    paddingTop: 10,
+  },
+  miniChartHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 4,
+    paddingLeft: 4,
+  },
+  miniChartTitle: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#4A5568",
+    marginLeft: 6,
+  },
+  overlayLegend: {
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#F0F4F8",
+    gap: 6,
+  },
+  overlayLegendItem: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  legendRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 16,
+    marginTop: 10,
+  },
   legendItem: { flexDirection: "row", alignItems: "center" },
-  legendDot: { width: 8, height: 8, borderRadius: 4, marginRight: 5 },
+  legendDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 5,
+  },
   legendText: { fontSize: 12, color: "#718096" },
   card: {
     backgroundColor: "#fff",
@@ -706,9 +1078,17 @@ const s = StyleSheet.create({
     backgroundColor: "#EDF2F7",
     marginRight: 8,
   },
-  statsMetricText: { fontSize: 13, color: "#718096", fontWeight: "500" },
+  statsMetricText: {
+    fontSize: 13,
+    color: "#718096",
+    fontWeight: "500",
+  },
   statsMetricTextActive: { color: "#fff" },
-  statsGrid: { flexDirection: "row", justifyContent: "space-around", marginTop: 10 },
+  statsGrid: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    marginTop: 10,
+  },
   statItem: { alignItems: "center" },
   statLabel: { fontSize: 12, color: "#A0AEC0", marginBottom: 4 },
   statValue: { fontSize: 20, fontWeight: "700", color: "#2D3748" },
@@ -724,8 +1104,17 @@ const s = StyleSheet.create({
   },
   diffLabel: { fontSize: 14, color: "#718096" },
   diffValue: { fontSize: 18, fontWeight: "700" },
-  noDataText: { textAlign: "center", color: "#A0AEC0", fontSize: 13, marginVertical: 10 },
-  summaryRow: { flexDirection: "row", justifyContent: "space-around", marginTop: 8 },
+  noDataText: {
+    textAlign: "center",
+    color: "#A0AEC0",
+    fontSize: 13,
+    marginVertical: 10,
+  },
+  summaryRow: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    marginTop: 8,
+  },
   summaryItem: { alignItems: "center" },
   summaryEmoji: { fontSize: 26, marginBottom: 6 },
   summaryCount: { fontSize: 20, fontWeight: "700", color: "#2D3748" },
@@ -746,7 +1135,13 @@ const s = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 20,
   },
-  modalDate: { fontSize: 18, fontWeight: "700", color: "#2D3748", marginBottom: 16, textAlign: "center" },
+  modalDate: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#2D3748",
+    marginBottom: 16,
+    textAlign: "center",
+  },
   modalRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -756,9 +1151,23 @@ const s = StyleSheet.create({
   },
   modalLabel: { fontSize: 15, color: "#4A5568" },
   modalValue: { fontSize: 15, fontWeight: "600", color: "#2D3748" },
-  modalPhoto: { width: "100%", height: 200, borderRadius: 12, marginTop: 14 },
-  modalBadges: { flexDirection: "row", gap: 8, marginTop: 14, justifyContent: "center" },
-  badge: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20 },
+  modalPhoto: {
+    width: "100%",
+    height: 200,
+    borderRadius: 12,
+    marginTop: 14,
+  },
+  modalBadges: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 14,
+    justifyContent: "center",
+  },
+  badge: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 20,
+  },
   badgeGreen: { backgroundColor: "#E8F5E9" },
   badgeOrange: { backgroundColor: "#FFF3E0" },
   badgeText: { fontSize: 13, fontWeight: "500", color: "#4A5568" },
@@ -769,5 +1178,9 @@ const s = StyleSheet.create({
     backgroundColor: "#F0F4F8",
     borderRadius: 10,
   },
-  modalCloseText: { fontSize: 15, fontWeight: "600", color: "#4A5568" },
+  modalCloseText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#4A5568",
+  },
 });

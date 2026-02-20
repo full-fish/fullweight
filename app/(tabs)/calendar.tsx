@@ -1,14 +1,17 @@
 import { WeightRecord } from "@/types";
-import { loadRecords } from "@/utils/storage";
+import { deleteRecord, loadRecords, upsertRecord } from "@/utils/storage";
 import { useFocusEffect } from "@react-navigation/native";
 import React, { useCallback, useMemo, useState } from "react";
 import {
+  Alert,
   Dimensions,
   Image,
   Modal,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -42,6 +45,16 @@ export default function CalendarScreen() {
   const [selectedRecord, setSelectedRecord] = useState<WeightRecord | null>(
     null
   );
+  const [editMode, setEditMode] = useState(false);
+
+  /* 편집 폼 상태 */
+  const [eWeight, setEWeight] = useState("");
+  const [eWaist, setEWaist] = useState("");
+  const [eMuscleMass, setEMuscleMass] = useState("");
+  const [eBodyFatPercent, setEBodyFatPercent] = useState("");
+  const [eBodyFatMass, setEBodyFatMass] = useState("");
+  const [eExercised, setEExercised] = useState(false);
+  const [eDrank, setEDrank] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -83,7 +96,6 @@ export default function CalendarScreen() {
     setMonth(now.getMonth());
   };
 
-  // 이번 달 기록 통계
   const monthRecords = useMemo(() => {
     const prefix = `${year}-${pad2(month + 1)}`;
     return records.filter((r) => r.date.startsWith(prefix));
@@ -97,6 +109,73 @@ export default function CalendarScreen() {
   const todayStr = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(
     now.getDate()
   )}`;
+
+  /* 모달 열기 */
+  const openDetail = (rec: WeightRecord) => {
+    setSelectedRecord(rec);
+    setEditMode(false);
+  };
+
+  /* 편집 모드 시작 */
+  const startEdit = () => {
+    if (!selectedRecord) return;
+    setEWeight(selectedRecord.weight.toString());
+    setEWaist(selectedRecord.waist?.toString() ?? "");
+    setEMuscleMass(selectedRecord.muscleMass?.toString() ?? "");
+    setEBodyFatPercent(selectedRecord.bodyFatPercent?.toString() ?? "");
+    setEBodyFatMass(selectedRecord.bodyFatMass?.toString() ?? "");
+    setEExercised(selectedRecord.exercised);
+    setEDrank(selectedRecord.drank);
+    setEditMode(true);
+  };
+
+  /* 저장 */
+  const handleSave = async () => {
+    if (!selectedRecord) return;
+    const w = parseFloat(eWeight);
+    if (!eWeight || isNaN(w) || w <= 0) {
+      Alert.alert("입력 오류", "올바른 몸무게를 입력해주세요.");
+      return;
+    }
+    const updated: WeightRecord = {
+      ...selectedRecord,
+      weight: w,
+      waist: eWaist ? parseFloat(eWaist) : undefined,
+      muscleMass: eMuscleMass ? parseFloat(eMuscleMass) : undefined,
+      bodyFatPercent: eBodyFatPercent ? parseFloat(eBodyFatPercent) : undefined,
+      bodyFatMass: eBodyFatMass ? parseFloat(eBodyFatMass) : undefined,
+      exercised: eExercised,
+      drank: eDrank,
+    };
+    const newRecords = await upsertRecord(updated);
+    setRecords(newRecords);
+    setSelectedRecord(updated);
+    setEditMode(false);
+    Alert.alert("저장 완료 ✅", "기록이 수정되었습니다.");
+  };
+
+  /* 삭제 */
+  const handleDelete = () => {
+    if (!selectedRecord) return;
+    Alert.alert("기록 삭제", "이 기록을 삭제하시겠습니까?", [
+      { text: "취소", style: "cancel" },
+      {
+        text: "삭제",
+        style: "destructive",
+        onPress: async () => {
+          const newRecords = await deleteRecord(selectedRecord.date);
+          setRecords(newRecords);
+          setSelectedRecord(null);
+          setEditMode(false);
+        },
+      },
+    ]);
+  };
+
+  const closeModal = () => {
+    setSelectedRecord(null);
+    setEditMode(false);
+  };
 
   return (
     <ScrollView style={s.container} contentContainerStyle={s.content}>
@@ -178,7 +257,7 @@ export default function CalendarScreen() {
                       isToday && s.dayCellToday,
                       rec && s.dayCellHasRecord,
                     ]}
-                    onPress={() => rec && setSelectedRecord(rec)}
+                    onPress={() => rec && openDetail(rec)}
                     disabled={!rec}
                   >
                     <Text
@@ -233,20 +312,20 @@ export default function CalendarScreen() {
         </View>
       </View>
 
-      {/* 상세 모달 */}
+      {/* 상세/수정 모달 */}
       <Modal
         visible={!!selectedRecord}
         transparent
         animationType="fade"
-        onRequestClose={() => setSelectedRecord(null)}
+        onRequestClose={closeModal}
       >
         <TouchableOpacity
           style={s.modalOverlay}
           activeOpacity={1}
-          onPress={() => setSelectedRecord(null)}
+          onPress={closeModal}
         >
-          <View style={s.modalCard}>
-            {selectedRecord && (
+          <View style={s.modalCard} onStartShouldSetResponder={() => true}>
+            {selectedRecord && !editMode && (
               <>
                 <Text style={s.modalDate}>{fmtDate(selectedRecord.date)}</Text>
                 <View style={s.modalRow}>
@@ -301,14 +380,115 @@ export default function CalendarScreen() {
                     </View>
                   )}
                 </View>
+
+                {/* 수정/삭제 버튼 */}
+                <View style={s.modalActionRow}>
+                  <TouchableOpacity style={s.modalEditBtn} onPress={startEdit}>
+                    <Text style={s.modalEditBtnText}>✏️ 수정</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={s.modalDeleteBtn}
+                    onPress={handleDelete}
+                  >
+                    <Text style={s.modalDeleteBtnText}>🗑️ 삭제</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <TouchableOpacity style={s.modalClose} onPress={closeModal}>
+                  <Text style={s.modalCloseText}>닫기</Text>
+                </TouchableOpacity>
               </>
             )}
-            <TouchableOpacity
-              style={s.modalClose}
-              onPress={() => setSelectedRecord(null)}
-            >
-              <Text style={s.modalCloseText}>닫기</Text>
-            </TouchableOpacity>
+
+            {/* 편집 모드 */}
+            {selectedRecord && editMode && (
+              <ScrollView showsVerticalScrollIndicator={false}>
+                <Text style={s.modalDate}>
+                  {fmtDate(selectedRecord.date)} 수정
+                </Text>
+
+                <Text style={s.editLabel}>몸무게 (kg)</Text>
+                <TextInput
+                  style={s.editInput}
+                  value={eWeight}
+                  onChangeText={setEWeight}
+                  keyboardType="decimal-pad"
+                  placeholder="0.0"
+                  placeholderTextColor="#aaa"
+                />
+
+                <Text style={s.editLabel}>허리둘레 (cm)</Text>
+                <TextInput
+                  style={s.editInput}
+                  value={eWaist}
+                  onChangeText={setEWaist}
+                  keyboardType="decimal-pad"
+                  placeholder="선택"
+                  placeholderTextColor="#aaa"
+                />
+
+                <Text style={s.editLabel}>골격근량 (kg)</Text>
+                <TextInput
+                  style={s.editInput}
+                  value={eMuscleMass}
+                  onChangeText={setEMuscleMass}
+                  keyboardType="decimal-pad"
+                  placeholder="선택"
+                  placeholderTextColor="#aaa"
+                />
+
+                <Text style={s.editLabel}>체지방률 (%)</Text>
+                <TextInput
+                  style={s.editInput}
+                  value={eBodyFatPercent}
+                  onChangeText={setEBodyFatPercent}
+                  keyboardType="decimal-pad"
+                  placeholder="선택"
+                  placeholderTextColor="#aaa"
+                />
+
+                <Text style={s.editLabel}>체지방량 (kg)</Text>
+                <TextInput
+                  style={s.editInput}
+                  value={eBodyFatMass}
+                  onChangeText={setEBodyFatMass}
+                  keyboardType="decimal-pad"
+                  placeholder="선택"
+                  placeholderTextColor="#aaa"
+                />
+
+                <View style={s.editSwitchRow}>
+                  <Text style={s.editLabel}>🏃 운동</Text>
+                  <Switch
+                    value={eExercised}
+                    onValueChange={setEExercised}
+                    trackColor={{ true: "#4CAF50", false: "#ddd" }}
+                    thumbColor="#fff"
+                  />
+                </View>
+                <View style={s.editSwitchRow}>
+                  <Text style={s.editLabel}>🍺 음주</Text>
+                  <Switch
+                    value={eDrank}
+                    onValueChange={setEDrank}
+                    trackColor={{ true: "#FF9800", false: "#ddd" }}
+                    thumbColor="#fff"
+                  />
+                </View>
+
+                <View style={s.modalActionRow}>
+                  <TouchableOpacity style={s.modalSaveBtn} onPress={handleSave}>
+                    <Text style={s.modalSaveBtnText}>저장</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={s.modalCancelBtn}
+                    onPress={() => setEditMode(false)}
+                  >
+                    <Text style={s.modalCancelBtnText}>취소</Text>
+                  </TouchableOpacity>
+                </View>
+              </ScrollView>
+            )}
           </View>
         </TouchableOpacity>
       </Modal>
@@ -350,11 +530,7 @@ const s = StyleSheet.create({
   navTitle: { fontSize: 20, fontWeight: "700", color: "#2D3748" },
 
   /* month summary */
-  monthSummary: {
-    flexDirection: "row",
-    gap: 10,
-    marginBottom: 16,
-  },
+  monthSummary: { flexDirection: "row", gap: 10, marginBottom: 16 },
   summaryChip: {
     flex: 1,
     backgroundColor: "#fff",
@@ -382,10 +558,7 @@ const s = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
-  weekRow: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-  },
+  weekRow: { flexDirection: "row", justifyContent: "space-around" },
   weekCell: {
     width: DAY_SIZE,
     height: 32,
@@ -393,7 +566,6 @@ const s = StyleSheet.create({
     justifyContent: "center",
   },
   weekText: { fontSize: 13, fontWeight: "600", color: "#718096" },
-
   dayCell: {
     width: DAY_SIZE,
     height: DAY_SIZE,
@@ -401,21 +573,11 @@ const s = StyleSheet.create({
     justifyContent: "center",
     borderRadius: DAY_SIZE / 2,
   },
-  dayCellToday: {
-    borderWidth: 2,
-    borderColor: "#4CAF50",
-  },
-  dayCellHasRecord: {
-    backgroundColor: "#F0FFF4",
-  },
+  dayCellToday: { borderWidth: 2, borderColor: "#4CAF50" },
+  dayCellHasRecord: { backgroundColor: "#F0FFF4" },
   dayText: { fontSize: 14, fontWeight: "500", color: "#2D3748" },
   dayTextToday: { fontWeight: "700", color: "#4CAF50" },
-
-  dotRow: {
-    flexDirection: "row",
-    gap: 2,
-    marginTop: 2,
-  },
+  dotRow: { flexDirection: "row", gap: 2, marginTop: 2 },
   miniDot: { width: 5, height: 5, borderRadius: 2.5 },
 
   /* legend */
@@ -440,7 +602,8 @@ const s = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.4)",
   },
   modalCard: {
-    width: width * 0.82,
+    width: width * 0.88,
+    maxHeight: "80%",
     backgroundColor: "#fff",
     borderRadius: 20,
     padding: 24,
@@ -481,8 +644,73 @@ const s = StyleSheet.create({
   badgeGreen: { backgroundColor: "#E8F5E9" },
   badgeOrange: { backgroundColor: "#FFF3E0" },
   badgeText: { fontSize: 13, fontWeight: "500", color: "#4A5568" },
+
+  /* modal actions */
+  modalActionRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 16,
+  },
+  modalEditBtn: {
+    flex: 1,
+    backgroundColor: "#EBF8FF",
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  modalEditBtnText: { fontSize: 14, fontWeight: "600", color: "#3182CE" },
+  modalDeleteBtn: {
+    flex: 1,
+    backgroundColor: "#FFF5F5",
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  modalDeleteBtnText: { fontSize: 14, fontWeight: "600", color: "#E53E3E" },
+  modalSaveBtn: {
+    flex: 1,
+    backgroundColor: "#4CAF50",
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  modalSaveBtnText: { fontSize: 14, fontWeight: "600", color: "#fff" },
+  modalCancelBtn: {
+    flex: 1,
+    backgroundColor: "#EDF2F7",
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  modalCancelBtnText: { fontSize: 14, fontWeight: "600", color: "#718096" },
+
+  /* edit form */
+  editLabel: {
+    fontSize: 13,
+    fontWeight: "500",
+    color: "#4A5568",
+    marginBottom: 4,
+    marginTop: 8,
+  },
+  editInput: {
+    height: 42,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    fontSize: 15,
+    color: "#2D3748",
+    backgroundColor: "#F7FAFC",
+  },
+  editSwitchRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 8,
+  },
+
   modalClose: {
-    marginTop: 20,
+    marginTop: 12,
     alignItems: "center",
     paddingVertical: 10,
     backgroundColor: "#F0F4F8",

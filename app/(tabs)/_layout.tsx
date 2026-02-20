@@ -54,6 +54,15 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="challenge"
+        options={{
+          title: "챌린지",
+          tabBarIcon: ({ color }) => (
+            <IconSymbol size={26} name="trophy.fill" color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="settings"
         options={{
           title: "설정",

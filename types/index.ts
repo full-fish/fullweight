@@ -45,3 +45,19 @@ export const METRIC_COLORS: Record<MetricKey, string> = {
 
 /** 그래프 기간 모드 */
 export type PeriodMode = "daily" | "weekly" | "monthly" | "custom";
+
+/** 챌린지 (목표 설정) */
+export type Challenge = {
+  id: string;
+  startWeight?: number;
+  startMuscleMass?: number;
+  startBodyFatMass?: number;
+  startBodyFatPercent?: number;
+  targetWeight?: number;
+  targetMuscleMass?: number;
+  targetBodyFatMass?: number;
+  targetBodyFatPercent?: number;
+  startDate: string;
+  endDate: string;
+  createdAt: string;
+};
