@@ -490,15 +490,14 @@ const s = StyleSheet.create({
   thumbWrap: {
     width: THUMB_SIZE,
     height: THUMB_SIZE,
-    borderRadius: 10,
+    borderRadius: 12,
     overflow: "hidden",
     backgroundColor: "#E2E8F0",
+    borderWidth: 3,
+    borderColor: "transparent",
   },
   thumbSelected: {
-    borderWidth: 3,
     borderColor: "#4CAF50",
-    borderRadius: 12,
-    opacity: 1,
   },
   thumbImage: {
     width: "100%",
