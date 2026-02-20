@@ -707,22 +707,47 @@ export default function ChartScreen() {
         const max = Math.max(...validVals);
         ranges[key] = { min, max };
         const span = max - min || 1;
-        // 정규화: 누락값은 이전 유효값으로 대체 (선이 끊기지 않도록)
-        // 하지만 앞에 유효값이 없으면 다음 유효값 사용
-        let lastValid: number | null = null;
-        const normalized = rawVals.map((v) => {
-          if (v !== null) {
-            lastValid = Math.round(((v - min) / span) * 100 * 10) / 10;
-            return lastValid;
+        // 선형보간: null 위치를 이전/다음 유효값 사이 직선으로
+        // 양 끝 외삽(extrapolation)은 하지 않음
+        const normalized: number[] = rawVals.map((v) =>
+          v !== null ? Math.round(((v - min) / span) * 100 * 10) / 10 : 0
+        );
+        const firstValid = rawVals.findIndex((v) => v !== null);
+        const lastValid =
+          rawVals.length -
+          1 -
+          [...rawVals].reverse().findIndex((v) => v !== null);
+        for (let i = 0; i < normalized.length; i++) {
+          if (rawVals[i] !== null) continue;
+          // 첫 유효값 이전 또는 마지막 유효값 이후는 그냥 끊김 (유효값으로 채워서 선이 평탄하게)
+          if (i < firstValid) {
+            normalized[i] = normalized[firstValid];
+            continue;
           }
-          // 누락: 마지막 유효값이 있으면 그대로 유지 (수평선), 없으면 0
-          return lastValid ?? 0;
-        });
-        // 앞쪽 누락값 채우기 (첫 유효값 이전)
-        const firstValidIdx = rawVals.findIndex((v) => v !== null);
-        if (firstValidIdx > 0) {
-          const firstNorm = normalized[firstValidIdx];
-          for (let i = 0; i < firstValidIdx; i++) normalized[i] = firstNorm;
+          if (i > lastValid) {
+            normalized[i] = normalized[lastValid];
+            continue;
+          }
+          // 두 유효값 사이: 선형보간
+          let prevIdx = -1;
+          let nextIdx = -1;
+          for (let j = i - 1; j >= 0; j--)
+            if (rawVals[j] !== null) {
+              prevIdx = j;
+              break;
+            }
+          for (let j = i + 1; j < rawVals.length; j++)
+            if (rawVals[j] !== null) {
+              nextIdx = j;
+              break;
+            }
+          if (prevIdx !== -1 && nextIdx !== -1) {
+            const t = (i - prevIdx) / (nextIdx - prevIdx);
+            normalized[i] =
+              Math.round(
+                (normalized[prevIdx] * (1 - t) + normalized[nextIdx] * t) * 10
+              ) / 10;
+          }
         }
         return {
           data: normalized,
@@ -762,9 +787,27 @@ export default function ChartScreen() {
       const rawValues = allDatesFiltered.map((r) => getMetricValue(r, key));
       const validValues = rawValues.filter((v): v is number => v !== null);
       // 선형보간: null 위치를 이전/다음 유효값 사이 직선으로
+      // 양 끝 외삽은 하지 않음 (첫/마지막 유효값으로 평탄하게 유지)
       const interpolated = [...rawValues];
+      const firstValid = rawValues.findIndex((v) => v !== null);
+      const lastValid =
+        rawValues.length -
+        1 -
+        [...rawValues].reverse().findIndex((v) => v !== null);
       for (let i = 0; i < interpolated.length; i++) {
         if (interpolated[i] !== null) continue;
+        if (firstValid === -1) {
+          interpolated[i] = 0;
+          continue;
+        }
+        if (i < firstValid) {
+          interpolated[i] = rawValues[firstValid];
+          continue;
+        }
+        if (i > lastValid) {
+          interpolated[i] = rawValues[lastValid];
+          continue;
+        }
         let prevIdx = -1;
         let nextIdx = -1;
         for (let j = i - 1; j >= 0; j--)
@@ -783,12 +826,6 @@ export default function ChartScreen() {
             Math.round(
               (interpolated[prevIdx]! * (1 - t) + rawValues[nextIdx]! * t) * 10
             ) / 10;
-        } else if (prevIdx !== -1) {
-          interpolated[i] = interpolated[prevIdx]!;
-        } else if (nextIdx !== -1) {
-          interpolated[i] = rawValues[nextIdx]!;
-        } else {
-          interpolated[i] = 0;
         }
       }
       return {
@@ -1091,6 +1128,21 @@ export default function ChartScreen() {
                       }}
                       width={CHART_WIDTH}
                       height={240}
+                      getDotProps={(_: unknown, j: number) => {
+                        const dsIdx = Math.floor(dotCallIdx / N);
+                        dotCallIdx++;
+                        const isNull =
+                          overlayInfo.nullMasks[dsIdx]?.[j] ?? false;
+                        if (isNull)
+                          return {
+                            r: "0",
+                            strokeWidth: "0",
+                            fill: "transparent",
+                          };
+                        const c =
+                          overlayInfo.datasets[dsIdx]?.color(1) ?? "#718096";
+                        return { r: "3.5", strokeWidth: "0", fill: c };
+                      }}
                       chartConfig={
                         {
                           backgroundGradientFrom: "#fff",
@@ -1100,20 +1152,6 @@ export default function ChartScreen() {
                           labelColor: (opacity = 1) =>
                             `rgba(113,128,150,${opacity})`,
                           strokeWidth: 2,
-                          getDotColor: (_: unknown, j: number) => {
-                            const dsIdx = Math.floor(dotCallIdx / N);
-                            dotCallIdx++;
-                            const isNull =
-                              overlayInfo.nullMasks[dsIdx]?.[j] ?? false;
-                            if (isNull) return "transparent";
-                            return (
-                              overlayInfo.datasets[dsIdx]?.color(1) ?? "#718096"
-                            );
-                          },
-                          propsForDots: {
-                            r: "3.5",
-                            strokeWidth: "2",
-                          },
                           propsForBackgroundLines: { stroke: "#F0F4F8" },
                           decimalPlaces: 0,
                         } as unknown as import("react-native-chart-kit/dist/AbstractChart").AbstractChartConfig
@@ -1217,6 +1255,15 @@ export default function ChartScreen() {
                         }}
                         width={CHART_WIDTH}
                         height={160}
+                        getDotProps={(_: unknown, j: number) =>
+                          info.nullMask[j]
+                            ? { r: "0", strokeWidth: "0", fill: "transparent" }
+                            : {
+                                r: "4",
+                                strokeWidth: "0",
+                                fill: METRIC_COLORS[info.key],
+                              }
+                        }
                         chartConfig={
                           {
                             backgroundGradientFrom: "#fff",
@@ -1226,16 +1273,6 @@ export default function ChartScreen() {
                             labelColor: (opacity = 1) =>
                               `rgba(113,128,150,${opacity})`,
                             strokeWidth: 2,
-                            propsForDots: {
-                              r: "4",
-                              strokeWidth: "1.5",
-                              stroke: METRIC_COLORS[info.key],
-                              fill: METRIC_COLORS[info.key],
-                            },
-                            getDotColor: (_: unknown, j: number) =>
-                              info.nullMask[j]
-                                ? "transparent"
-                                : METRIC_COLORS[info.key],
                             propsForBackgroundLines: {
                               stroke: "#F0F4F8",
                             },
