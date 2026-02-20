@@ -1,5 +1,6 @@
 import { SwipeableTab } from "@/components/swipeable-tab";
 import { UserSettings, WeightRecord } from "@/types";
+import { pickPhoto, takePhoto } from "@/utils/photo";
 import {
   deleteRecord,
   loadRecords,
@@ -92,6 +93,7 @@ export default function CalendarScreen() {
   const [eBodyFatMass, setEBodyFatMass] = useState("");
   const [eExercised, setEExercised] = useState(false);
   const [eDrank, setEDrank] = useState(false);
+  const [ePhotoUri, setEPhotoUri] = useState<string | undefined>(undefined);
   const [userSettings, setUserSettings] = useState<UserSettings>({});
 
   useFocusEffect(
@@ -209,6 +211,7 @@ export default function CalendarScreen() {
     setEBodyFatMass(selectedRecord.bodyFatMass?.toString() ?? "");
     setEExercised(selectedRecord.exercised);
     setEDrank(selectedRecord.drank);
+    setEPhotoUri(selectedRecord.photoUri);
     setEditMode(true);
   };
 
@@ -229,6 +232,7 @@ export default function CalendarScreen() {
       bodyFatMass: eBodyFatMass ? parseFloat(eBodyFatMass) : undefined,
       exercised: eExercised,
       drank: eDrank,
+      photoUri: ePhotoUri,
     };
     const newRecords = await upsertRecord(updated);
     setRecords(newRecords);
@@ -272,6 +276,7 @@ export default function CalendarScreen() {
     setEBodyFatMass("");
     setEExercised(false);
     setEDrank(false);
+    setEPhotoUri(undefined);
     setAddMode(true);
   };
 
@@ -291,6 +296,7 @@ export default function CalendarScreen() {
       bodyFatMass: eBodyFatMass ? parseFloat(eBodyFatMass) : undefined,
       exercised: eExercised,
       drank: eDrank,
+      photoUri: ePhotoUri,
     };
     const newRecords = await upsertRecord(newRec);
     setRecords(newRecords);
@@ -1121,6 +1127,40 @@ export default function CalendarScreen() {
                     placeholderTextColor="#aaa"
                   />
 
+                  {/* 📸 사진 */}
+                  <Text style={s.editLabel}>📸 눈바디 사진</Text>
+                  {ePhotoUri ? (
+                    <View style={{ alignItems: "center", marginVertical: 8 }}>
+                      <Image source={{ uri: ePhotoUri }} style={s.editPhoto} />
+                      <TouchableOpacity
+                        style={s.photoRemoveBtn}
+                        onPress={() => setEPhotoUri(undefined)}
+                      >
+                        <Text style={s.photoRemoveBtnText}>사진 제거</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : null}
+                  <View style={s.photoActionRow}>
+                    <TouchableOpacity
+                      style={s.photoActionBtn}
+                      onPress={async () => {
+                        const uri = await takePhoto();
+                        if (uri) setEPhotoUri(uri);
+                      }}
+                    >
+                      <Text style={s.photoActionBtnText}>📷 촬영</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={s.photoActionBtn}
+                      onPress={async () => {
+                        const uri = await pickPhoto();
+                        if (uri) setEPhotoUri(uri);
+                      }}
+                    >
+                      <Text style={s.photoActionBtnText}>🖼️ 갤러리</Text>
+                    </TouchableOpacity>
+                  </View>
+
                   <View style={s.editSwitchRow}>
                     <Text style={s.editLabel}>🏃 운동</Text>
                     <Switch
@@ -1246,6 +1286,40 @@ export default function CalendarScreen() {
                   placeholder="선택"
                   placeholderTextColor="#aaa"
                 />
+
+                {/* 📸 사진 */}
+                <Text style={s.editLabel}>📸 눈바디 사진</Text>
+                {ePhotoUri ? (
+                  <View style={{ alignItems: "center", marginVertical: 8 }}>
+                    <Image source={{ uri: ePhotoUri }} style={s.editPhoto} />
+                    <TouchableOpacity
+                      style={s.photoRemoveBtn}
+                      onPress={() => setEPhotoUri(undefined)}
+                    >
+                      <Text style={s.photoRemoveBtnText}>사진 제거</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : null}
+                <View style={s.photoActionRow}>
+                  <TouchableOpacity
+                    style={s.photoActionBtn}
+                    onPress={async () => {
+                      const uri = await takePhoto();
+                      if (uri) setEPhotoUri(uri);
+                    }}
+                  >
+                    <Text style={s.photoActionBtnText}>📷 촬영</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={s.photoActionBtn}
+                    onPress={async () => {
+                      const uri = await pickPhoto();
+                      if (uri) setEPhotoUri(uri);
+                    }}
+                  >
+                    <Text style={s.photoActionBtnText}>🖼️ 갤러리</Text>
+                  </TouchableOpacity>
+                </View>
 
                 <View style={s.editSwitchRow}>
                   <Text style={s.editLabel}>🏃 운동</Text>
@@ -1503,6 +1577,42 @@ const s = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingVertical: 8,
+  },
+
+  editPhoto: {
+    width: "100%",
+    height: 180,
+    borderRadius: 12,
+    backgroundColor: "#E2E8F0",
+  },
+  photoActionRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginVertical: 8,
+  },
+  photoActionBtn: {
+    flex: 1,
+    backgroundColor: "#EBF8FF",
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+  photoActionBtnText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#3182CE",
+  },
+  photoRemoveBtn: {
+    marginTop: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 8,
+    backgroundColor: "#FFF5F5",
+  },
+  photoRemoveBtnText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#E53E3E",
   },
 
   modalClose: {

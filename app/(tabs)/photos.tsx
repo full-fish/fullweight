@@ -37,7 +37,10 @@ export default function PhotosScreen() {
   const [compareMode, setCompareMode] = useState(false);
   const [compareA, setCompareA] = useState<number | null>(null);
   const [compareB, setCompareB] = useState<number | null>(null);
+  const [compareViewerVisible, setCompareViewerVisible] = useState(false);
+  const [compareViewerIndex, setCompareViewerIndex] = useState(0);
   const flatListRef = useRef<FlatList>(null);
+  const compareFlatListRef = useRef<FlatList>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -90,6 +93,16 @@ export default function PhotosScreen() {
 
   const recordA = compareA !== null ? photoRecords[compareA] : null;
   const recordB = compareB !== null ? photoRecords[compareB] : null;
+
+  const comparePhotos = useMemo(() => {
+    if (!recordA || !recordB) return [];
+    return [recordA, recordB];
+  }, [recordA, recordB]);
+
+  const openCompareViewer = (index: number) => {
+    setCompareViewerIndex(index);
+    setCompareViewerVisible(true);
+  };
 
   return (
     <SwipeableTab currentIndex={4}>
@@ -147,7 +160,11 @@ export default function PhotosScreen() {
             {/* 비교 결과 패널 */}
             {compareMode && recordA && recordB && (
               <View style={s.comparePanel}>
-                <View style={s.compareSide}>
+                <TouchableOpacity
+                  style={s.compareSide}
+                  activeOpacity={0.8}
+                  onPress={() => openCompareViewer(0)}
+                >
                   <Image
                     source={{ uri: recordA.photoUri }}
                     style={s.compareImage}
@@ -156,7 +173,7 @@ export default function PhotosScreen() {
                     {fmtDateShort(recordA.date)}
                   </Text>
                   <Text style={s.compareWeight}>{recordA.weight}kg</Text>
-                </View>
+                </TouchableOpacity>
                 <View style={s.compareArrow}>
                   <Text style={{ fontSize: 20, color: "#A0AEC0" }}>→</Text>
                   {(() => {
@@ -176,7 +193,11 @@ export default function PhotosScreen() {
                     );
                   })()}
                 </View>
-                <View style={s.compareSide}>
+                <TouchableOpacity
+                  style={s.compareSide}
+                  activeOpacity={0.8}
+                  onPress={() => openCompareViewer(1)}
+                >
                   <Image
                     source={{ uri: recordB.photoUri }}
                     style={s.compareImage}
@@ -185,7 +206,7 @@ export default function PhotosScreen() {
                     {fmtDateShort(recordB.date)}
                   </Text>
                   <Text style={s.compareWeight}>{recordB.weight}kg</Text>
-                </View>
+                </TouchableOpacity>
               </View>
             )}
 
@@ -298,6 +319,72 @@ export default function PhotosScreen() {
 
             <Text style={s.viewerCounter}>
               {viewerIndex + 1} / {photoRecords.length}
+            </Text>
+          </View>
+        </Modal>
+
+        {/* 비교 전체 화면 뷰어 (2장 드래그) */}
+        <Modal
+          visible={compareViewerVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setCompareViewerVisible(false)}
+        >
+          <View style={s.viewerBg}>
+            <TouchableOpacity
+              style={s.viewerClose}
+              onPress={() => setCompareViewerVisible(false)}
+            >
+              <Text style={s.viewerCloseText}>✕</Text>
+            </TouchableOpacity>
+
+            <FlatList
+              ref={compareFlatListRef}
+              data={comparePhotos}
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              initialScrollIndex={compareViewerIndex}
+              getItemLayout={(_, index) => ({
+                length: width,
+                offset: width * index,
+                index,
+              })}
+              keyExtractor={(item) => item.id}
+              onMomentumScrollEnd={(e) => {
+                const idx = Math.round(e.nativeEvent.contentOffset.x / width);
+                setCompareViewerIndex(idx);
+              }}
+              renderItem={({ item, index }) => (
+                <View style={s.viewerSlide}>
+                  <Image
+                    source={{ uri: item.photoUri }}
+                    style={s.viewerImage}
+                    resizeMode="contain"
+                  />
+                  <View style={s.viewerInfo}>
+                    <View style={s.compareBadgeViewer}>
+                      <Text style={s.compareBadgeViewerText}>
+                        {index === 0 ? "전 (Before)" : "후 (After)"}
+                      </Text>
+                    </View>
+                    <Text style={s.viewerDate}>{fmtDate(item.date)}</Text>
+                    <Text style={s.viewerWeight}>{item.weight} kg</Text>
+                    {item.muscleMass != null && (
+                      <Text style={s.viewerMeta}>💪 {item.muscleMass}kg</Text>
+                    )}
+                    {item.bodyFatPercent != null && (
+                      <Text style={s.viewerMeta}>
+                        🔥 {item.bodyFatPercent}%
+                      </Text>
+                    )}
+                  </View>
+                </View>
+              )}
+            />
+
+            <Text style={s.viewerCounter}>
+              {compareViewerIndex === 0 ? "전" : "후"} · 좌우로 넘기세요
             </Text>
           </View>
         </Modal>
@@ -480,6 +567,18 @@ const s = StyleSheet.create({
     marginTop: 2,
   },
   viewerMeta: { color: "#CBD5E0", fontSize: 13, marginTop: 2 },
+  compareBadgeViewer: {
+    backgroundColor: "rgba(76,175,80,0.8)",
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    marginBottom: 6,
+  },
+  compareBadgeViewerText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "700",
+  },
   viewerCounter: {
     position: "absolute",
     bottom: 50,

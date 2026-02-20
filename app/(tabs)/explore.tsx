@@ -489,11 +489,15 @@ export default function ChartScreen() {
   const [customEnd, setCustomEnd] = useState("");
   const [statsMetric, setStatsMetric] = useState<MetricKey>("weight");
   const [statsStart, setStatsStart] = useState("");
+  const [statsEnd, setStatsEnd] = useState("");
   const [activityStart, setActivityStart] = useState("");
+  const [activityEnd, setActivityEnd] = useState("");
   const [selectedPoint, setSelectedPoint] = useState<WeightRecord | null>(null);
   const [overlayMode, setOverlayMode] = useState(true);
   const [showStatsCal, setShowStatsCal] = useState(false);
+  const [showStatsEndCal, setShowStatsEndCal] = useState(false);
   const [showActivityCal, setShowActivityCal] = useState(false);
+  const [showActivityEndCal, setShowActivityEndCal] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -636,8 +640,9 @@ export default function ChartScreen() {
   const statsRecords = useMemo(() => {
     let recs = allRecords;
     if (statsStart) recs = recs.filter((r) => r.date >= statsStart);
+    if (statsEnd) recs = recs.filter((r) => r.date <= statsEnd);
     return recs.filter((r) => getMetricValue(r, statsMetric) !== null);
-  }, [allRecords, statsStart, statsMetric]);
+  }, [allRecords, statsStart, statsEnd, statsMetric]);
 
   const stats = useMemo(() => {
     if (statsRecords.length === 0) return null;
@@ -655,8 +660,9 @@ export default function ChartScreen() {
   const activityRecords = useMemo(() => {
     let recs = allRecords;
     if (activityStart) recs = recs.filter((r) => r.date >= activityStart);
+    if (activityEnd) recs = recs.filter((r) => r.date <= activityEnd);
     return recs;
-  }, [allRecords, activityStart]);
+  }, [allRecords, activityStart, activityEnd]);
 
   /* ── 수치 토글 ── */
   const toggleMetric = (key: MetricKey) => {
@@ -1015,18 +1021,26 @@ export default function ChartScreen() {
           <View style={s.cardHeader}>
             <Text style={s.cardTitle}>통계</Text>
             <View
-              style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+              style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
             >
-              {statsStart ? (
+              {statsStart || statsEnd ? (
                 <Text style={{ fontSize: 11, color: "#A0AEC0" }}>
-                  {statsStart}~
+                  {statsStart || "전체"}~{statsEnd || "현재"}
                 </Text>
               ) : null}
               <TouchableOpacity onPress={() => setShowStatsCal(true)}>
-                <Text style={{ fontSize: 18 }}>📅</Text>
+                <Text style={{ fontSize: 14, color: "#4299E1" }}>시작📅</Text>
               </TouchableOpacity>
-              {statsStart ? (
-                <TouchableOpacity onPress={() => setStatsStart("")}>
+              <TouchableOpacity onPress={() => setShowStatsEndCal(true)}>
+                <Text style={{ fontSize: 14, color: "#E53E3E" }}>끝📅</Text>
+              </TouchableOpacity>
+              {statsStart || statsEnd ? (
+                <TouchableOpacity
+                  onPress={() => {
+                    setStatsStart("");
+                    setStatsEnd("");
+                  }}
+                >
                   <Text style={s.resetBtn}>초기화</Text>
                 </TouchableOpacity>
               ) : null}
@@ -1117,18 +1131,26 @@ export default function ChartScreen() {
             <View style={s.cardHeader}>
               <Text style={s.cardTitle}>활동 요약</Text>
               <View
-                style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+                style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
               >
-                {activityStart ? (
+                {activityStart || activityEnd ? (
                   <Text style={{ fontSize: 11, color: "#A0AEC0" }}>
-                    {activityStart}~
+                    {activityStart || "전체"}~{activityEnd || "현재"}
                   </Text>
                 ) : null}
                 <TouchableOpacity onPress={() => setShowActivityCal(true)}>
-                  <Text style={{ fontSize: 18 }}>📅</Text>
+                  <Text style={{ fontSize: 14, color: "#4299E1" }}>시작📅</Text>
                 </TouchableOpacity>
-                {activityStart ? (
-                  <TouchableOpacity onPress={() => setActivityStart("")}>
+                <TouchableOpacity onPress={() => setShowActivityEndCal(true)}>
+                  <Text style={{ fontSize: 14, color: "#E53E3E" }}>끝📅</Text>
+                </TouchableOpacity>
+                {activityStart || activityEnd ? (
+                  <TouchableOpacity
+                    onPress={() => {
+                      setActivityStart("");
+                      setActivityEnd("");
+                    }}
+                  >
                     <Text style={s.resetBtn}>초기화</Text>
                   </TouchableOpacity>
                 ) : null}
@@ -1172,7 +1194,7 @@ export default function ChartScreen() {
           </View>
         )}
 
-        {/* 통계 캘린더 팝업 */}
+        {/* 통계 시작 캘린더 팝업 */}
         <CalendarModal
           visible={showStatsCal}
           value={statsStart}
@@ -1180,12 +1202,28 @@ export default function ChartScreen() {
           onClose={() => setShowStatsCal(false)}
         />
 
-        {/* 활동 요약 캘린더 팝업 */}
+        {/* 통계 끝 캘린더 팝업 */}
+        <CalendarModal
+          visible={showStatsEndCal}
+          value={statsEnd}
+          onChange={setStatsEnd}
+          onClose={() => setShowStatsEndCal(false)}
+        />
+
+        {/* 활동 요약 시작 캘린더 팝업 */}
         <CalendarModal
           visible={showActivityCal}
           value={activityStart}
           onChange={setActivityStart}
           onClose={() => setShowActivityCal(false)}
+        />
+
+        {/* 활동 요약 끝 캘린더 팝업 */}
+        <CalendarModal
+          visible={showActivityEndCal}
+          value={activityEnd}
+          onChange={setActivityEnd}
+          onClose={() => setShowActivityEndCal(false)}
         />
 
         {/* 점 클릭 팝업 모달 */}

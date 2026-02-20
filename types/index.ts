@@ -81,4 +81,7 @@ export type UserSettings = {
   birthDate?: string; // YYYY-MM-DD
   gender?: "male" | "female";
   swipeEnabled?: boolean; // 좌우 스와이프 탭 전환 (기본 false)
+  lockEnabled?: boolean; // 앱 잠금 활성화
+  lockPin?: string; // 4자리 PIN
+  lockBiometric?: boolean; // 생체인증 사용
 };

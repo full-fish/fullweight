@@ -731,45 +731,6 @@ export default function HomeScreen() {
         >
           <Text style={styles.title}>💪 몸무게 트래커</Text>
 
-          {/* 날짜 선택 */}
-          <View style={styles.dateSelectRow}>
-            <TouchableOpacity
-              onPress={() => {
-                const d = new Date(selectedDate);
-                d.setDate(d.getDate() - 1);
-                handleDateSelect(getLocalDateString(d));
-              }}
-              style={styles.dateArrow}
-            >
-              <Text style={styles.dateArrowText}>◀</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => setShowDatePicker(true)}
-              style={styles.dateTouchable}
-            >
-              <Text style={styles.dateText}>{formatDate(selectedDate)}</Text>
-              <Text style={styles.datePickerIcon}>📅</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => {
-                if (!isToday) {
-                  const d = new Date(selectedDate);
-                  d.setDate(d.getDate() + 1);
-                  const next = getLocalDateString(d);
-                  if (next <= getLocalDateString()) {
-                    handleDateSelect(next);
-                  }
-                }
-              }}
-              style={[styles.dateArrow, isToday && { opacity: 0.3 }]}
-              disabled={isToday}
-            >
-              <Text style={styles.dateArrowText}>▶</Text>
-            </TouchableOpacity>
-          </View>
-
           {!isToday && (
             <TouchableOpacity
               style={styles.todayLink}
@@ -781,9 +742,48 @@ export default function HomeScreen() {
 
           {/* 입력 카드 */}
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>
-              {isToday ? "오늘의 기록" : `${formatDate(selectedDate)} 기록`}
-            </Text>
+            <View style={styles.cardTitleRow}>
+              <Text style={styles.cardTitle}>
+                {isToday ? "오늘의 기록" : "기록"}
+              </Text>
+              <View style={styles.cardDateSelector}>
+                <TouchableOpacity
+                  onPress={() => {
+                    const d = new Date(selectedDate);
+                    d.setDate(d.getDate() - 1);
+                    handleDateSelect(getLocalDateString(d));
+                  }}
+                  style={styles.cardDateArrow}
+                >
+                  <Text style={styles.cardDateArrowText}>◀</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setShowDatePicker(true)}
+                  style={styles.cardDateTouchable}
+                >
+                  <Text style={styles.cardDateText}>
+                    {formatDate(selectedDate)}
+                  </Text>
+                  <Text style={{ fontSize: 14 }}>📅</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => {
+                    if (!isToday) {
+                      const d = new Date(selectedDate);
+                      d.setDate(d.getDate() + 1);
+                      const next = getLocalDateString(d);
+                      if (next <= getLocalDateString()) {
+                        handleDateSelect(next);
+                      }
+                    }
+                  }}
+                  style={[styles.cardDateArrow, isToday && { opacity: 0.3 }]}
+                  disabled={isToday}
+                >
+                  <Text style={styles.cardDateArrowText}>▶</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
 
             <Text style={styles.label}>몸무게</Text>
             <View style={styles.inputRow}>
@@ -1440,6 +1440,43 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#2D3748",
     marginBottom: 16,
+  },
+  cardTitleRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  cardDateSelector: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  cardDateArrow: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#EDF2F7",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  cardDateArrowText: {
+    fontSize: 12,
+    color: "#4A5568",
+  },
+  cardDateTouchable: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: "#F7FAFC",
+  },
+  cardDateText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#2D3748",
   },
   label: {
     fontSize: 14,

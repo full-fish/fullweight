@@ -369,6 +369,13 @@ export default function SettingsScreen() {
   );
   const [calendarVisible, setCalendarVisible] = useState(false);
   const [swipeEnabled, setSwipeEnabled] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [lockEnabled, setLockEnabled] = useState(false);
+  const [lockPin, setLockPin] = useState("");
+  const [lockBiometric, setLockBiometric] = useState(false);
+  const [showPinSetup, setShowPinSetup] = useState(false);
+  const [newPin, setNewPin] = useState("");
+  const [confirmPin, setConfirmPin] = useState("");
 
   useFocusEffect(
     useCallback(() => {
@@ -378,6 +385,9 @@ export default function SettingsScreen() {
         setBirthDate(settings.birthDate ?? "");
         setGender(settings.gender);
         setSwipeEnabled(settings.swipeEnabled ?? false);
+        setLockEnabled(settings.lockEnabled ?? false);
+        setLockPin(settings.lockPin ?? "");
+        setLockBiometric(settings.lockBiometric ?? false);
       });
     }, [])
   );
@@ -421,6 +431,7 @@ export default function SettingsScreen() {
       age,
       swipeEnabled,
     });
+    setIsEditing(false);
     Alert.alert("저장 완료", "프로필 정보가 저장되었습니다.");
   };
 
@@ -471,45 +482,74 @@ export default function SettingsScreen() {
 
         {/* 프로필 정보 */}
         <View style={s.card}>
-          <Text style={s.cardTitle}>프로필 정보</Text>
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: 16,
+            }}
+          >
+            <Text style={[s.cardTitle, { marginBottom: 0 }]}>프로필 정보</Text>
+            {!isEditing && (
+              <TouchableOpacity
+                onPress={() => setIsEditing(true)}
+                style={s.editIconBtn}
+              >
+                <Text style={s.editIconText}>✏️ 수정</Text>
+              </TouchableOpacity>
+            )}
+          </View>
 
           {/* 키 */}
           <View style={s.inputRow}>
             <Text style={s.inputLabel}>키 (cm)</Text>
-            <TextInput
-              style={s.input}
-              value={height}
-              onChangeText={setHeight}
-              placeholder="예: 175"
-              placeholderTextColor="#A0AEC0"
-              keyboardType="numeric"
-              returnKeyType="done"
-            />
+            {isEditing ? (
+              <TextInput
+                style={s.input}
+                value={height}
+                onChangeText={setHeight}
+                placeholder="예: 175"
+                placeholderTextColor="#A0AEC0"
+                keyboardType="numeric"
+                returnKeyType="done"
+              />
+            ) : (
+              <Text style={s.readonlyValue}>
+                {height ? `${height} cm` : "미설정"}
+              </Text>
+            )}
           </View>
 
           {/* 생년월일 */}
           <View style={s.inputRow}>
             <Text style={s.inputLabel}>생년월일</Text>
-            <View style={s.birthDateRow}>
-              <TextInput
-                style={[s.input, { flex: 1 }]}
-                value={birthDate}
-                onChangeText={setBirthDate}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor="#A0AEC0"
-                keyboardType={
-                  Platform.OS === "ios" ? "numbers-and-punctuation" : "default"
-                }
-                returnKeyType="done"
-                maxLength={10}
-              />
-              <TouchableOpacity
-                style={s.calendarIconBtn}
-                onPress={() => setCalendarVisible(true)}
-              >
-                <Text style={s.calendarIconText}>📅</Text>
-              </TouchableOpacity>
-            </View>
+            {isEditing ? (
+              <View style={s.birthDateRow}>
+                <TextInput
+                  style={[s.input, { flex: 1 }]}
+                  value={birthDate}
+                  onChangeText={setBirthDate}
+                  placeholder="YYYY-MM-DD"
+                  placeholderTextColor="#A0AEC0"
+                  keyboardType={
+                    Platform.OS === "ios"
+                      ? "numbers-and-punctuation"
+                      : "default"
+                  }
+                  returnKeyType="done"
+                  maxLength={10}
+                />
+                <TouchableOpacity
+                  style={s.calendarIconBtn}
+                  onPress={() => setCalendarVisible(true)}
+                >
+                  <Text style={s.calendarIconText}>📅</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <Text style={s.readonlyValue}>{birthDate || "미설정"}</Text>
+            )}
           </View>
 
           {/* 나이 표시 */}
@@ -522,47 +562,80 @@ export default function SettingsScreen() {
           {/* 성별 */}
           <View style={s.inputRow}>
             <Text style={s.inputLabel}>성별</Text>
-            <View style={s.genderToggle}>
-              <TouchableOpacity
-                style={[
-                  s.genderBtn,
-                  s.genderBtnLeft,
-                  gender === "male" && s.genderBtnActive,
-                ]}
-                onPress={() => setGender("male")}
-              >
-                <Text
+            {isEditing ? (
+              <View style={s.genderToggle}>
+                <TouchableOpacity
                   style={[
-                    s.genderBtnText,
-                    gender === "male" && s.genderBtnTextActive,
+                    s.genderBtn,
+                    s.genderBtnLeft,
+                    gender === "male" && s.genderBtnActive,
                   ]}
+                  onPress={() => setGender("male")}
                 >
-                  남성
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  s.genderBtn,
-                  s.genderBtnRight,
-                  gender === "female" && s.genderBtnActive,
-                ]}
-                onPress={() => setGender("female")}
-              >
-                <Text
+                  <Text
+                    style={[
+                      s.genderBtnText,
+                      gender === "male" && s.genderBtnTextActive,
+                    ]}
+                  >
+                    남성
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
                   style={[
-                    s.genderBtnText,
-                    gender === "female" && s.genderBtnTextActive,
+                    s.genderBtn,
+                    s.genderBtnRight,
+                    gender === "female" && s.genderBtnActive,
                   ]}
+                  onPress={() => setGender("female")}
                 >
-                  여성
-                </Text>
-              </TouchableOpacity>
-            </View>
+                  <Text
+                    style={[
+                      s.genderBtnText,
+                      gender === "female" && s.genderBtnTextActive,
+                    ]}
+                  >
+                    여성
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <Text style={s.readonlyValue}>
+                {gender === "male"
+                  ? "남성"
+                  : gender === "female"
+                    ? "여성"
+                    : "미설정"}
+              </Text>
+            )}
           </View>
 
-          <TouchableOpacity style={s.saveBtn} onPress={handleSaveProfile}>
-            <Text style={s.saveBtnText}>저장</Text>
-          </TouchableOpacity>
+          {isEditing && (
+            <View style={{ flexDirection: "row", gap: 10, marginTop: 4 }}>
+              <TouchableOpacity
+                style={[s.saveBtn, { flex: 1 }]}
+                onPress={handleSaveProfile}
+              >
+                <Text style={s.saveBtnText}>저장</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[s.saveBtn, { flex: 1, backgroundColor: "#EDF2F7" }]}
+                onPress={() => {
+                  setIsEditing(false);
+                  // 원래 값 복원
+                  loadUserSettings().then((settings) => {
+                    setHeight(
+                      settings.height != null ? String(settings.height) : ""
+                    );
+                    setBirthDate(settings.birthDate ?? "");
+                    setGender(settings.gender);
+                  });
+                }}
+              >
+                <Text style={[s.saveBtnText, { color: "#718096" }]}>취소</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
 
         {/* 환경 설정 */}
@@ -586,7 +659,213 @@ export default function SettingsScreen() {
               thumbColor={swipeEnabled ? "#38A169" : "#fff"}
             />
           </View>
+
+          {/* 앱 잠금 */}
+          <View style={s.infoRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={s.infoLabel}>🔒 앱 잠금</Text>
+              <Text style={{ fontSize: 11, color: "#A0AEC0", marginTop: 2 }}>
+                {lockEnabled
+                  ? "PIN 잠금이 활성화되어 있습니다"
+                  : "앱 실행 시 PIN을 요구합니다"}
+              </Text>
+            </View>
+            <Switch
+              value={lockEnabled}
+              onValueChange={async (v) => {
+                if (v) {
+                  setShowPinSetup(true);
+                  setNewPin("");
+                  setConfirmPin("");
+                } else {
+                  setLockEnabled(false);
+                  setLockPin("");
+                  const cur = await loadUserSettings();
+                  await saveUserSettings({
+                    ...cur,
+                    lockEnabled: false,
+                    lockPin: undefined,
+                    lockBiometric: false,
+                  });
+                  setLockBiometric(false);
+                  Alert.alert("잠금 해제", "앱 잠금이 비활성화되었습니다.");
+                }
+              }}
+              trackColor={{ false: "#E2E8F0", true: "#F6AD55" }}
+              thumbColor={lockEnabled ? "#DD6B20" : "#fff"}
+            />
+          </View>
+
+          {lockEnabled && (
+            <>
+              <View style={s.infoRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.infoLabel}>👆 생체인증 (Face ID/지문)</Text>
+                  <Text
+                    style={{ fontSize: 11, color: "#A0AEC0", marginTop: 2 }}
+                  >
+                    PIN 대신 생체인증으로 잠금 해제
+                  </Text>
+                </View>
+                <Switch
+                  value={lockBiometric}
+                  onValueChange={async (v) => {
+                    setLockBiometric(v);
+                    const cur = await loadUserSettings();
+                    await saveUserSettings({ ...cur, lockBiometric: v });
+                  }}
+                  trackColor={{ false: "#E2E8F0", true: "#68D391" }}
+                  thumbColor={lockBiometric ? "#38A169" : "#fff"}
+                />
+              </View>
+              <TouchableOpacity
+                style={{ paddingVertical: 10 }}
+                onPress={() => {
+                  setShowPinSetup(true);
+                  setNewPin("");
+                  setConfirmPin("");
+                }}
+              >
+                <Text
+                  style={{ fontSize: 14, color: "#4299E1", fontWeight: "600" }}
+                >
+                  PIN 변경
+                </Text>
+              </TouchableOpacity>
+            </>
+          )}
         </View>
+
+        {/* PIN 설정 모달 */}
+        <Modal
+          visible={showPinSetup}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowPinSetup(false)}
+        >
+          <TouchableOpacity
+            style={s.pinModalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowPinSetup(false)}
+          >
+            <View style={s.pinModalCard} onStartShouldSetResponder={() => true}>
+              <Text style={s.pinModalTitle}>
+                {confirmPin !== "" || newPin.length === 4
+                  ? "PIN 확인"
+                  : "새 PIN 설정"}
+              </Text>
+              <Text style={s.pinModalDesc}>
+                {newPin.length < 4
+                  ? "4자리 숫자를 입력하세요"
+                  : "한 번 더 입력하세요"}
+              </Text>
+
+              <View style={s.pinDotsRow}>
+                {Array.from({ length: 4 }, (_, i) => (
+                  <View
+                    key={i}
+                    style={[
+                      s.pinDot,
+                      i <
+                        (newPin.length < 4
+                          ? newPin.length
+                          : confirmPin.length) && s.pinDotFilled,
+                    ]}
+                  />
+                ))}
+              </View>
+
+              <View style={s.pinPadContainer}>
+                {[
+                  ["1", "2", "3"],
+                  ["4", "5", "6"],
+                  ["7", "8", "9"],
+                  ["", "0", "del"],
+                ].map((row, ri) => (
+                  <View key={ri} style={s.pinPadRow}>
+                    {row.map((key, ki) => {
+                      if (key === "")
+                        return <View key={ki} style={s.pinPadKey} />;
+                      if (key === "del") {
+                        return (
+                          <TouchableOpacity
+                            key={ki}
+                            style={s.pinPadKey}
+                            onPress={() => {
+                              if (newPin.length < 4) {
+                                setNewPin((p) => p.slice(0, -1));
+                              } else {
+                                setConfirmPin((p) => p.slice(0, -1));
+                              }
+                            }}
+                          >
+                            <Text style={s.pinPadSpecial}>⌫</Text>
+                          </TouchableOpacity>
+                        );
+                      }
+                      return (
+                        <TouchableOpacity
+                          key={ki}
+                          style={s.pinPadKey}
+                          onPress={async () => {
+                            if (newPin.length < 4) {
+                              const next = newPin + key;
+                              setNewPin(next);
+                            } else {
+                              const next = confirmPin + key;
+                              setConfirmPin(next);
+                              if (next.length === 4) {
+                                if (next === newPin) {
+                                  setLockEnabled(true);
+                                  setLockPin(newPin);
+                                  const cur = await loadUserSettings();
+                                  await saveUserSettings({
+                                    ...cur,
+                                    lockEnabled: true,
+                                    lockPin: newPin,
+                                  });
+                                  setShowPinSetup(false);
+                                  Alert.alert(
+                                    "설정 완료 🔒",
+                                    "앱 잠금이 활성화되었습니다."
+                                  );
+                                } else {
+                                  Alert.alert(
+                                    "불일치",
+                                    "PIN이 일치하지 않습니다. 다시 시도하세요."
+                                  );
+                                  setNewPin("");
+                                  setConfirmPin("");
+                                }
+                              }
+                            }
+                          }}
+                        >
+                          <Text style={s.pinPadText}>{key}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                ))}
+              </View>
+
+              <TouchableOpacity
+                style={{
+                  marginTop: 12,
+                  alignItems: "center",
+                  paddingVertical: 8,
+                }}
+                onPress={() => setShowPinSetup(false)}
+              >
+                <Text
+                  style={{ fontSize: 14, fontWeight: "600", color: "#718096" }}
+                >
+                  취소
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </Modal>
 
         {/* 데이터 정보 */}
         <View style={s.card}>
@@ -794,6 +1073,91 @@ const s = StyleSheet.create({
     marginBottom: 2,
   },
   actionDesc: { fontSize: 12, color: "#A0AEC0" },
+
+  editIconBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: "#EBF8FF",
+  },
+  editIconText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#3182CE",
+  },
+  readonlyValue: {
+    fontSize: 15,
+    fontWeight: "500",
+    color: "#2D3748",
+  },
+
+  /* PIN 모달 */
+  pinModalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  pinModalCard: {
+    width: SCREEN_WIDTH * 0.85,
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 24,
+    alignItems: "center",
+  },
+  pinModalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#2D3748",
+    marginBottom: 4,
+  },
+  pinModalDesc: {
+    fontSize: 13,
+    color: "#718096",
+    marginBottom: 20,
+  },
+  pinDotsRow: {
+    flexDirection: "row",
+    gap: 14,
+    marginBottom: 24,
+  },
+  pinDot: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    borderWidth: 2,
+    borderColor: "#CBD5E0",
+    backgroundColor: "transparent",
+  },
+  pinDotFilled: {
+    backgroundColor: "#4299E1",
+    borderColor: "#4299E1",
+  },
+  pinPadContainer: {
+    gap: 10,
+  },
+  pinPadRow: {
+    flexDirection: "row",
+    gap: 16,
+    justifyContent: "center",
+  },
+  pinPadKey: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: "#F7FAFC",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  pinPadText: {
+    fontSize: 24,
+    fontWeight: "600",
+    color: "#2D3748",
+  },
+  pinPadSpecial: {
+    fontSize: 20,
+    color: "#718096",
+  },
 });
 
 /* ───── 캘린더 팝업 스타일 ───── */
