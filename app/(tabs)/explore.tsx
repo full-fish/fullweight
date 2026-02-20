@@ -7,7 +7,7 @@ import {
   PeriodMode,
   WeightRecord,
 } from "@/types";
-import { getLocalDateString, loadRecords } from "@/utils/storage";
+import { loadRecords } from "@/utils/storage";
 import { useFocusEffect } from "@react-navigation/native";
 import React, {
   useCallback,
@@ -502,15 +502,22 @@ export default function ChartScreen() {
   const [selectedPoint, setSelectedPoint] = useState<WeightRecord | null>(null);
   const [overlayMode, setOverlayMode] = useState(true);
   const [chartZoom, setChartZoom] = useState(30); // 표시할 데이터 포인트 수 (X축 줌)
-  const [yPadding, setYPadding] = useState(0); // Y축 여유 비율 (0~5단계)
+  const [chartOffset, setChartOffset] = useState(0); // 우측 끝에서의 오프셋 (팬)
+  const [yPadding, setYPadding] = useState(10); // Y축 여유 비율 (0~30, 연속, 기본 10)
+  const [scrollEnabled, setScrollEnabled] = useState(true); // 핀치 중 스크롤 잠금
 
-  /* ── 핀치 줌 제스처 ── */
+  /* ── 핀치/팬 줌 제스처 ref ── */
   const pinchBaseZoom = useRef(30);
-  const pinchBaseYPad = useRef(0);
+  const pinchBaseYPad = useRef(10);
+  const pinchBaseOffset = useRef(0);
+  const isVerticalPinch = useRef(false); // 핀치 방향 (세로=Y축, 가로=X축)
+  const panBaseOffset = useRef(0);
   const latestZoom = useRef(chartZoom);
   const latestYPad = useRef(yPadding);
+  const latestOffset = useRef(chartOffset);
   latestZoom.current = chartZoom;
   latestYPad.current = yPadding;
+  latestOffset.current = chartOffset;
 
   const [showStatsCal, setShowStatsCal] = useState(false);
   const [showStatsEndCal, setShowStatsEndCal] = useState(false);
@@ -531,20 +538,9 @@ export default function ChartScreen() {
     if (periodMode === "custom") {
       if (customStart) recs = recs.filter((r) => r.date >= customStart);
       if (customEnd) recs = recs.filter((r) => r.date <= customEnd);
-    } else {
-      const today = getLocalDateString();
-      if (periodMode === "daily") {
-        const d = new Date();
-        d.setDate(d.getDate() - 60);
-        const start = getLocalDateString(d);
-        recs = recs.filter((r) => r.date >= start && r.date <= today);
-      } else if (periodMode === "weekly") {
-        const d = new Date();
-        d.setMonth(d.getMonth() - 6);
-        const start = getLocalDateString(d);
-        recs = recs.filter((r) => r.date >= start && r.date <= today);
-      }
     }
+    // daily / weekly / monthly: 모든 데이터 사용 (줌/드래그로 전체 탐색 가능)
+    // 기본 뷰는 chartZoom(30)으로 최근 30개 표시
     return recs;
   }, [allRecords, periodMode, customStart, customEnd]);
 
@@ -583,28 +579,90 @@ export default function ChartScreen() {
       });
   }, [filteredRecords, periodMode]);
 
-  const slicedData = chartData.slice(-chartZoom);
+  const slicedData = useMemo(() => {
+    const len = chartData.length;
+    const end = Math.max(chartZoom, len - chartOffset);
+    const start = Math.max(0, end - chartZoom);
+    return chartData.slice(start, end);
+  }, [chartData, chartZoom, chartOffset]);
 
-  /* ── 핀치 줌 제스처 ── */
+  /* ── 핀치 줌 제스처
+       • 세로 핀치 (터치늤운 시 dy > dx) → Y축 줌
+       • 가로 핀치               → X축 줌 + 터치 포인트 기준 ── */
   const pinchGesture = useMemo(() => {
     const dataLen = chartData.length;
     return Gesture.Pinch()
       .runOnJS(true)
+      .onTouchesDown((e) => {
+        // 두 손가락 위치로 핀치 방향 판단 (가장 신뢰성 높음)
+        if (e.allTouches.length >= 2) {
+          const t1 = e.allTouches[0];
+          const t2 = e.allTouches[1];
+          const dx = Math.abs(t2.x - t1.x);
+          const dy = Math.abs(t2.y - t1.y);
+          isVerticalPinch.current = dy > dx;
+          // 두 손가락 닿으면 스크롤 즉시 잠금 (세로 핀치 충돌 방지)
+          setScrollEnabled(false);
+        }
+      })
       .onBegin(() => {
         pinchBaseZoom.current = latestZoom.current;
         pinchBaseYPad.current = latestYPad.current;
+        pinchBaseOffset.current = latestOffset.current;
       })
       .onUpdate((e) => {
-        // X축: 핀치 인(확대) → 적은 데이터, 핀치 아웃(축소) → 많은 데이터
-        const newZoom = Math.round(pinchBaseZoom.current / e.scale);
-        setChartZoom(Math.max(5, Math.min(dataLen, newZoom)));
+        if (isVerticalPinch.current) {
+          // ─ Y축: 세로 핀치 ─
+          // scale > 1(벌리기) → yPadding 감소 → Y축 좌아짐 → 줌인
+          // scale < 1(모으기) → yPadding 증가 → Y축 넓어짐 → 줌아웃
+          const yDelta = Math.round((1 - e.scale) * 20);
+          const newYPad = pinchBaseYPad.current + yDelta;
+          setYPadding(Math.max(0, Math.min(30, newYPad)));
+        } else {
+          // ─ X축: 가로 핀치 ─
+          const baseZ = pinchBaseZoom.current;
+          const newZoom = Math.round(baseZ / e.scale);
+          const clampedZoom = Math.max(5, Math.min(dataLen, newZoom));
+          setChartZoom(clampedZoom);
 
-        // Y축: 핀치 인(확대) → 적은 패딩, 핀치 아웃(축소) → 많은 패딩
-        const scaleDelta = 1 - e.scale;
-        const newYPad = Math.round(pinchBaseYPad.current + scaleDelta * 5);
-        setYPadding(Math.max(0, Math.min(5, newYPad)));
+          const focalRatio = Math.min(1, Math.max(0, e.focalX / CHART_WIDTH));
+          const zoomDelta = clampedZoom - baseZ;
+          const offsetShift = Math.round(zoomDelta * (1 - focalRatio));
+          const newOff = pinchBaseOffset.current - offsetShift;
+          setChartOffset(Math.max(0, Math.min(dataLen - clampedZoom, newOff)));
+        }
+      })
+      .onFinalize(() => {
+        setScrollEnabled(true);
       });
-  }, [chartData.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [chartData.length]);
+
+  /* ── 1손가락 팬 제스처 (좌우 드래그 → 날짜 이동) ── */
+  const panGesture = useMemo(() => {
+    const dataLen = chartData.length;
+    return Gesture.Pan()
+      .runOnJS(true)
+      .minDistance(10)
+      .minPointers(1)
+      .maxPointers(1)
+      .onBegin(() => {
+        panBaseOffset.current = latestOffset.current;
+      })
+      .onUpdate((e) => {
+        const pointsPerPx = latestZoom.current / CHART_WIDTH;
+        const shift = Math.round(e.translationX * pointsPerPx);
+        const newOff = panBaseOffset.current + shift;
+        setChartOffset(
+          Math.max(0, Math.min(dataLen - latestZoom.current, newOff))
+        );
+      });
+  }, [chartData.length]);
+
+  /* ── 핀치 + 팬 동시 제스처 ── */
+  const composedGesture = useMemo(
+    () => Gesture.Simultaneous(pinchGesture, panGesture),
+    [pinchGesture, panGesture]
+  );
 
   /* ── 차트 라벨 생성 ── */
   const makeLabels = useCallback(
@@ -800,7 +858,11 @@ export default function ChartScreen() {
 
   return (
     <SwipeableTab currentIndex={1}>
-      <ScrollView style={s.container} contentContainerStyle={s.content}>
+      <ScrollView
+        style={s.container}
+        contentContainerStyle={s.content}
+        scrollEnabled={scrollEnabled}
+      >
         <Text style={s.title}>{"\u{1F4CA}"} 기록 그래프</Text>
 
         {/* 수치 선택 칩 */}
@@ -890,13 +952,15 @@ export default function ChartScreen() {
         )}
 
         {/* 차트 카드 */}
-        <GestureDetector gesture={pinchGesture}>
+        <GestureDetector gesture={composedGesture}>
           <View style={s.chartCard}>
             <Text style={s.chartTitle}>
               {selectedMetrics.map((k) => METRIC_LABELS[k]).join(" · ")} 추이
             </Text>
 
-            <Text style={s.pinchHint}>🔍 두 손가락으로 확대/축소</Text>
+            <Text style={s.pinchHint}>
+              🔍 가로핀치: X축 · 세로핀치: Y축 · 드래그: 이동
+            </Text>
 
             {/* 오버레이 토글 (다중 선택 시) */}
             {isMulti && (
@@ -952,7 +1016,7 @@ export default function ChartScreen() {
                             {
                               data: [
                                 Math.min(...singleChartInfo.values) *
-                                  (1 - yPadding * 0.05),
+                                  (1 - yPadding * 0.01),
                               ],
                               withDots: false,
                               strokeWidth: 0,
@@ -961,7 +1025,7 @@ export default function ChartScreen() {
                             {
                               data: [
                                 Math.max(...singleChartInfo.values) *
-                                  (1 + yPadding * 0.05),
+                                  (1 + yPadding * 0.01),
                               ],
                               withDots: false,
                               strokeWidth: 0,
@@ -1132,7 +1196,7 @@ export default function ChartScreen() {
                                   {
                                     data: [
                                       Math.min(...info.values) *
-                                        (1 - yPadding * 0.05),
+                                        (1 - yPadding * 0.01),
                                     ],
                                     withDots: false,
                                     strokeWidth: 0,
@@ -1141,7 +1205,7 @@ export default function ChartScreen() {
                                   {
                                     data: [
                                       Math.max(...info.values) *
-                                        (1 + yPadding * 0.05),
+                                        (1 + yPadding * 0.01),
                                     ],
                                     withDots: false,
                                     strokeWidth: 0,
