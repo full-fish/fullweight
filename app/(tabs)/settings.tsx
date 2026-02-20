@@ -1,5 +1,11 @@
 import { SwipeableTab } from "@/components/swipeable-tab";
-import { clearAllRecords, loadRecords, seedDummyData } from "@/utils/storage";
+import {
+  clearAllRecords,
+  loadRecords,
+  loadUserSettings,
+  saveUserSettings,
+  seedDummyData,
+} from "@/utils/storage";
 import { useFocusEffect } from "@react-navigation/native";
 import React, { useCallback, useState } from "react";
 import {
@@ -7,18 +13,42 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 
 export default function SettingsScreen() {
   const [recordCount, setRecordCount] = useState(0);
+  const [height, setHeight] = useState("");
+  const [age, setAge] = useState("");
 
   useFocusEffect(
     useCallback(() => {
       loadRecords().then((data) => setRecordCount(data.length));
+      loadUserSettings().then((settings) => {
+        setHeight(settings.height != null ? String(settings.height) : "");
+        setAge(settings.age != null ? String(settings.age) : "");
+      });
     }, [])
   );
+
+  const handleSaveProfile = async () => {
+    const h = height.trim() ? parseFloat(height) : undefined;
+    const a = age.trim() ? parseInt(age, 10) : undefined;
+
+    if (h !== undefined && (isNaN(h) || h < 50 || h > 300)) {
+      Alert.alert("입력 오류", "키는 50~300cm 사이의 숫자를 입력해주세요.");
+      return;
+    }
+    if (a !== undefined && (isNaN(a) || a < 1 || a > 150)) {
+      Alert.alert("입력 오류", "나이는 1~150 사이의 숫자를 입력해주세요.");
+      return;
+    }
+
+    await saveUserSettings({ height: h, age: a });
+    Alert.alert("저장 완료", "프로필 정보가 저장되었습니다.");
+  };
 
   const handleSeedDummy = () => {
     Alert.alert(
@@ -63,9 +93,37 @@ export default function SettingsScreen() {
   return (
     <SwipeableTab currentIndex={4}>
       <ScrollView style={s.container} contentContainerStyle={s.content}>
-        <Text style={s.title}>
-          {"\u2699\uFE0F"} {"\uC124\uC815"}
-        </Text>
+        <Text style={s.title}>⚙️ 설정</Text>
+
+        {/* 프로필 정보 */}
+        <View style={s.card}>
+          <Text style={s.cardTitle}>프로필 정보</Text>
+          <View style={s.inputRow}>
+            <Text style={s.inputLabel}>키 (cm)</Text>
+            <TextInput
+              style={s.input}
+              value={height}
+              onChangeText={setHeight}
+              placeholder="예: 175"
+              keyboardType="numeric"
+              returnKeyType="done"
+            />
+          </View>
+          <View style={s.inputRow}>
+            <Text style={s.inputLabel}>나이</Text>
+            <TextInput
+              style={s.input}
+              value={age}
+              onChangeText={setAge}
+              placeholder="예: 28"
+              keyboardType="numeric"
+              returnKeyType="done"
+            />
+          </View>
+          <TouchableOpacity style={s.saveBtn} onPress={handleSaveProfile}>
+            <Text style={s.saveBtnText}>저장</Text>
+          </TouchableOpacity>
+        </View>
 
         {/* 데이터 정보 */}
         <View style={s.card}>
@@ -144,6 +202,41 @@ const s = StyleSheet.create({
     fontWeight: "600",
     color: "#2D3748",
     marginBottom: 16,
+  },
+
+  inputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F0F4F8",
+  },
+  inputLabel: { fontSize: 15, color: "#4A5568" },
+  input: {
+    fontSize: 15,
+    fontWeight: "500",
+    color: "#2D3748",
+    backgroundColor: "#F7FAFC",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    width: 120,
+    textAlign: "right",
+  },
+  saveBtn: {
+    backgroundColor: "#4299E1",
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: "center",
+    marginTop: 16,
+  },
+  saveBtnText: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "600",
   },
 
   infoRow: {

@@ -1,10 +1,11 @@
 import { SwipeableTab } from "@/components/swipeable-tab";
-import { WeightRecord } from "@/types";
+import { UserSettings, WeightRecord } from "@/types";
 import { deletePhoto, pickPhoto, takePhoto } from "@/utils/photo";
 import {
   deleteRecord,
   getLocalDateString,
   loadRecords,
+  loadUserSettings,
   upsertRecord,
 } from "@/utils/storage";
 import { useFocusEffect } from "@react-navigation/native";
@@ -27,6 +28,27 @@ import {
 
 const { width } = Dimensions.get("window");
 const CAL_DAY = Math.floor((width - 80) / 7);
+
+function getBmiInfo(weight: number, heightCm: number | undefined) {
+  if (!heightCm || heightCm <= 0) return null;
+  const heightM = heightCm / 100;
+  const bmi = weight / (heightM * heightM);
+  let label: string, color: string;
+  if (bmi < 18.5) {
+    label = "저체중";
+    color = "#3182CE";
+  } else if (bmi < 25) {
+    label = "정상";
+    color = "#38A169";
+  } else if (bmi < 30) {
+    label = "과체중";
+    color = "#DD6B20";
+  } else {
+    label = "비만";
+    color = "#E53E3E";
+  }
+  return { bmi: Math.round(bmi * 10) / 10, label, color };
+}
 
 function formatDate(dateStr: string) {
   const [year, month, day] = dateStr.split("-");
@@ -259,7 +281,9 @@ export default function HomeScreen() {
   const [photoUri, setPhotoUri] = useState<string | undefined>(undefined);
   const scrollRef = useRef<ScrollView>(null);
 
-  /* \ud3b8\uc9d1 \ubaa8\ub2ec \uc0c1\ud0dc */
+  const [userSettings, setUserSettings] = useState<UserSettings>({});
+
+  /* 편집 모달 상태 */
   const [showEditModal, setShowEditModal] = useState(false);
   const [editRecord, setEditRecord] = useState<WeightRecord | null>(null);
   const [emWeight, setEmWeight] = useState("");
@@ -292,7 +316,13 @@ export default function HomeScreen() {
         setDrank(existing.drank);
         setPhotoUri(existing.photoUri);
       } else {
-        setWeight("");
+        // Pre-fill weight with most recent record
+        const sorted = [...allRecords].sort((a, b) =>
+          b.date.localeCompare(a.date)
+        );
+        const latestWeight =
+          sorted.length > 0 ? sorted[0].weight.toString() : "";
+        setWeight(latestWeight);
         setWaist("");
         setMuscleMass("");
         setBodyFatPercent("");
@@ -310,6 +340,7 @@ export default function HomeScreen() {
       loadAndSetRecords().then((data) => {
         populateForm(selectedDate, data);
       });
+      loadUserSettings().then(setUserSettings);
     }, [selectedDate, loadAndSetRecords, populateForm])
   );
 
@@ -327,7 +358,10 @@ export default function HomeScreen() {
       setDrank(existing.drank);
       setPhotoUri(existing.photoUri);
     } else {
-      setWeight("");
+      // Pre-fill weight with most recent record
+      const sorted = [...records].sort((a, b) => b.date.localeCompare(a.date));
+      const latestWeight = sorted.length > 0 ? sorted[0].weight.toString() : "";
+      setWeight(latestWeight);
       setWaist("");
       setMuscleMass("");
       setBodyFatPercent("");
@@ -405,10 +439,7 @@ export default function HomeScreen() {
     if (!editRecord) return;
     const w = parseFloat(emWeight);
     if (!emWeight || isNaN(w) || w <= 0) {
-      Alert.alert(
-        "\uc785\ub825 \uc624\ub958",
-        "\uc62c\ubc14\ub978 \ubab8\ubb34\uac8c\ub97c \uc785\ub825\ud574\uc8fc\uc138\uc694."
-      );
+      Alert.alert("입력 오류", "올바른 몸무게를 입력해주세요.");
       return;
     }
     const updated: WeightRecord = {
@@ -429,7 +460,7 @@ export default function HomeScreen() {
     setRecords([...newRecords].sort((a, b) => b.date.localeCompare(a.date)));
     setShowEditModal(false);
     setEditRecord(null);
-    // \uc120\ud0dd\ub41c \ub0a0\uc9dc\uc640 \uac19\uc73c\uba74 \ud3fc\ub3c4 \uc5c5\ub370\uc774\ud2b8
+    // 선택된 날짜와 같으면 폼도 업데이트
     if (editRecord.date === selectedDate) {
       setWeight(w.toString());
       setWaist(emWaist);
@@ -441,8 +472,8 @@ export default function HomeScreen() {
       setPhotoUri(emPhotoUri);
     }
     Alert.alert(
-      "\uc800\uc7a5 \uc644\ub8cc \u2705",
-      `${formatDate(editRecord.date)} \uae30\ub85d\uc774 \uc218\uc815\ub418\uc5c8\uc2b5\ub2c8\ub2e4.`
+      "저장 완료 ✅",
+      `${formatDate(editRecord.date)} 기록이 수정되었습니다.`
     );
   };
 
@@ -517,14 +548,32 @@ export default function HomeScreen() {
 
             <Text style={styles.label}>몸무게</Text>
             <View style={styles.inputRow}>
+              <TouchableOpacity
+                style={styles.stepBtn}
+                onPress={() => {
+                  const v = parseFloat(weight) || 0;
+                  setWeight(Math.max(0, v - 0.1).toFixed(1));
+                }}
+              >
+                <Text style={styles.stepBtnText}>▼</Text>
+              </TouchableOpacity>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { textAlign: "center" }]}
                 value={weight}
                 onChangeText={setWeight}
                 placeholder="0.0"
                 placeholderTextColor="#aaa"
                 keyboardType="decimal-pad"
               />
+              <TouchableOpacity
+                style={styles.stepBtn}
+                onPress={() => {
+                  const v = parseFloat(weight) || 0;
+                  setWeight((v + 0.1).toFixed(1));
+                }}
+              >
+                <Text style={styles.stepBtnText}>▲</Text>
+              </TouchableOpacity>
               <Text style={styles.unit}>kg</Text>
             </View>
 
@@ -559,7 +608,14 @@ export default function HomeScreen() {
               <TextInput
                 style={styles.input}
                 value={bodyFatPercent}
-                onChangeText={setBodyFatPercent}
+                onChangeText={(v) => {
+                  setBodyFatPercent(v);
+                  const w = parseFloat(weight);
+                  const p = parseFloat(v);
+                  if (w > 0 && p >= 0 && !isNaN(p)) {
+                    setBodyFatMass(((w * p) / 100).toFixed(1));
+                  }
+                }}
                 placeholder="0.0"
                 placeholderTextColor="#aaa"
                 keyboardType="decimal-pad"
@@ -572,7 +628,14 @@ export default function HomeScreen() {
               <TextInput
                 style={styles.input}
                 value={bodyFatMass}
-                onChangeText={setBodyFatMass}
+                onChangeText={(v) => {
+                  setBodyFatMass(v);
+                  const w = parseFloat(weight);
+                  const m = parseFloat(v);
+                  if (w > 0 && m >= 0 && !isNaN(m)) {
+                    setBodyFatPercent(((m / w) * 100).toFixed(1));
+                  }
+                }}
                 placeholder="0.0"
                 placeholderTextColor="#aaa"
                 keyboardType="decimal-pad"
@@ -671,6 +734,59 @@ export default function HomeScreen() {
                   </View>
                 </View>
                 <Text style={styles.recordWeight}>{record.weight} kg</Text>
+                {userSettings.height &&
+                  (() => {
+                    const info = getBmiInfo(record.weight, userSettings.height);
+                    if (!info) return null;
+                    return (
+                      <View style={styles.bmiRow}>
+                        <Text style={styles.recordSub}>📊 BMI: {info.bmi}</Text>
+                        <View style={styles.bmiBadge}>
+                          <Text
+                            style={[styles.bmiBadgeText, { color: info.color }]}
+                          >
+                            {info.label}
+                          </Text>
+                        </View>
+                        <View style={styles.bmiBarWrap}>
+                          <View style={styles.bmiBarTrack}>
+                            <View
+                              style={[
+                                styles.bmiBarZone,
+                                { flex: 18.5, backgroundColor: "#BEE3F8" },
+                              ]}
+                            />
+                            <View
+                              style={[
+                                styles.bmiBarZone,
+                                { flex: 6.5, backgroundColor: "#C6F6D5" },
+                              ]}
+                            />
+                            <View
+                              style={[
+                                styles.bmiBarZone,
+                                { flex: 5, backgroundColor: "#FEEBC8" },
+                              ]}
+                            />
+                            <View
+                              style={[
+                                styles.bmiBarZone,
+                                { flex: 10, backgroundColor: "#FED7D7" },
+                              ]}
+                            />
+                          </View>
+                          <View
+                            style={[
+                              styles.bmiIndicator,
+                              {
+                                left: `${Math.min(95, Math.max(2, ((info.bmi - 10) / 30) * 100))}%`,
+                              },
+                            ]}
+                          />
+                        </View>
+                      </View>
+                    );
+                  })()}
                 {record.waist != null && (
                   <Text style={styles.recordSub}>
                     📏 허리: {record.waist} cm
@@ -714,7 +830,7 @@ export default function HomeScreen() {
           )}
         </ScrollView>
 
-        {/* \ub2ec\ub825 \ud31d\uc5c5 */}
+        {/* 달력 팝업 */}
         <MiniCalendar
           visible={showDatePicker}
           selectedDate={selectedDate}
@@ -722,7 +838,7 @@ export default function HomeScreen() {
           onClose={() => setShowDatePicker(false)}
         />
 
-        {/* \ud3b8\uc9d1 \ud31d\uc5c5 \ubaa8\ub2ec */}
+        {/* 편집 팝업 모달 */}
         <Modal
           visible={showEditModal}
           transparent
@@ -746,14 +862,10 @@ export default function HomeScreen() {
             >
               <ScrollView showsVerticalScrollIndicator={false}>
                 <Text style={editModalStyles.title}>
-                  {editRecord
-                    ? `${formatDate(editRecord.date)} \uc218\uc815`
-                    : "\uc218\uc815"}
+                  {editRecord ? `${formatDate(editRecord.date)} 수정` : "수정"}
                 </Text>
 
-                <Text style={editModalStyles.label}>
-                  \ubab8\ubb34\uac8c (kg) *
-                </Text>
+                <Text style={editModalStyles.label}>몸무게 (kg) *</Text>
                 <TextInput
                   style={editModalStyles.input}
                   value={emWeight}
@@ -763,58 +875,62 @@ export default function HomeScreen() {
                   placeholderTextColor="#aaa"
                 />
 
-                <Text style={editModalStyles.label}>
-                  \ud5c8\ub9ac\ub458\ub808 (cm)
-                </Text>
+                <Text style={editModalStyles.label}>허리둘레 (cm)</Text>
                 <TextInput
                   style={editModalStyles.input}
                   value={emWaist}
                   onChangeText={setEmWaist}
                   keyboardType="decimal-pad"
-                  placeholder="\uc120\ud0dd"
+                  placeholder="선택"
                   placeholderTextColor="#aaa"
                 />
 
-                <Text style={editModalStyles.label}>
-                  \uacE8\uaca9\uadfc\ub7c9 (kg)
-                </Text>
+                <Text style={editModalStyles.label}>골격근량 (kg)</Text>
                 <TextInput
                   style={editModalStyles.input}
                   value={emMuscleMass}
                   onChangeText={setEmMuscleMass}
                   keyboardType="decimal-pad"
-                  placeholder="\uc120\ud0dd"
+                  placeholder="선택"
                   placeholderTextColor="#aaa"
                 />
 
-                <Text style={editModalStyles.label}>
-                  \uccb4\uc9c0\ubc29\ub960 (%)
-                </Text>
+                <Text style={editModalStyles.label}>체지방률 (%)</Text>
                 <TextInput
                   style={editModalStyles.input}
                   value={emBodyFatPercent}
-                  onChangeText={setEmBodyFatPercent}
+                  onChangeText={(v) => {
+                    setEmBodyFatPercent(v);
+                    const w = parseFloat(emWeight);
+                    const p = parseFloat(v);
+                    if (w > 0 && p >= 0 && !isNaN(p)) {
+                      setEmBodyFatMass(((w * p) / 100).toFixed(1));
+                    }
+                  }}
                   keyboardType="decimal-pad"
-                  placeholder="\uc120\ud0dd"
+                  placeholder="선택"
                   placeholderTextColor="#aaa"
                 />
 
-                <Text style={editModalStyles.label}>
-                  \uccb4\uc9c0\ubc29\ub7c9 (kg)
-                </Text>
+                <Text style={editModalStyles.label}>체지방량 (kg)</Text>
                 <TextInput
                   style={editModalStyles.input}
                   value={emBodyFatMass}
-                  onChangeText={setEmBodyFatMass}
+                  onChangeText={(v) => {
+                    setEmBodyFatMass(v);
+                    const w = parseFloat(emWeight);
+                    const m = parseFloat(v);
+                    if (w > 0 && m >= 0 && !isNaN(m)) {
+                      setEmBodyFatPercent(((m / w) * 100).toFixed(1));
+                    }
+                  }}
                   keyboardType="decimal-pad"
-                  placeholder="\uc120\ud0dd"
+                  placeholder="선택"
                   placeholderTextColor="#aaa"
                 />
 
-                {/* \uc0ac\uc9c4 */}
-                <Text style={editModalStyles.label}>
-                  \ubc14\ub514 \uc0ac\uc9c4
-                </Text>
+                {/* 사진 */}
+                <Text style={editModalStyles.label}>바디 사진</Text>
                 <View style={{ marginBottom: 12 }}>
                   {emPhotoUri ? (
                     <View style={{ position: "relative", marginBottom: 8 }}>
@@ -846,7 +962,7 @@ export default function HomeScreen() {
                             fontWeight: "700",
                           }}
                         >
-                          \u2715
+                          ✕
                         </Text>
                       </TouchableOpacity>
                     </View>
@@ -872,7 +988,7 @@ export default function HomeScreen() {
                           color: "#4A5568",
                         }}
                       >
-                        {"\uD83D\uDCF8 \uCD2C\uC601"}
+                        {"📸 촬영"}
                       </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
@@ -895,16 +1011,14 @@ export default function HomeScreen() {
                           color: "#4A5568",
                         }}
                       >
-                        {"\uD83D\uDDBC \uAC24\uB7EC\uB9AC"}
+                        {"🖼 갤러리"}
                       </Text>
                     </TouchableOpacity>
                   </View>
                 </View>
 
                 <View style={editModalStyles.switchRow}>
-                  <Text style={editModalStyles.label}>
-                    {"\uD83C\uDFC3 \uC6B4\uB3D9"}
-                  </Text>
+                  <Text style={editModalStyles.label}>{"🏃 운동"}</Text>
                   <Switch
                     value={emExercised}
                     onValueChange={setEmExercised}
@@ -913,9 +1027,7 @@ export default function HomeScreen() {
                   />
                 </View>
                 <View style={editModalStyles.switchRow}>
-                  <Text style={editModalStyles.label}>
-                    {"\uD83C\uDF7A \uC74C\uC8FC"}
-                  </Text>
+                  <Text style={editModalStyles.label}>{"🍺 음주"}</Text>
                   <Switch
                     value={emDrank}
                     onValueChange={setEmDrank}
@@ -929,9 +1041,7 @@ export default function HomeScreen() {
                     style={editModalStyles.saveBtn}
                     onPress={handleEditModalSave}
                   >
-                    <Text style={editModalStyles.saveBtnText}>
-                      \uc800\uc7a5
-                    </Text>
+                    <Text style={editModalStyles.saveBtnText}>저장</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={editModalStyles.cancelBtn}
@@ -940,9 +1050,7 @@ export default function HomeScreen() {
                       setEditRecord(null);
                     }}
                   >
-                    <Text style={editModalStyles.cancelBtnText}>
-                      \ucde8\uc18c
-                    </Text>
+                    <Text style={editModalStyles.cancelBtnText}>취소</Text>
                   </TouchableOpacity>
                 </View>
               </ScrollView>
@@ -1223,4 +1331,40 @@ const styles = StyleSheet.create({
   badgeExercise: { backgroundColor: "#E8F5E9" },
   badgeDrank: { backgroundColor: "#FFF3E0" },
   badgeText: { fontSize: 12, fontWeight: "500", color: "#4A5568" },
+  stepBtn: {
+    width: 40,
+    height: 48,
+    backgroundColor: "#EDF2F7",
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    marginHorizontal: 4,
+  },
+  stepBtnText: { fontSize: 16, color: "#4A5568", fontWeight: "600" },
+  bmiRow: { marginTop: 4, marginBottom: 4 },
+  bmiBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    backgroundColor: "#F7FAFC",
+    alignSelf: "flex-start",
+    marginTop: 2,
+  },
+  bmiBadgeText: { fontSize: 12, fontWeight: "600" },
+  bmiBarWrap: { position: "relative" as const, marginTop: 4, height: 10 },
+  bmiBarTrack: {
+    flexDirection: "row" as const,
+    height: 8,
+    borderRadius: 4,
+    overflow: "hidden" as const,
+  },
+  bmiBarZone: { height: "100%" as const },
+  bmiIndicator: {
+    position: "absolute" as const,
+    top: -1,
+    width: 4,
+    height: 10,
+    backgroundColor: "#2D3748",
+    borderRadius: 2,
+  },
 });

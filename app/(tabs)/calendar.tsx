@@ -1,6 +1,11 @@
 import { SwipeableTab } from "@/components/swipeable-tab";
-import { WeightRecord } from "@/types";
-import { deleteRecord, loadRecords, upsertRecord } from "@/utils/storage";
+import { UserSettings, WeightRecord } from "@/types";
+import {
+  deleteRecord,
+  loadRecords,
+  loadUserSettings,
+  upsertRecord,
+} from "@/utils/storage";
 import { useFocusEffect } from "@react-navigation/native";
 import React, { useCallback, useMemo, useState } from "react";
 import {
@@ -19,19 +24,11 @@ import {
 
 const { width } = Dimensions.get("window");
 const DAY_SIZE = Math.floor((width - 56) / 7);
-const WEEKDAYS = [
-  "\uc77c",
-  "\uc6d4",
-  "\ud654",
-  "\uc218",
-  "\ubaa9",
-  "\uae08",
-  "\ud1a0",
-];
+const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 
 function fmtDate(dateStr: string) {
   const [y, m, d] = dateStr.split("-");
-  return `${y}\ub144 ${parseInt(m)}\uc6d4 ${parseInt(d)}\uc77c`;
+  return `${y}년 ${parseInt(m)}월 ${parseInt(d)}일`;
 }
 
 function getDaysInMonth(year: number, month: number) {
@@ -46,6 +43,27 @@ function pad2(n: number) {
   return String(n).padStart(2, "0");
 }
 
+function getBmiInfo(weight: number, heightCm: number | undefined) {
+  if (!heightCm || heightCm <= 0) return null;
+  const heightM = heightCm / 100;
+  const bmi = weight / (heightM * heightM);
+  let label: string, color: string;
+  if (bmi < 18.5) {
+    label = "저체중";
+    color = "#3182CE";
+  } else if (bmi < 25) {
+    label = "정상";
+    color = "#38A169";
+  } else if (bmi < 30) {
+    label = "과체중";
+    color = "#DD6B20";
+  } else {
+    label = "비만";
+    color = "#E53E3E";
+  }
+  return { bmi: Math.round(bmi * 10) / 10, label, color };
+}
+
 export default function CalendarScreen() {
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
@@ -56,11 +74,11 @@ export default function CalendarScreen() {
   );
   const [editMode, setEditMode] = useState(false);
 
-  /* \uc0c8 \uae30\ub85d \ucd94\uac00 \ubaa8\ub2ec */
+  /* 새 기록 추가 모달 */
   const [addMode, setAddMode] = useState(false);
   const [addDate, setAddDate] = useState("");
 
-  /* \ud3b8\uc9d1 \ud3fc \uc0c1\ud0dc */
+  /* 편집 폼 상태 */
   const [eWeight, setEWeight] = useState("");
   const [eWaist, setEWaist] = useState("");
   const [eMuscleMass, setEMuscleMass] = useState("");
@@ -68,10 +86,12 @@ export default function CalendarScreen() {
   const [eBodyFatMass, setEBodyFatMass] = useState("");
   const [eExercised, setEExercised] = useState(false);
   const [eDrank, setEDrank] = useState(false);
+  const [userSettings, setUserSettings] = useState<UserSettings>({});
 
   useFocusEffect(
     useCallback(() => {
       loadRecords().then(setRecords);
+      loadUserSettings().then(setUserSettings);
     }, [])
   );
 
@@ -192,7 +212,7 @@ export default function CalendarScreen() {
     setAddDate("");
   };
 
-  /* \ube48 \ub0a0\uc9dc \ud074\ub9ad \u2192 \uc0c8 \uae30\ub85d \ucd94\uac00 */
+  /* 빈 날짜 클릭 → 새 기록 추가 */
   const openAddModal = (dateStr: string) => {
     setAddDate(dateStr);
     setEWeight("");
@@ -208,10 +228,7 @@ export default function CalendarScreen() {
   const handleAddSave = async () => {
     const w = parseFloat(eWeight);
     if (!eWeight || isNaN(w) || w <= 0) {
-      Alert.alert(
-        "\uc785\ub825 \uc624\ub958",
-        "\uc62c\ubc14\ub978 \ubab8\ubb34\uac8c\ub97c \uc785\ub825\ud574\uc8fc\uc138\uc694."
-      );
+      Alert.alert("입력 오류", "올바른 몸무게를 입력해주세요.");
       return;
     }
     const newRec: WeightRecord = {
@@ -229,18 +246,13 @@ export default function CalendarScreen() {
     setRecords(newRecords);
     setAddMode(false);
     setAddDate("");
-    Alert.alert(
-      "\uc800\uc7a5 \uc644\ub8cc \u2705",
-      `${fmtDate(addDate)} \uae30\ub85d\uc774 \ucd94\uac00\ub418\uc5c8\uc2b5\ub2c8\ub2e4.`
-    );
+    Alert.alert("저장 완료 ✅", `${fmtDate(addDate)} 기록이 추가되었습니다.`);
   };
 
   return (
     <SwipeableTab currentIndex={2}>
       <ScrollView style={s.container} contentContainerStyle={s.content}>
-        <Text style={s.title}>
-          {"\u{1F4C5}"} {"\uCE98\uB9B0\uB354"}
-        </Text>
+        <Text style={s.title}>📅 캘린더</Text>
 
         {/* 월 네비게이션 */}
         <View style={s.navRow}>
@@ -443,6 +455,70 @@ export default function CalendarScreen() {
                       </Text>
                     </View>
                   )}
+                  {userSettings.height &&
+                    (() => {
+                      const info = getBmiInfo(
+                        selectedRecord.weight,
+                        userSettings.height
+                      );
+                      if (!info) return null;
+                      return (
+                        <View style={{ marginTop: 8 }}>
+                          <View style={s.modalRow}>
+                            <Text style={s.modalLabel}>📊 BMI</Text>
+                            <Text style={[s.modalValue, { color: info.color }]}>
+                              {info.bmi} ({info.label})
+                            </Text>
+                          </View>
+                          <View
+                            style={{
+                              marginTop: 4,
+                              height: 10,
+                              position: "relative",
+                            }}
+                          >
+                            <View
+                              style={{
+                                flexDirection: "row",
+                                height: 8,
+                                borderRadius: 4,
+                                overflow: "hidden",
+                              }}
+                            >
+                              <View
+                                style={{
+                                  flex: 18.5,
+                                  backgroundColor: "#BEE3F8",
+                                }}
+                              />
+                              <View
+                                style={{
+                                  flex: 6.5,
+                                  backgroundColor: "#C6F6D5",
+                                }}
+                              />
+                              <View
+                                style={{ flex: 5, backgroundColor: "#FEEBC8" }}
+                              />
+                              <View
+                                style={{ flex: 10, backgroundColor: "#FED7D7" }}
+                              />
+                            </View>
+                            <View
+                              style={{
+                                position: "absolute",
+                                top: -1,
+                                left: `${Math.min(95, Math.max(2, ((info.bmi - 10) / 30) * 100))}%`,
+                                width: 4,
+                                height: 10,
+                                backgroundColor: "#2D3748",
+                                borderRadius: 2,
+                              }}
+                            />
+                          </View>
+                        </View>
+                      );
+                    })()}
                   {selectedRecord.photoUri && (
                     <Image
                       source={{ uri: selectedRecord.photoUri }}
@@ -525,7 +601,14 @@ export default function CalendarScreen() {
                   <TextInput
                     style={s.editInput}
                     value={eBodyFatPercent}
-                    onChangeText={setEBodyFatPercent}
+                    onChangeText={(v) => {
+                      setEBodyFatPercent(v);
+                      const w = parseFloat(eWeight);
+                      const p = parseFloat(v);
+                      if (w > 0 && p >= 0 && !isNaN(p)) {
+                        setEBodyFatMass(((w * p) / 100).toFixed(1));
+                      }
+                    }}
                     keyboardType="decimal-pad"
                     placeholder="선택"
                     placeholderTextColor="#aaa"
@@ -535,7 +618,14 @@ export default function CalendarScreen() {
                   <TextInput
                     style={s.editInput}
                     value={eBodyFatMass}
-                    onChangeText={setEBodyFatMass}
+                    onChangeText={(v) => {
+                      setEBodyFatMass(v);
+                      const w = parseFloat(eWeight);
+                      const m = parseFloat(v);
+                      if (w > 0 && m >= 0 && !isNaN(m)) {
+                        setEBodyFatPercent(((m / w) * 100).toFixed(1));
+                      }
+                    }}
                     keyboardType="decimal-pad"
                     placeholder="선택"
                     placeholderTextColor="#aaa"
@@ -579,7 +669,7 @@ export default function CalendarScreen() {
             </View>
           </TouchableOpacity>
         </Modal>
-        {/* \uc0c8 \uae30\ub85d \ucd94\uac00 \ubaa8\ub2ec */}
+        {/* 새 기록 추가 모달 */}
         <Modal
           visible={addMode}
           transparent
@@ -600,10 +690,10 @@ export default function CalendarScreen() {
             <View style={s.modalCard} onStartShouldSetResponder={() => true}>
               <ScrollView showsVerticalScrollIndicator={false}>
                 <Text style={s.modalDate}>
-                  {addDate ? fmtDate(addDate) : ""} \uc0c8 \uae30\ub85d
+                  {addDate ? fmtDate(addDate) : ""} 새 기록
                 </Text>
 
-                <Text style={s.editLabel}>\ubab8\ubb34\uac8c (kg) *</Text>
+                <Text style={s.editLabel}>몸무게 (kg) *</Text>
                 <TextInput
                   style={s.editInput}
                   value={eWeight}
@@ -613,48 +703,62 @@ export default function CalendarScreen() {
                   placeholderTextColor="#aaa"
                 />
 
-                <Text style={s.editLabel}>\ud5c8\ub9ac\ub458\ub808 (cm)</Text>
+                <Text style={s.editLabel}>허리둘레 (cm)</Text>
                 <TextInput
                   style={s.editInput}
                   value={eWaist}
                   onChangeText={setEWaist}
                   keyboardType="decimal-pad"
-                  placeholder="\uc120\ud0dd"
+                  placeholder="선택"
                   placeholderTextColor="#aaa"
                 />
 
-                <Text style={s.editLabel}>\uacE8\uaca9\uadfc\ub7c9 (kg)</Text>
+                <Text style={s.editLabel}>골격근량 (kg)</Text>
                 <TextInput
                   style={s.editInput}
                   value={eMuscleMass}
                   onChangeText={setEMuscleMass}
                   keyboardType="decimal-pad"
-                  placeholder="\uc120\ud0dd"
+                  placeholder="선택"
                   placeholderTextColor="#aaa"
                 />
 
-                <Text style={s.editLabel}>\uccb4\uc9c0\ubc29\ub960 (%)</Text>
+                <Text style={s.editLabel}>체지방률 (%)</Text>
                 <TextInput
                   style={s.editInput}
                   value={eBodyFatPercent}
-                  onChangeText={setEBodyFatPercent}
+                  onChangeText={(v) => {
+                    setEBodyFatPercent(v);
+                    const w = parseFloat(eWeight);
+                    const p = parseFloat(v);
+                    if (w > 0 && p >= 0 && !isNaN(p)) {
+                      setEBodyFatMass(((w * p) / 100).toFixed(1));
+                    }
+                  }}
                   keyboardType="decimal-pad"
-                  placeholder="\uc120\ud0dd"
+                  placeholder="선택"
                   placeholderTextColor="#aaa"
                 />
 
-                <Text style={s.editLabel}>\uccb4\uc9c0\ubc29\ub7c9 (kg)</Text>
+                <Text style={s.editLabel}>체지방량 (kg)</Text>
                 <TextInput
                   style={s.editInput}
                   value={eBodyFatMass}
-                  onChangeText={setEBodyFatMass}
+                  onChangeText={(v) => {
+                    setEBodyFatMass(v);
+                    const w = parseFloat(eWeight);
+                    const m = parseFloat(v);
+                    if (w > 0 && m >= 0 && !isNaN(m)) {
+                      setEBodyFatPercent(((m / w) * 100).toFixed(1));
+                    }
+                  }}
                   keyboardType="decimal-pad"
-                  placeholder="\uc120\ud0dd"
+                  placeholder="선택"
                   placeholderTextColor="#aaa"
                 />
 
                 <View style={s.editSwitchRow}>
-                  <Text style={s.editLabel}>{"\uD83C\uDFC3 \uC6B4\uB3D9"}</Text>
+                  <Text style={s.editLabel}>🏃 운동</Text>
                   <Switch
                     value={eExercised}
                     onValueChange={setEExercised}
@@ -663,7 +767,7 @@ export default function CalendarScreen() {
                   />
                 </View>
                 <View style={s.editSwitchRow}>
-                  <Text style={s.editLabel}>{"\uD83C\uDF7A \uC74C\uC8FC"}</Text>
+                  <Text style={s.editLabel}>🍺 음주</Text>
                   <Switch
                     value={eDrank}
                     onValueChange={setEDrank}
@@ -677,7 +781,7 @@ export default function CalendarScreen() {
                     style={s.modalSaveBtn}
                     onPress={handleAddSave}
                   >
-                    <Text style={s.modalSaveBtnText}>\uc800\uc7a5</Text>
+                    <Text style={s.modalSaveBtnText}>저장</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={s.modalCancelBtn}
@@ -686,7 +790,7 @@ export default function CalendarScreen() {
                       setAddDate("");
                     }}
                   >
-                    <Text style={s.modalCancelBtnText}>\ucde8\uc18c</Text>
+                    <Text style={s.modalCancelBtnText}>취소</Text>
                   </TouchableOpacity>
                 </View>
               </ScrollView>

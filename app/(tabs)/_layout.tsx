@@ -29,36 +29,36 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "\uae30\ub85d",
-          tabBarIcon: () => <EmojiIcon emoji={"\u{1F4DD}"} />,
+          title: "기록",
+          tabBarIcon: () => <EmojiIcon emoji="📝" />,
         }}
       />
       <Tabs.Screen
         name="explore"
         options={{
-          title: "\uADF8\uB798\uD504",
-          tabBarIcon: () => <EmojiIcon emoji={"\u{1F4CA}"} />,
+          title: "그래프",
+          tabBarIcon: () => <EmojiIcon emoji="📊" />,
         }}
       />
       <Tabs.Screen
         name="calendar"
         options={{
-          title: "\uCE98\uB9B0\uB354",
-          tabBarIcon: () => <EmojiIcon emoji={"\u{1F4C5}"} />,
+          title: "캘린더",
+          tabBarIcon: () => <EmojiIcon emoji="📅" />,
         }}
       />
       <Tabs.Screen
         name="challenge"
         options={{
-          title: "\uCC4C\uB9B0\uC9C0",
-          tabBarIcon: () => <EmojiIcon emoji={"\u{1F3C6}"} />,
+          title: "챌린지",
+          tabBarIcon: () => <EmojiIcon emoji="🏆" />,
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
-          title: "\uC124\uC815",
-          tabBarIcon: () => <EmojiIcon emoji={"\u2699\uFE0F"} />,
+          title: "설정",
+          tabBarIcon: () => <EmojiIcon emoji="⚙️" />,
         }}
       />
     </Tabs>

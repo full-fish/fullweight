@@ -1,9 +1,16 @@
 import { SwipeableTab } from "@/components/swipeable-tab";
-import { Challenge, METRIC_COLORS, WeightRecord } from "@/types";
 import {
+  Challenge,
+  ChallengeHistory,
+  METRIC_COLORS,
+  WeightRecord,
+} from "@/types";
+import {
+  addChallengeToHistory,
   deleteChallenge,
   getLocalDateString,
   loadChallenge,
+  loadChallengeHistory,
   loadRecords,
   saveChallenge,
 } from "@/utils/storage";
@@ -27,7 +34,7 @@ const CP_DAY2 = Math.floor((width * 0.82 - 56) / 7);
 
 function fmtDate(dateStr: string) {
   const [y, m, d] = dateStr.split("-");
-  return `${y}\ub144 ${parseInt(m)}\uc6d4 ${parseInt(d)}\uc77c`;
+  return `${y}년 ${parseInt(m)}월 ${parseInt(d)}일`;
 }
 
 function daysBetween(a: string, b: string) {
@@ -48,7 +55,7 @@ function getFirstDayOfWeekCh(year: number, month: number) {
   return new Date(year, month, 1).getDay();
 }
 
-/* \u2500\u2500\u2500\u2500\u2500 \ub0a0\uc9dc \uce98\ub9b0\ub354 \ud53d\ucee4 \u2500\u2500\u2500\u2500\u2500 */
+/* ───── 날짜 캘린더 픽커 ───── */
 function DateCalendarPicker({
   value,
   onChange,
@@ -77,15 +84,7 @@ function DateCalendarPicker({
     setShowCal(true);
   };
 
-  const WKDAYS = [
-    "\uc77c",
-    "\uc6d4",
-    "\ud654",
-    "\uc218",
-    "\ubaa9",
-    "\uae08",
-    "\ud1a0",
-  ];
+  const WKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
   const daysInMonth = getDaysInMonthCh(cYear, cMonth);
   const firstDay = getFirstDayOfWeekCh(cYear, cMonth);
   const cells: (number | null)[] = [];
@@ -125,7 +124,7 @@ function DateCalendarPicker({
             Platform.OS === "ios" ? "numbers-and-punctuation" : "default"
           }
         />
-        <Text style={dcpS.icon}>{"\uD83D\uDCC5"}</Text>
+        <Text style={dcpS.icon}>📅</Text>
       </TouchableOpacity>
 
       <Modal
@@ -142,13 +141,13 @@ function DateCalendarPicker({
           <View style={dcpS.card} onStartShouldSetResponder={() => true}>
             <View style={dcpS.navRow}>
               <TouchableOpacity onPress={prevM} style={dcpS.navBtn}>
-                <Text style={dcpS.navBtnText}>\u25C0</Text>
+                <Text style={dcpS.navBtnText}>◀</Text>
               </TouchableOpacity>
               <Text style={dcpS.navTitle}>
-                {cYear}\ub144 {cMonth + 1}\uc6d4
+                {cYear}년 {cMonth + 1}월
               </Text>
               <TouchableOpacity onPress={nextM} style={dcpS.navBtn}>
-                <Text style={dcpS.navBtnText}>\u25B6</Text>
+                <Text style={dcpS.navBtnText}>▶</Text>
               </TouchableOpacity>
             </View>
             <View style={dcpS.weekRow}>
@@ -345,6 +344,7 @@ export default function ChallengeScreen() {
   const [challenge, setChallenge] = useState<Challenge | null>(null);
   const [records, setRecords] = useState<WeightRecord[]>([]);
   const [showForm, setShowForm] = useState(false);
+  const [history, setHistory] = useState<ChallengeHistory[]>([]);
 
   /* 폼 상태 */
   const [fTargetWeight, setFTargetWeight] = useState("");
@@ -359,6 +359,7 @@ export default function ChallengeScreen() {
       loadRecords().then((data) =>
         setRecords([...data].sort((a, b) => a.date.localeCompare(b.date)))
       );
+      loadChallengeHistory().then(setHistory);
     }, [])
   );
 
@@ -470,6 +471,23 @@ export default function ChallengeScreen() {
         text: "삭제",
         style: "destructive",
         onPress: async () => {
+          // Save to history before deleting
+          if (challenge) {
+            const latestRecord =
+              records.length > 0 ? records[records.length - 1] : null;
+            const historyEntry: ChallengeHistory = {
+              id: challenge.id,
+              challenge: { ...challenge },
+              endWeight: latestRecord?.weight,
+              endMuscleMass: latestRecord?.muscleMass,
+              endBodyFatMass: latestRecord?.bodyFatMass,
+              endBodyFatPercent: latestRecord?.bodyFatPercent,
+              overallProgress: overallProgress,
+              completedAt: new Date().toISOString(),
+            };
+            const updatedHistory = await addChallengeToHistory(historyEntry);
+            setHistory(updatedHistory);
+          }
           await deleteChallenge();
           setChallenge(null);
         },
@@ -560,9 +578,7 @@ export default function ChallengeScreen() {
   return (
     <SwipeableTab currentIndex={3}>
       <ScrollView style={st.container} contentContainerStyle={st.content}>
-        <Text style={st.title}>
-          {"\u{1F3C6}"} {"\uCC4C\uB9B0\uC9C0"}
-        </Text>
+        <Text style={st.title}>🏆 챌린지</Text>
 
         {!challenge && (
           <View style={st.emptyCard}>
@@ -755,7 +771,7 @@ export default function ChallengeScreen() {
                 />
 
                 <DateCalendarPicker
-                  label={"\ubaa9\ud45c \uc885\ub8cc\uc77c"}
+                  label="목표 종료일"
                   value={fEndDate}
                   onChange={setFEndDate}
                 />
@@ -775,6 +791,70 @@ export default function ChallengeScreen() {
             </View>
           </View>
         </Modal>
+
+        {/* 이전 챌린지 기록 */}
+        {history.length > 0 && (
+          <View style={st.card}>
+            <Text style={st.cardTitle}>📜 이전 챌린지</Text>
+            {history.map((h, idx) => {
+              const c = h.challenge;
+              return (
+                <View key={h.id + idx} style={st.historyItem}>
+                  <View style={st.historyHeader}>
+                    <Text style={st.historyDate}>
+                      {fmtDate(c.startDate)} → {fmtDate(c.endDate)}
+                    </Text>
+                    {h.overallProgress !== null && (
+                      <Text
+                        style={[
+                          st.historyPercent,
+                          h.overallProgress >= 100 && { color: "#38A169" },
+                        ]}
+                      >
+                        {h.overallProgress}%
+                      </Text>
+                    )}
+                  </View>
+                  <View style={st.historyDetails}>
+                    {c.targetWeight != null && (
+                      <Text style={st.historyDetail}>
+                        ⚖️ 목표: {c.targetWeight}kg
+                        {h.endWeight != null ? ` → 결과: ${h.endWeight}kg` : ""}
+                      </Text>
+                    )}
+                    {c.targetMuscleMass != null && (
+                      <Text style={st.historyDetail}>
+                        💪 목표: {c.targetMuscleMass}kg
+                        {h.endMuscleMass != null
+                          ? ` → 결과: ${h.endMuscleMass}kg`
+                          : ""}
+                      </Text>
+                    )}
+                    {c.targetBodyFatPercent != null && (
+                      <Text style={st.historyDetail}>
+                        🔥 목표: {c.targetBodyFatPercent}%
+                        {h.endBodyFatPercent != null
+                          ? ` → 결과: ${h.endBodyFatPercent}%`
+                          : ""}
+                      </Text>
+                    )}
+                    {c.targetBodyFatMass != null && (
+                      <Text style={st.historyDetail}>
+                        🟣 목표: {c.targetBodyFatMass}kg
+                        {h.endBodyFatMass != null
+                          ? ` → 결과: ${h.endBodyFatMass}kg`
+                          : ""}
+                      </Text>
+                    )}
+                  </View>
+                  <Text style={st.historyCompleted}>
+                    완료: {new Date(h.completedAt).toLocaleDateString("ko-KR")}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+        )}
       </ScrollView>
     </SwipeableTab>
   );
@@ -967,4 +1047,20 @@ const st = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
+  historyItem: {
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F0F4F8",
+  },
+  historyHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  historyDate: { fontSize: 13, color: "#718096", fontWeight: "500" },
+  historyPercent: { fontSize: 16, fontWeight: "700", color: "#2D3748" },
+  historyDetails: { gap: 2, marginBottom: 4 },
+  historyDetail: { fontSize: 13, color: "#4A5568" },
+  historyCompleted: { fontSize: 11, color: "#A0AEC0", marginTop: 4 },
 });

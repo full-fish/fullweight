@@ -61,3 +61,21 @@ export type Challenge = {
   endDate: string;
   createdAt: string;
 };
+
+/** 완료된 챌린지 기록 */
+export type ChallengeHistory = {
+  id: string;
+  challenge: Challenge;
+  endWeight?: number;
+  endMuscleMass?: number;
+  endBodyFatMass?: number;
+  endBodyFatPercent?: number;
+  overallProgress: number | null;
+  completedAt: string;
+};
+
+/** 사용자 설정 (키, 나이 등) */
+export type UserSettings = {
+  height?: number; // cm
+  age?: number;
+};

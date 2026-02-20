@@ -79,7 +79,7 @@ function hexToRGBA(hex: string, opacity: number) {
   return `rgba(${r},${g},${b},${opacity})`;
 }
 
-/* \u2500\u2500\u2500\u2500\u2500 DatePickerRow (\uce98\ub9b0\ub354 \ud31d\uc5c5 \ud3ec\ud568) \u2500\u2500\u2500\u2500\u2500 */
+/* ───── DatePickerRow (캘린더 팝업 포함) ───── */
 
 function pad2(n: number) {
   return String(n).padStart(2, "0");
@@ -121,15 +121,7 @@ function DatePickerRow({
     setShowCal(true);
   };
 
-  const WKDAYS = [
-    "\uc77c",
-    "\uc6d4",
-    "\ud654",
-    "\uc218",
-    "\ubaa9",
-    "\uae08",
-    "\ud1a0",
-  ];
+  const WKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
   const daysInMonth = getDaysInMonth(cYear, cMonth);
   const firstDay = getFirstDayOfWeek(cYear, cMonth);
   const cells: (number | null)[] = [];
@@ -170,7 +162,7 @@ function DatePickerRow({
               Platform.OS === "ios" ? "numbers-and-punctuation" : "default"
             }
           />
-          <Text style={s.dateCalIcon}>{"\uD83D\uDCC5"}</Text>
+          <Text style={s.dateCalIcon}>📅</Text>
         </TouchableOpacity>
       </View>
 
@@ -188,13 +180,13 @@ function DatePickerRow({
           <View style={cpS.card} onStartShouldSetResponder={() => true}>
             <View style={cpS.navRow}>
               <TouchableOpacity onPress={prevM} style={cpS.navBtn}>
-                <Text style={cpS.navBtnText}>\u25C0</Text>
+                <Text style={cpS.navBtnText}>◀</Text>
               </TouchableOpacity>
               <Text style={cpS.navTitle}>
-                {cYear}\ub144 {cMonth + 1}\uc6d4
+                {cYear}년 {cMonth + 1}월
               </Text>
               <TouchableOpacity onPress={nextM} style={cpS.navBtn}>
-                <Text style={cpS.navBtnText}>\u25B6</Text>
+                <Text style={cpS.navBtnText}>▶</Text>
               </TouchableOpacity>
             </View>
             <View style={cpS.weekRow}>
@@ -245,7 +237,7 @@ function DatePickerRow({
                 setShowCal(false);
               }}
             >
-              <Text style={cpS.clearBtnText}>\uCD08\uAE30\uD654</Text>
+              <Text style={cpS.clearBtnText}>초기화</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>

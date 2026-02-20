@@ -1,8 +1,15 @@
-import { Challenge, WeightRecord } from "@/types";
+import {
+  Challenge,
+  ChallengeHistory,
+  UserSettings,
+  WeightRecord,
+} from "@/types";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const STORAGE_KEY = "weight_records_v1";
 const CHALLENGE_KEY = "weight_challenge_v1";
+const CHALLENGE_HISTORY_KEY = "weight_challenge_history_v1";
+const USER_SETTINGS_KEY = "user_settings_v1";
 
 /** 로컬 날짜를 YYYY-MM-DD 형식으로 반환 */
 export function getLocalDateString(date: Date = new Date()): string {
@@ -137,4 +144,47 @@ export async function saveChallenge(challenge: Challenge): Promise<void> {
 
 export async function deleteChallenge(): Promise<void> {
   await AsyncStorage.removeItem(CHALLENGE_KEY);
+}
+
+/* ───── 챌린지 히스토리 ───── */
+
+export async function loadChallengeHistory(): Promise<ChallengeHistory[]> {
+  try {
+    const data = await AsyncStorage.getItem(CHALLENGE_HISTORY_KEY);
+    if (!data) return [];
+    return JSON.parse(data) as ChallengeHistory[];
+  } catch {
+    return [];
+  }
+}
+
+export async function saveChallengeHistory(
+  history: ChallengeHistory[]
+): Promise<void> {
+  await AsyncStorage.setItem(CHALLENGE_HISTORY_KEY, JSON.stringify(history));
+}
+
+export async function addChallengeToHistory(
+  entry: ChallengeHistory
+): Promise<ChallengeHistory[]> {
+  const history = await loadChallengeHistory();
+  history.unshift(entry);
+  await saveChallengeHistory(history);
+  return history;
+}
+
+/* ───── 사용자 설정 ───── */
+
+export async function loadUserSettings(): Promise<UserSettings> {
+  try {
+    const data = await AsyncStorage.getItem(USER_SETTINGS_KEY);
+    if (!data) return {};
+    return JSON.parse(data) as UserSettings;
+  } catch {
+    return {};
+  }
+}
+
+export async function saveUserSettings(settings: UserSettings): Promise<void> {
+  await AsyncStorage.setItem(USER_SETTINGS_KEY, JSON.stringify(settings));
 }
