@@ -18,7 +18,6 @@ import React, {
 } from "react";
 import {
   Dimensions,
-  Image,
   Modal,
   Platform,
   ScrollView,
@@ -499,7 +498,12 @@ export default function ChartScreen() {
   const [statsEnd, setStatsEnd] = useState("");
   const [activityStart, setActivityStart] = useState("");
   const [activityEnd, setActivityEnd] = useState("");
-  const [selectedPoint, setSelectedPoint] = useState<WeightRecord | null>(null);
+  const [tooltipPoint, setTooltipPoint] = useState<{
+    record: WeightRecord;
+    x: number;
+    y: number;
+    chartId: string;
+  } | null>(null);
   const [overlayMode, setOverlayMode] = useState(true);
   const [chartZoom, setChartZoom] = useState(30); // 표시할 데이터 포인트 수 (X축 줌)
   const [chartOffset, setChartOffset] = useState(0); // 우측 끝에서의 오프셋 (팬)
@@ -609,6 +613,7 @@ export default function ChartScreen() {
         pinchBaseZoom.current = latestZoom.current;
         pinchBaseYPad.current = latestYPad.current;
         pinchBaseOffset.current = latestOffset.current;
+        setTooltipPoint(null);
       })
       .onUpdate((e) => {
         if (isVerticalPinch.current) {
@@ -647,6 +652,7 @@ export default function ChartScreen() {
       .maxPointers(1)
       .onBegin(() => {
         panBaseOffset.current = latestOffset.current;
+        setTooltipPoint(null);
       })
       .onUpdate((e) => {
         const pointsPerPx = latestZoom.current / CHART_WIDTH;
@@ -877,10 +883,60 @@ export default function ChartScreen() {
     });
   };
 
-  /* ── 점 클릭 → 팝업 ── */
-  const handleDotPress = (filteredRecs: WeightRecord[], idx: number) => {
+  /* ── 점 클릭 → 인라인 툴팁 ── */
+  const handleDotPress = (
+    filteredRecs: WeightRecord[],
+    idx: number,
+    x: number,
+    y: number,
+    chartId: string
+  ) => {
     const rec = filteredRecs[idx];
-    if (rec) setSelectedPoint(rec);
+    if (!rec) return;
+    // 같은 점 다시 누르면 닫기
+    if (tooltipPoint && tooltipPoint.record.date === rec.date && tooltipPoint.chartId === chartId) {
+      setTooltipPoint(null);
+    } else {
+      setTooltipPoint({ record: rec, x, y, chartId });
+    }
+  };
+
+  /* ── 인라인 툴팁 렌더링 ── */
+  const renderTooltip = (chartId: string, chartHeight: number) => {
+    if (!tooltipPoint || tooltipPoint.chartId !== chartId) return null;
+    const { record, x, y } = tooltipPoint;
+    const tooltipW = 160;
+    const left = Math.max(4, Math.min(x - tooltipW / 2, CHART_WIDTH - tooltipW - 4));
+    // 점 위에 표시, 공간 부족하면 아래에 표시
+    const showAbove = y > 90;
+
+    const metrics: { icon: string; val: string }[] = [];
+    metrics.push({ icon: "⚖️", val: `${record.weight} kg` });
+    if (record.waist != null) metrics.push({ icon: "📏", val: `${record.waist} cm` });
+    if (record.muscleMass != null) metrics.push({ icon: "💪", val: `${record.muscleMass} kg` });
+    if (record.bodyFatPercent != null) metrics.push({ icon: "🔥", val: `${record.bodyFatPercent} %` });
+    if (record.bodyFatMass != null) metrics.push({ icon: "🟣", val: `${record.bodyFatMass} kg` });
+
+    return (
+      <TouchableOpacity
+        activeOpacity={1}
+        onPress={() => setTooltipPoint(null)}
+        style={[
+          s.tooltip,
+          { left, width: tooltipW },
+          showAbove
+            ? { bottom: chartHeight - y + 10 }
+            : { top: y + 12 },
+        ]}
+      >
+        <Text style={s.tooltipDate}>{fmtDate(record.date)}</Text>
+        {metrics.map((m, i) => (
+          <Text key={i} style={s.tooltipMetric}>
+            {m.icon} {m.val}
+          </Text>
+        ))}
+      </TouchableOpacity>
+    );
   };
 
   const METRICS: MetricKey[] = [
@@ -1035,6 +1091,7 @@ export default function ChartScreen() {
             {isSingle &&
               singleChartInfo &&
               singleChartInfo.filtered.length >= 2 && (
+                <View style={{ position: "relative" }}>
                 <LineChart
                   data={{
                     labels: singleChartInfo.labels,
@@ -1095,10 +1152,12 @@ export default function ChartScreen() {
                   withVerticalLines={false}
                   withShadow={false}
                   formatYLabel={(v) => parseFloat(v).toFixed(1)}
-                  onDataPointClick={({ index }) =>
-                    handleDotPress(singleChartInfo.filtered, index)
+                  onDataPointClick={({ index, x, y }) =>
+                    handleDotPress(singleChartInfo.filtered, index, x, y, "single")
                   }
                 />
+                {renderTooltip("single", 220)}
+                </View>
               )}
 
             {isSingle &&
@@ -1121,6 +1180,7 @@ export default function ChartScreen() {
                   let dotCallIdx = 0;
                   const N = overlayInfo.filtered.length;
                   return (
+                    <View style={{ position: "relative" }}>
                     <LineChart
                       data={{
                         labels: overlayInfo.labels,
@@ -1161,10 +1221,12 @@ export default function ChartScreen() {
                       withVerticalLines={false}
                       withShadow={false}
                       formatYLabel={(v) => `${parseFloat(v).toFixed(0)}%`}
-                      onDataPointClick={({ index }) =>
-                        handleDotPress(overlayInfo.filtered, index)
+                      onDataPointClick={({ index, x, y }) =>
+                        handleDotPress(overlayInfo.filtered, index, x, y, "overlay")
                       }
                     />
+                    {renderTooltip("overlay", 240)}
+                    </View>
                   );
                 })()}
                 <View style={s.overlayLegend}>
@@ -1219,6 +1281,7 @@ export default function ChartScreen() {
                       </Text>
                     </View>
                     {info.hasData ? (
+                      <View style={{ position: "relative" }}>
                       <LineChart
                         data={{
                           labels: info.labels,
@@ -1284,10 +1347,12 @@ export default function ChartScreen() {
                         withVerticalLines={false}
                         withShadow={false}
                         formatYLabel={(v) => parseFloat(v).toFixed(1)}
-                        onDataPointClick={({ index }) =>
-                          handleDotPress(info.filtered, index)
+                        onDataPointClick={({ index, x, y }) =>
+                          handleDotPress(info.filtered, index, x, y, `sep-${info.key}`)
                         }
                       />
+                      {renderTooltip(`sep-${info.key}`, 160)}
+                      </View>
                     ) : (
                       <View style={s.emptyMiniChart}>
                         <Text style={s.emptyText}>
@@ -1512,88 +1577,7 @@ export default function ChartScreen() {
           onClose={() => setShowActivityEndCal(false)}
         />
 
-        {/* 점 클릭 팝업 모달 */}
-        <Modal
-          visible={!!selectedPoint}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setSelectedPoint(null)}
-        >
-          <TouchableOpacity
-            style={s.modalOverlay}
-            activeOpacity={1}
-            onPress={() => setSelectedPoint(null)}
-          >
-            <View style={s.modalCard}>
-              {selectedPoint && (
-                <>
-                  <Text style={s.modalDate}>{fmtDate(selectedPoint.date)}</Text>
-                  <View style={s.modalRow}>
-                    <Text style={s.modalLabel}>⚖️ 몸무게</Text>
-                    <Text style={s.modalValue}>{selectedPoint.weight} kg</Text>
-                  </View>
-                  {selectedPoint.waist != null && (
-                    <View style={s.modalRow}>
-                      <Text style={s.modalLabel}>📏 허리둘레</Text>
-                      <Text style={s.modalValue}>{selectedPoint.waist} cm</Text>
-                    </View>
-                  )}
-                  {selectedPoint.muscleMass != null && (
-                    <View style={s.modalRow}>
-                      <Text style={s.modalLabel}>💪 골격근량</Text>
-                      <Text style={s.modalValue}>
-                        {selectedPoint.muscleMass} kg
-                      </Text>
-                    </View>
-                  )}
-                  {selectedPoint.bodyFatPercent != null && (
-                    <View style={s.modalRow}>
-                      <Text style={s.modalLabel}>🔥 체지방률</Text>
-                      <Text style={s.modalValue}>
-                        {selectedPoint.bodyFatPercent} %
-                      </Text>
-                    </View>
-                  )}
-                  {selectedPoint.bodyFatMass != null && (
-                    <View style={s.modalRow}>
-                      <Text style={s.modalLabel}>🟣 체지방량</Text>
-                      <Text style={s.modalValue}>
-                        {selectedPoint.bodyFatMass} kg
-                      </Text>
-                    </View>
-                  )}
-                  {selectedPoint.photoUri && (
-                    <Image
-                      source={{ uri: selectedPoint.photoUri }}
-                      style={s.modalPhoto}
-                    />
-                  )}
-                  <View style={s.modalBadges}>
-                    {selectedPoint.exercised && (
-                      <View style={[s.badge, s.badgeGreen]}>
-                        <Text style={s.badgeText}>🏃 운동</Text>
-                      </View>
-                    )}
-                    {selectedPoint.drank && (
-                      <View style={[s.badge, s.badgeOrange]}>
-                        <Text style={s.badgeText}>🍺 음주</Text>
-                      </View>
-                    )}
-                    {!selectedPoint.exercised && !selectedPoint.drank && (
-                      <Text style={s.noDataText}>활동 기록 없음</Text>
-                    )}
-                  </View>
-                </>
-              )}
-              <TouchableOpacity
-                style={s.modalClose}
-                onPress={() => setSelectedPoint(null)}
-              >
-                <Text style={s.modalCloseText}>닫기</Text>
-              </TouchableOpacity>
-            </View>
-          </TouchableOpacity>
-        </Modal>
+
       </ScrollView>
     </SwipeableTab>
   );
@@ -1869,68 +1853,29 @@ const s = StyleSheet.create({
   summaryEmoji: { fontSize: 26, marginBottom: 6 },
   summaryCount: { fontSize: 20, fontWeight: "700", color: "#2D3748" },
   summaryLabel: { fontSize: 12, color: "#A0AEC0", marginTop: 2 },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.4)",
-  },
-  modalCard: {
-    width: width * 0.82,
-    backgroundColor: "#fff",
-    borderRadius: 20,
-    padding: 24,
+  tooltip: {
+    position: "absolute",
+    backgroundColor: "#2D3748",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    zIndex: 999,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 8,
   },
-  modalDate: {
-    fontSize: 18,
+  tooltipDate: {
+    fontSize: 12,
     fontWeight: "700",
-    color: "#2D3748",
-    marginBottom: 16,
+    color: "#fff",
+    marginBottom: 4,
     textAlign: "center",
   },
-  modalRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F0F4F8",
-  },
-  modalLabel: { fontSize: 15, color: "#4A5568" },
-  modalValue: { fontSize: 15, fontWeight: "600", color: "#2D3748" },
-  modalPhoto: {
-    width: "100%",
-    height: 200,
-    borderRadius: 12,
-    marginTop: 14,
-  },
-  modalBadges: {
-    flexDirection: "row",
-    gap: 8,
-    marginTop: 14,
-    justifyContent: "center",
-  },
-  badge: {
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 20,
-  },
-  badgeGreen: { backgroundColor: "#E8F5E9" },
-  badgeOrange: { backgroundColor: "#FFF3E0" },
-  badgeText: { fontSize: 13, fontWeight: "500", color: "#4A5568" },
-  modalClose: {
-    marginTop: 20,
-    alignItems: "center",
-    paddingVertical: 10,
-    backgroundColor: "#F0F4F8",
-    borderRadius: 10,
-  },
-  modalCloseText: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#4A5568",
+  tooltipMetric: {
+    fontSize: 11,
+    color: "#E2E8F0",
+    lineHeight: 17,
   },
 });
