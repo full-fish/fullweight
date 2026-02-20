@@ -107,8 +107,8 @@ export async function seedDummyData(): Promise<WeightRecord[]> {
       weight: Math.max(60, Math.min(100, weight)),
       waist,
       muscleMass: Math.random() < 0.3 ? rand(28, 38) : undefined,
-      bodyFat: Math.random() < 0.3 ? rand(15, 30) : undefined,
-      bodyFatUnit: "percent" as const,
+      bodyFatPercent: Math.random() < 0.3 ? rand(15, 30) : undefined,
+      bodyFatMass: Math.random() < 0.2 ? rand(8, 25) : undefined,
       exercised: Math.random() < 0.4,
       drank: Math.random() < 0.25,
     };

@@ -1,4 +1,5 @@
 import { WeightRecord } from "@/types";
+import { deletePhoto, pickPhoto, takePhoto } from "@/utils/photo";
 import {
   deleteRecord,
   getLocalDateString,
@@ -9,6 +10,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import React, { useCallback, useState } from "react";
 import {
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -31,10 +33,11 @@ export default function HomeScreen() {
   const [weight, setWeight] = useState("");
   const [waist, setWaist] = useState("");
   const [muscleMass, setMuscleMass] = useState("");
-  const [bodyFat, setBodyFat] = useState("");
-  const [bodyFatUnit, setBodyFatUnit] = useState<"percent" | "kg">("percent");
+  const [bodyFatPercent, setBodyFatPercent] = useState("");
+  const [bodyFatMass, setBodyFatMass] = useState("");
   const [exercised, setExercised] = useState(false);
   const [drank, setDrank] = useState(false);
+  const [photoUri, setPhotoUri] = useState<string | undefined>(undefined);
 
   useFocusEffect(
     useCallback(() => {
@@ -46,10 +49,11 @@ export default function HomeScreen() {
           setWeight(todayRecord.weight.toString());
           setWaist(todayRecord.waist?.toString() ?? "");
           setMuscleMass(todayRecord.muscleMass?.toString() ?? "");
-          setBodyFat(todayRecord.bodyFat?.toString() ?? "");
-          setBodyFatUnit(todayRecord.bodyFatUnit ?? "percent");
+          setBodyFatPercent(todayRecord.bodyFatPercent?.toString() ?? "");
+          setBodyFatMass(todayRecord.bodyFatMass?.toString() ?? "");
           setExercised(todayRecord.exercised);
           setDrank(todayRecord.drank);
+          setPhotoUri(todayRecord.photoUri);
         }
       });
     }, [today])
@@ -67,10 +71,11 @@ export default function HomeScreen() {
       weight: w,
       waist: waist ? parseFloat(waist) : undefined,
       muscleMass: muscleMass ? parseFloat(muscleMass) : undefined,
-      bodyFat: bodyFat ? parseFloat(bodyFat) : undefined,
-      bodyFatUnit,
+      bodyFatPercent: bodyFatPercent ? parseFloat(bodyFatPercent) : undefined,
+      bodyFatMass: bodyFatMass ? parseFloat(bodyFatMass) : undefined,
       exercised,
       drank,
+      photoUri,
     };
     const updated = await upsertRecord(record);
     setRecords([...updated].sort((a, b) => b.date.localeCompare(a.date)));
@@ -146,48 +151,67 @@ export default function HomeScreen() {
             <Text style={styles.unit}>kg</Text>
           </View>
 
-          <Text style={styles.label}>체지방 (선택)</Text>
+          <Text style={styles.label}>체지방률 (선택)</Text>
           <View style={styles.inputRow}>
             <TextInput
-              style={[styles.input, { flex: 0.7 }]}
-              value={bodyFat}
-              onChangeText={setBodyFat}
+              style={styles.input}
+              value={bodyFatPercent}
+              onChangeText={setBodyFatPercent}
               placeholder="0.0"
               placeholderTextColor="#aaa"
               keyboardType="decimal-pad"
             />
-            <View style={styles.unitToggle}>
-              <TouchableOpacity
-                style={[
-                  styles.unitBtn,
-                  bodyFatUnit === "percent" && styles.unitBtnActive,
-                ]}
-                onPress={() => setBodyFatUnit("percent")}
-              >
-                <Text
-                  style={[
-                    styles.unitBtnText,
-                    bodyFatUnit === "percent" && styles.unitBtnTextActive,
-                  ]}
+            <Text style={styles.unit}>%</Text>
+          </View>
+
+          <Text style={styles.label}>체지방량 (선택)</Text>
+          <View style={styles.inputRow}>
+            <TextInput
+              style={styles.input}
+              value={bodyFatMass}
+              onChangeText={setBodyFatMass}
+              placeholder="0.0"
+              placeholderTextColor="#aaa"
+              keyboardType="decimal-pad"
+            />
+            <Text style={styles.unit}>kg</Text>
+          </View>
+
+          {/* 사진 */}
+          <Text style={styles.label}>바디 사진 (선택)</Text>
+          <View style={styles.photoSection}>
+            {photoUri ? (
+              <View style={styles.photoPreviewWrap}>
+                <Image source={{ uri: photoUri }} style={styles.photoPreview} />
+                <TouchableOpacity
+                  style={styles.photoRemoveBtn}
+                  onPress={async () => {
+                    await deletePhoto(photoUri);
+                    setPhotoUri(undefined);
+                  }}
                 >
-                  %
-                </Text>
+                  <Text style={styles.photoRemoveText}>✕</Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
+            <View style={styles.photoBtnRow}>
+              <TouchableOpacity
+                style={styles.photoBtn}
+                onPress={async () => {
+                  const uri = await takePhoto();
+                  if (uri) setPhotoUri(uri);
+                }}
+              >
+                <Text style={styles.photoBtnText}>📸 촬영</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[
-                  styles.unitBtn,
-                  bodyFatUnit === "kg" && styles.unitBtnActive,
-                ]}
-                onPress={() => setBodyFatUnit("kg")}
+                style={styles.photoBtn}
+                onPress={async () => {
+                  const uri = await pickPhoto();
+                  if (uri) setPhotoUri(uri);
+                }}
               >
-                <Text
-                  style={[
-                    styles.unitBtnText,
-                    bodyFatUnit === "kg" && styles.unitBtnTextActive,
-                  ]}
-                >
-                  kg
-                </Text>
+                <Text style={styles.photoBtnText}>🖼 갤러리</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -242,11 +266,21 @@ export default function HomeScreen() {
                   골격근: {record.muscleMass} kg
                 </Text>
               )}
-              {record.bodyFat != null && (
+              {record.bodyFatPercent != null && (
                 <Text style={styles.recordSub}>
-                  체지방: {record.bodyFat}
-                  {record.bodyFatUnit === "kg" ? " kg" : " %"}
+                  체지방률: {record.bodyFatPercent} %
                 </Text>
+              )}
+              {record.bodyFatMass != null && (
+                <Text style={styles.recordSub}>
+                  체지방량: {record.bodyFatMass} kg
+                </Text>
+              )}
+              {record.photoUri && (
+                <Image
+                  source={{ uri: record.photoUri }}
+                  style={styles.recordPhoto}
+                />
               )}
               <View style={styles.badgeRow}>
                 {record.exercised && (
@@ -415,27 +449,56 @@ const styles = StyleSheet.create({
     color: "#718096",
     marginBottom: 2,
   },
-  unitToggle: {
+  recordPhoto: {
+    width: "100%",
+    height: 180,
+    borderRadius: 10,
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  photoSection: {
+    marginBottom: 16,
+  },
+  photoPreviewWrap: {
+    position: "relative",
+    marginBottom: 8,
+  },
+  photoPreview: {
+    width: "100%",
+    height: 200,
+    borderRadius: 12,
+  },
+  photoRemoveBtn: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  photoRemoveText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  photoBtnRow: {
     flexDirection: "row",
-    marginLeft: 8,
-    backgroundColor: "#E2E8F0",
-    borderRadius: 8,
-    overflow: "hidden",
+    gap: 10,
   },
-  unitBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+  photoBtn: {
+    flex: 1,
+    backgroundColor: "#EDF2F7",
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: "center",
   },
-  unitBtnActive: {
-    backgroundColor: "#4CAF50",
-  },
-  unitBtnText: {
+  photoBtnText: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#718096",
-  },
-  unitBtnTextActive: {
-    color: "#fff",
+    color: "#4A5568",
   },
   badgeRow: {
     flexDirection: "row",
