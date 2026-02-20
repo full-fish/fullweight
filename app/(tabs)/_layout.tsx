@@ -1,9 +1,13 @@
 import { Tabs } from "expo-router";
 import React from "react";
+import { Text } from "react-native";
 
 import { HapticTab } from "@/components/haptic-tab";
-import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+
+function EmojiIcon({ emoji }: { emoji: string }) {
+  return <Text style={{ fontSize: 22 }}>{emoji}</Text>;
+}
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
@@ -25,50 +29,36 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "기록",
-          tabBarIcon: ({ color }) => (
-            <IconSymbol size={26} name="square.and.pencil" color={color} />
-          ),
+          title: "\uae30\ub85d",
+          tabBarIcon: () => <EmojiIcon emoji={"\u{1F4DD}"} />,
         }}
       />
       <Tabs.Screen
         name="explore"
         options={{
-          title: "그래프",
-          tabBarIcon: ({ color }) => (
-            <IconSymbol
-              size={26}
-              name="chart.line.uptrend.xyaxis"
-              color={color}
-            />
-          ),
+          title: "\uADF8\uB798\uD504",
+          tabBarIcon: () => <EmojiIcon emoji={"\u{1F4CA}"} />,
         }}
       />
       <Tabs.Screen
         name="calendar"
         options={{
-          title: "캘린더",
-          tabBarIcon: ({ color }) => (
-            <IconSymbol size={26} name="calendar" color={color} />
-          ),
+          title: "\uCE98\uB9B0\uB354",
+          tabBarIcon: () => <EmojiIcon emoji={"\u{1F4C5}"} />,
         }}
       />
       <Tabs.Screen
         name="challenge"
         options={{
-          title: "챌린지",
-          tabBarIcon: ({ color }) => (
-            <IconSymbol size={26} name="trophy.fill" color={color} />
-          ),
+          title: "\uCC4C\uB9B0\uC9C0",
+          tabBarIcon: () => <EmojiIcon emoji={"\u{1F3C6}"} />,
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
-          title: "설정",
-          tabBarIcon: ({ color }) => (
-            <IconSymbol size={26} name="gearshape.fill" color={color} />
-          ),
+          title: "\uC124\uC815",
+          tabBarIcon: () => <EmojiIcon emoji={"\u2699\uFE0F"} />,
         }}
       />
     </Tabs>

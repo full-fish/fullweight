@@ -1,3 +1,4 @@
+import { SwipeableTab } from "@/components/swipeable-tab";
 import { clearAllRecords, loadRecords, seedDummyData } from "@/utils/storage";
 import { useFocusEffect } from "@react-navigation/native";
 import React, { useCallback, useState } from "react";
@@ -60,56 +61,60 @@ export default function SettingsScreen() {
   };
 
   return (
-    <ScrollView style={s.container} contentContainerStyle={s.content}>
-      <Text style={s.title}>⚙️ 설정</Text>
+    <SwipeableTab currentIndex={4}>
+      <ScrollView style={s.container} contentContainerStyle={s.content}>
+        <Text style={s.title}>
+          {"\u2699\uFE0F"} {"\uC124\uC815"}
+        </Text>
 
-      {/* 데이터 정보 */}
-      <View style={s.card}>
-        <Text style={s.cardTitle}>데이터 정보</Text>
-        <View style={s.infoRow}>
-          <Text style={s.infoLabel}>총 기록 수</Text>
-          <Text style={s.infoValue}>{recordCount}개</Text>
-        </View>
-        <View style={s.infoRow}>
-          <Text style={s.infoLabel}>저장 위치</Text>
-          <Text style={s.infoValue}>로컬 (AsyncStorage)</Text>
-        </View>
-      </View>
-
-      {/* 개발자 도구 */}
-      <View style={s.card}>
-        <Text style={s.cardTitle}>개발자 도구</Text>
-        <TouchableOpacity style={s.actionBtn} onPress={handleSeedDummy}>
-          <Text style={s.actionIcon}>🎲</Text>
-          <View style={s.actionTextWrap}>
-            <Text style={s.actionTitle}>더미 데이터 생성</Text>
-            <Text style={s.actionDesc}>약 1년치 랜덤 테스트 데이터 삽입</Text>
+        {/* 데이터 정보 */}
+        <View style={s.card}>
+          <Text style={s.cardTitle}>데이터 정보</Text>
+          <View style={s.infoRow}>
+            <Text style={s.infoLabel}>총 기록 수</Text>
+            <Text style={s.infoValue}>{recordCount}개</Text>
           </View>
-        </TouchableOpacity>
-        <TouchableOpacity style={s.actionBtn} onPress={handleClearAll}>
-          <Text style={s.actionIcon}>🗑</Text>
-          <View style={s.actionTextWrap}>
-            <Text style={[s.actionTitle, { color: "#E53E3E" }]}>
-              전체 데이터 삭제
-            </Text>
-            <Text style={s.actionDesc}>모든 기록을 영구 삭제합니다</Text>
+          <View style={s.infoRow}>
+            <Text style={s.infoLabel}>저장 위치</Text>
+            <Text style={s.infoValue}>로컬 (AsyncStorage)</Text>
           </View>
-        </TouchableOpacity>
-      </View>
+        </View>
 
-      {/* 앱 정보 */}
-      <View style={s.card}>
-        <Text style={s.cardTitle}>앱 정보</Text>
-        <View style={s.infoRow}>
-          <Text style={s.infoLabel}>앱 이름</Text>
-          <Text style={s.infoValue}>Full Weight</Text>
+        {/* 개발자 도구 */}
+        <View style={s.card}>
+          <Text style={s.cardTitle}>개발자 도구</Text>
+          <TouchableOpacity style={s.actionBtn} onPress={handleSeedDummy}>
+            <Text style={s.actionIcon}>🎲</Text>
+            <View style={s.actionTextWrap}>
+              <Text style={s.actionTitle}>더미 데이터 생성</Text>
+              <Text style={s.actionDesc}>약 1년치 랜덤 테스트 데이터 삽입</Text>
+            </View>
+          </TouchableOpacity>
+          <TouchableOpacity style={s.actionBtn} onPress={handleClearAll}>
+            <Text style={s.actionIcon}>🗑</Text>
+            <View style={s.actionTextWrap}>
+              <Text style={[s.actionTitle, { color: "#E53E3E" }]}>
+                전체 데이터 삭제
+              </Text>
+              <Text style={s.actionDesc}>모든 기록을 영구 삭제합니다</Text>
+            </View>
+          </TouchableOpacity>
         </View>
-        <View style={s.infoRow}>
-          <Text style={s.infoLabel}>버전</Text>
-          <Text style={s.infoValue}>1.0.0</Text>
+
+        {/* 앱 정보 */}
+        <View style={s.card}>
+          <Text style={s.cardTitle}>앱 정보</Text>
+          <View style={s.infoRow}>
+            <Text style={s.infoLabel}>앱 이름</Text>
+            <Text style={s.infoValue}>Full Weight</Text>
+          </View>
+          <View style={s.infoRow}>
+            <Text style={s.infoLabel}>버전</Text>
+            <Text style={s.infoValue}>1.0.0</Text>
+          </View>
         </View>
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </SwipeableTab>
   );
 }
 

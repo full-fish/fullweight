@@ -1,3 +1,4 @@
+import { SwipeableTab } from "@/components/swipeable-tab";
 import {
   METRIC_COLORS,
   METRIC_LABELS,
@@ -25,6 +26,7 @@ import { LineChart } from "react-native-chart-kit";
 
 const { width } = Dimensions.get("window");
 const CHART_WIDTH = width - 48;
+const CP_DAY = Math.floor((width * 0.82 - 56) / 7);
 
 /* ───── helpers ───── */
 
@@ -77,7 +79,19 @@ function hexToRGBA(hex: string, opacity: number) {
   return `rgba(${r},${g},${b},${opacity})`;
 }
 
-/* ───── DatePickerRow ───── */
+/* \u2500\u2500\u2500\u2500\u2500 DatePickerRow (\uce98\ub9b0\ub354 \ud31d\uc5c5 \ud3ec\ud568) \u2500\u2500\u2500\u2500\u2500 */
+
+function pad2(n: number) {
+  return String(n).padStart(2, "0");
+}
+
+function getDaysInMonth(year: number, month: number) {
+  return new Date(year, month + 1, 0).getDate();
+}
+
+function getFirstDayOfWeek(year: number, month: number) {
+  return new Date(year, month, 1).getDay();
+}
 
 function DatePickerRow({
   label,
@@ -88,23 +102,210 @@ function DatePickerRow({
   value: string;
   onChange: (v: string) => void;
 }) {
+  const [showCal, setShowCal] = useState(false);
+  const now = new Date();
+  const parsed = value ? new Date(value) : now;
+  const initY = !isNaN(parsed.getTime())
+    ? parsed.getFullYear()
+    : now.getFullYear();
+  const initM = !isNaN(parsed.getTime()) ? parsed.getMonth() : now.getMonth();
+  const [cYear, setCYear] = useState(initY);
+  const [cMonth, setCMonth] = useState(initM);
+
+  const openCal = () => {
+    const p = value ? new Date(value) : new Date();
+    if (!isNaN(p.getTime())) {
+      setCYear(p.getFullYear());
+      setCMonth(p.getMonth());
+    }
+    setShowCal(true);
+  };
+
+  const WKDAYS = [
+    "\uc77c",
+    "\uc6d4",
+    "\ud654",
+    "\uc218",
+    "\ubaa9",
+    "\uae08",
+    "\ud1a0",
+  ];
+  const daysInMonth = getDaysInMonth(cYear, cMonth);
+  const firstDay = getFirstDayOfWeek(cYear, cMonth);
+  const cells: (number | null)[] = [];
+  for (let i = 0; i < firstDay; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  const prevM = () => {
+    if (cMonth === 0) {
+      setCYear(cYear - 1);
+      setCMonth(11);
+    } else {
+      setCMonth(cMonth - 1);
+    }
+  };
+  const nextM = () => {
+    if (cMonth === 11) {
+      setCYear(cYear + 1);
+      setCMonth(0);
+    } else {
+      setCMonth(cMonth + 1);
+    }
+  };
+
   return (
-    <View style={s.dateRow}>
-      <Text style={s.dateLabel}>{label}</Text>
-      <TextInput
-        style={s.dateInput}
-        value={value}
-        onChangeText={onChange}
-        placeholder="YYYY-MM-DD"
-        placeholderTextColor="#aaa"
-        maxLength={10}
-        keyboardType={
-          Platform.OS === "ios" ? "numbers-and-punctuation" : "default"
-        }
-      />
-    </View>
+    <>
+      <View style={s.dateRow}>
+        <Text style={s.dateLabel}>{label}</Text>
+        <TouchableOpacity style={s.dateInputWrap} onPress={openCal}>
+          <TextInput
+            style={s.dateInput}
+            value={value}
+            onChangeText={onChange}
+            placeholder="YYYY-MM-DD"
+            placeholderTextColor="#aaa"
+            maxLength={10}
+            keyboardType={
+              Platform.OS === "ios" ? "numbers-and-punctuation" : "default"
+            }
+          />
+          <Text style={s.dateCalIcon}>{"\uD83D\uDCC5"}</Text>
+        </TouchableOpacity>
+      </View>
+
+      <Modal
+        visible={showCal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowCal(false)}
+      >
+        <TouchableOpacity
+          style={cpS.overlay}
+          activeOpacity={1}
+          onPress={() => setShowCal(false)}
+        >
+          <View style={cpS.card} onStartShouldSetResponder={() => true}>
+            <View style={cpS.navRow}>
+              <TouchableOpacity onPress={prevM} style={cpS.navBtn}>
+                <Text style={cpS.navBtnText}>\u25C0</Text>
+              </TouchableOpacity>
+              <Text style={cpS.navTitle}>
+                {cYear}\ub144 {cMonth + 1}\uc6d4
+              </Text>
+              <TouchableOpacity onPress={nextM} style={cpS.navBtn}>
+                <Text style={cpS.navBtnText}>\u25B6</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={cpS.weekRow}>
+              {WKDAYS.map((d, i) => (
+                <View key={i} style={cpS.weekCell}>
+                  <Text
+                    style={[
+                      cpS.weekText,
+                      i === 0 && { color: "#E53E3E" },
+                      i === 6 && { color: "#3182CE" },
+                    ]}
+                  >
+                    {d}
+                  </Text>
+                </View>
+              ))}
+            </View>
+            {Array.from({ length: cells.length / 7 }, (_, wi) => (
+              <View key={wi} style={cpS.weekRow}>
+                {cells.slice(wi * 7, wi * 7 + 7).map((day, di) => {
+                  if (day === null)
+                    return <View key={di} style={cpS.dayCell} />;
+                  const dateStr = `${cYear}-${pad2(cMonth + 1)}-${pad2(day)}`;
+                  const isSelected = dateStr === value;
+                  return (
+                    <TouchableOpacity
+                      key={di}
+                      style={[cpS.dayCell, isSelected && cpS.dayCellSelected]}
+                      onPress={() => {
+                        onChange(dateStr);
+                        setShowCal(false);
+                      }}
+                    >
+                      <Text
+                        style={[cpS.dayText, isSelected && { color: "#fff" }]}
+                      >
+                        {day}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            ))}
+            <TouchableOpacity
+              style={cpS.clearBtn}
+              onPress={() => {
+                onChange("");
+                setShowCal(false);
+              }}
+            >
+              <Text style={cpS.clearBtnText}>\uCD08\uAE30\uD654</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+    </>
   );
 }
+
+const cpS = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.4)",
+  },
+  card: {
+    width: width * 0.82,
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 18,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+  },
+  navRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  navBtn: { padding: 8 },
+  navBtnText: { fontSize: 15, color: "#4A5568" },
+  navTitle: { fontSize: 16, fontWeight: "700", color: "#2D3748" },
+  weekRow: { flexDirection: "row", justifyContent: "space-around" },
+  weekCell: {
+    width: CP_DAY,
+    height: 26,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  weekText: { fontSize: 11, fontWeight: "600", color: "#718096" },
+  dayCell: {
+    width: CP_DAY,
+    height: CP_DAY,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: CP_DAY / 2,
+  },
+  dayCellSelected: { backgroundColor: "#4CAF50" },
+  dayText: { fontSize: 13, fontWeight: "500", color: "#2D3748" },
+  clearBtn: {
+    marginTop: 10,
+    alignItems: "center",
+    paddingVertical: 8,
+    backgroundColor: "#F0F4F8",
+    borderRadius: 8,
+  },
+  clearBtnText: { fontSize: 13, fontWeight: "600", color: "#E53E3E" },
+});
 
 /* ───── MAIN ───── */
 
@@ -312,552 +513,556 @@ export default function ChartScreen() {
   const isMulti = selectedMetrics.length > 1;
 
   return (
-    <ScrollView style={s.container} contentContainerStyle={s.content}>
-      <Text style={s.title}>📊 기록 그래프</Text>
+    <SwipeableTab currentIndex={1}>
+      <ScrollView style={s.container} contentContainerStyle={s.content}>
+        <Text style={s.title}>{"\u{1F4CA}"} 기록 그래프</Text>
 
-      {/* 수치 선택 칩 */}
-      <View style={s.metricRow}>
-        {METRICS.map((key) => {
-          const active = selectedMetrics.includes(key);
-          return (
-            <TouchableOpacity
-              key={key}
-              style={[
-                s.metricChip,
-                active && {
-                  backgroundColor: METRIC_COLORS[key] + "22",
-                  borderColor: METRIC_COLORS[key],
-                },
-              ]}
-              onPress={() => toggleMetric(key)}
-            >
-              <View
+        {/* 수치 선택 칩 */}
+        <View style={s.metricRow}>
+          {METRICS.map((key) => {
+            const active = selectedMetrics.includes(key);
+            return (
+              <TouchableOpacity
+                key={key}
                 style={[
-                  s.metricDot,
-                  {
-                    backgroundColor: active ? METRIC_COLORS[key] : "#CBD5E0",
+                  s.metricChip,
+                  active && {
+                    backgroundColor: METRIC_COLORS[key] + "22",
+                    borderColor: METRIC_COLORS[key],
                   },
                 ]}
-              />
-              <Text
-                style={[
-                  s.metricChipText,
-                  active && { color: METRIC_COLORS[key] },
-                ]}
+                onPress={() => toggleMetric(key)}
               >
-                {METRIC_LABELS[key]}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-
-      {/* 기간 모드 */}
-      <View style={s.periodRow}>
-        {(["daily", "weekly", "monthly", "custom"] as PeriodMode[]).map((m) => (
-          <TouchableOpacity
-            key={m}
-            style={[s.periodBtn, periodMode === m && s.periodBtnActive]}
-            onPress={() => setPeriodMode(m)}
-          >
-            <Text
-              style={[s.periodText, periodMode === m && s.periodTextActive]}
-            >
-              {
-                {
-                  daily: "일별",
-                  weekly: "주별",
-                  monthly: "월별",
-                  custom: "기간",
-                }[m]
-              }
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {periodMode === "custom" && (
-        <View style={s.customDateCard}>
-          <DatePickerRow
-            label="시작일"
-            value={customStart}
-            onChange={setCustomStart}
-          />
-          <DatePickerRow
-            label="종료일"
-            value={customEnd}
-            onChange={setCustomEnd}
-          />
-        </View>
-      )}
-
-      {/* 차트 카드 */}
-      <View style={s.chartCard}>
-        <Text style={s.chartTitle}>
-          {selectedMetrics.map((k) => METRIC_LABELS[k]).join(" · ")} 추이
-        </Text>
-
-        {/* 오버레이 토글 (다중 선택 시) */}
-        {isMulti && (
-          <View style={s.overlayToggleRow}>
-            <TouchableOpacity
-              style={[s.overlayBtn, overlayMode && s.overlayBtnActive]}
-              onPress={() => setOverlayMode(true)}
-            >
-              <Text
-                style={[
-                  s.overlayBtnText,
-                  overlayMode && s.overlayBtnTextActive,
-                ]}
-              >
-                겹쳐보기
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[s.overlayBtn, !overlayMode && s.overlayBtnActive]}
-              onPress={() => setOverlayMode(false)}
-            >
-              <Text
-                style={[
-                  s.overlayBtnText,
-                  !overlayMode && s.overlayBtnTextActive,
-                ]}
-              >
-                따로보기
-              </Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* 단일 수치 차트 */}
-        {isSingle &&
-          singleChartInfo &&
-          singleChartInfo.filtered.length >= 2 && (
-            <LineChart
-              data={{
-                labels: singleChartInfo.labels,
-                datasets: [
-                  {
-                    data: singleChartInfo.values,
-                    color: (opacity = 1) =>
-                      hexToRGBA(METRIC_COLORS[singleChartInfo.key], opacity),
-                    strokeWidth: 2,
-                  },
-                ],
-              }}
-              width={CHART_WIDTH}
-              height={220}
-              chartConfig={{
-                backgroundGradientFrom: "#fff",
-                backgroundGradientTo: "#fff",
-                color: (opacity = 1) =>
-                  hexToRGBA(METRIC_COLORS[singleChartInfo.key], opacity),
-                labelColor: (opacity = 1) => `rgba(113,128,150,${opacity})`,
-                strokeWidth: 2,
-                propsForDots: {
-                  r: "3.5",
-                  strokeWidth: "1.5",
-                  stroke: METRIC_COLORS[singleChartInfo.key],
-                  fill: "#fff",
-                },
-                propsForBackgroundLines: { stroke: "#F0F4F8" },
-                decimalPlaces: 1,
-              }}
-              bezier
-              style={s.chart}
-              withVerticalLines={false}
-              withShadow={false}
-              formatYLabel={(v) => parseFloat(v).toFixed(1)}
-              onDataPointClick={({ index }) =>
-                handleDotPress(singleChartInfo.filtered, index)
-              }
-            />
-          )}
-
-        {isSingle &&
-          (!singleChartInfo || singleChartInfo.filtered.length < 2) && (
-            <View style={s.emptyChart}>
-              <Text style={s.emptyIcon}>📈</Text>
-              <Text style={s.emptyText}>
-                {METRIC_LABELS[selectedMetrics[0]]} 데이터가 부족합니다.
-              </Text>
-            </View>
-          )}
-
-        {/* 다중 수치 - 오버레이 모드 */}
-        {isMulti && overlayMode && overlayInfo && (
-          <>
-            <Text style={s.multiAxisNote}>
-              📐 정규화된 비교 (각 수치 0~100% 스케일)
-            </Text>
-            <LineChart
-              data={{
-                labels: overlayInfo.labels,
-                datasets: overlayInfo.datasets,
-              }}
-              width={CHART_WIDTH}
-              height={240}
-              chartConfig={{
-                backgroundGradientFrom: "#fff",
-                backgroundGradientTo: "#fff",
-                color: (opacity = 1) => `rgba(113,128,150,${opacity})`,
-                labelColor: (opacity = 1) => `rgba(113,128,150,${opacity})`,
-                strokeWidth: 2,
-                propsForDots: {
-                  r: "3",
-                  strokeWidth: "1",
-                  stroke: "#718096",
-                  fill: "#fff",
-                },
-                propsForBackgroundLines: { stroke: "#F0F4F8" },
-                decimalPlaces: 0,
-              }}
-              bezier
-              style={s.chart}
-              withVerticalLines={false}
-              withShadow={false}
-              formatYLabel={(v) => `${parseFloat(v).toFixed(0)}%`}
-              onDataPointClick={({ index }) =>
-                handleDotPress(overlayInfo.filtered, index)
-              }
-            />
-            <View style={s.overlayLegend}>
-              {selectedMetrics.map((key) => {
-                const range = overlayInfo.ranges[key];
-                return (
-                  <View key={key} style={s.overlayLegendItem}>
-                    <View
-                      style={[
-                        s.legendDot,
-                        { backgroundColor: METRIC_COLORS[key] },
-                      ]}
-                    />
-                    <Text style={s.legendText}>
-                      {METRIC_LABELS[key]} ({range.min.toFixed(1)}~
-                      {range.max.toFixed(1)}
-                      {METRIC_UNITS[key]})
-                    </Text>
-                  </View>
-                );
-              })}
-            </View>
-          </>
-        )}
-
-        {isMulti && overlayMode && !overlayInfo && (
-          <View style={s.emptyChart}>
-            <Text style={s.emptyIcon}>📈</Text>
-            <Text style={s.emptyText}>
-              선택한 수치들의 동시 기록이 부족합니다.
-            </Text>
-          </View>
-        )}
-
-        {/* 다중 수치 - 개별 차트 모드 */}
-        {isMulti && !overlayMode && separateCharts && (
-          <>
-            <Text style={s.multiAxisNote}>📐 각 수치별 독립 차트</Text>
-            {separateCharts.map((info) => (
-              <View key={info.key} style={s.miniChartWrap}>
-                <View style={s.miniChartHeader}>
-                  <View
-                    style={[
-                      s.legendDot,
-                      { backgroundColor: METRIC_COLORS[info.key] },
-                    ]}
-                  />
-                  <Text style={s.miniChartTitle}>
-                    {METRIC_LABELS[info.key]} ({METRIC_UNITS[info.key]})
-                  </Text>
-                </View>
-                {info.filtered.length >= 2 ? (
-                  <LineChart
-                    data={{
-                      labels: info.labels,
-                      datasets: [
-                        {
-                          data: info.values,
-                          color: (opacity = 1) =>
-                            hexToRGBA(METRIC_COLORS[info.key], opacity),
-                          strokeWidth: 2,
-                        },
-                      ],
-                    }}
-                    width={CHART_WIDTH}
-                    height={160}
-                    chartConfig={{
-                      backgroundGradientFrom: "#fff",
-                      backgroundGradientTo: "#fff",
-                      color: (opacity = 1) =>
-                        hexToRGBA(METRIC_COLORS[info.key], opacity),
-                      labelColor: (opacity = 1) =>
-                        `rgba(113,128,150,${opacity})`,
-                      strokeWidth: 2,
-                      propsForDots: {
-                        r: "3.5",
-                        strokeWidth: "1.5",
-                        stroke: METRIC_COLORS[info.key],
-                        fill: "#fff",
-                      },
-                      propsForBackgroundLines: {
-                        stroke: "#F0F4F8",
-                      },
-                      decimalPlaces: 1,
-                    }}
-                    bezier
-                    style={s.chart}
-                    withVerticalLines={false}
-                    withShadow={false}
-                    formatYLabel={(v) => parseFloat(v).toFixed(1)}
-                    onDataPointClick={({ index }) =>
-                      handleDotPress(info.filtered, index)
-                    }
-                  />
-                ) : (
-                  <View style={s.emptyMiniChart}>
-                    <Text style={s.emptyText}>
-                      {METRIC_LABELS[info.key]} 데이터가 부족합니다.
-                    </Text>
-                  </View>
-                )}
-              </View>
-            ))}
-          </>
-        )}
-      </View>
-
-      {/* 통계 */}
-      <View style={s.card}>
-        <View style={s.cardHeader}>
-          <Text style={s.cardTitle}>통계</Text>
-          {statsStart ? (
-            <TouchableOpacity onPress={() => setStatsStart("")}>
-              <Text style={s.resetBtn}>초기화</Text>
-            </TouchableOpacity>
-          ) : null}
-        </View>
-
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={s.statsMetricScroll}
-        >
-          {METRICS.map((k) => (
-            <TouchableOpacity
-              key={k}
-              style={[
-                s.statsMetricBtn,
-                statsMetric === k && {
-                  backgroundColor: METRIC_COLORS[k],
-                },
-              ]}
-              onPress={() => setStatsMetric(k)}
-            >
-              <Text
-                style={[
-                  s.statsMetricText,
-                  statsMetric === k && s.statsMetricTextActive,
-                ]}
-              >
-                {METRIC_LABELS[k]}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-
-        <DatePickerRow
-          label="시작일"
-          value={statsStart}
-          onChange={setStatsStart}
-        />
-
-        {stats ? (
-          <>
-            <View style={s.statsGrid}>
-              <View style={s.statItem}>
-                <Text style={s.statLabel}>최근</Text>
-                <Text style={s.statValue}>{stats.current.toFixed(1)}</Text>
-                <Text style={s.statUnit}>{stats.unit}</Text>
-              </View>
-              <View style={s.statItem}>
-                <Text style={s.statLabel}>최고</Text>
-                <Text style={[s.statValue, { color: "#E53E3E" }]}>
-                  {stats.max.toFixed(1)}
-                </Text>
-                <Text style={s.statUnit}>{stats.unit}</Text>
-              </View>
-              <View style={s.statItem}>
-                <Text style={s.statLabel}>최저</Text>
-                <Text style={[s.statValue, { color: "#38A169" }]}>
-                  {stats.min.toFixed(1)}
-                </Text>
-                <Text style={s.statUnit}>{stats.unit}</Text>
-              </View>
-              <View style={s.statItem}>
-                <Text style={s.statLabel}>평균</Text>
-                <Text style={s.statValue}>{stats.avg.toFixed(1)}</Text>
-                <Text style={s.statUnit}>{stats.unit}</Text>
-              </View>
-            </View>
-            {stats.diff !== null && (
-              <View style={s.diffRow}>
-                <Text style={s.diffLabel}>시작 대비</Text>
-                <Text
+                <View
                   style={[
-                    s.diffValue,
+                    s.metricDot,
                     {
-                      color: stats.diff <= 0 ? "#38A169" : "#E53E3E",
+                      backgroundColor: active ? METRIC_COLORS[key] : "#CBD5E0",
                     },
                   ]}
+                />
+                <Text
+                  style={[
+                    s.metricChipText,
+                    active && { color: METRIC_COLORS[key] },
+                  ]}
                 >
-                  {stats.diff > 0 ? "+" : ""}
-                  {stats.diff.toFixed(1)} {stats.unit}
+                  {METRIC_LABELS[key]}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {/* 기간 모드 */}
+        <View style={s.periodRow}>
+          {(["daily", "weekly", "monthly", "custom"] as PeriodMode[]).map(
+            (m) => (
+              <TouchableOpacity
+                key={m}
+                style={[s.periodBtn, periodMode === m && s.periodBtnActive]}
+                onPress={() => setPeriodMode(m)}
+              >
+                <Text
+                  style={[s.periodText, periodMode === m && s.periodTextActive]}
+                >
+                  {
+                    {
+                      daily: "일별",
+                      weekly: "주별",
+                      monthly: "월별",
+                      custom: "기간",
+                    }[m]
+                  }
+                </Text>
+              </TouchableOpacity>
+            )
+          )}
+        </View>
+
+        {periodMode === "custom" && (
+          <View style={s.customDateCard}>
+            <DatePickerRow
+              label="시작일"
+              value={customStart}
+              onChange={setCustomStart}
+            />
+            <DatePickerRow
+              label="종료일"
+              value={customEnd}
+              onChange={setCustomEnd}
+            />
+          </View>
+        )}
+
+        {/* 차트 카드 */}
+        <View style={s.chartCard}>
+          <Text style={s.chartTitle}>
+            {selectedMetrics.map((k) => METRIC_LABELS[k]).join(" · ")} 추이
+          </Text>
+
+          {/* 오버레이 토글 (다중 선택 시) */}
+          {isMulti && (
+            <View style={s.overlayToggleRow}>
+              <TouchableOpacity
+                style={[s.overlayBtn, overlayMode && s.overlayBtnActive]}
+                onPress={() => setOverlayMode(true)}
+              >
+                <Text
+                  style={[
+                    s.overlayBtnText,
+                    overlayMode && s.overlayBtnTextActive,
+                  ]}
+                >
+                  겹쳐보기
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[s.overlayBtn, !overlayMode && s.overlayBtnActive]}
+                onPress={() => setOverlayMode(false)}
+              >
+                <Text
+                  style={[
+                    s.overlayBtnText,
+                    !overlayMode && s.overlayBtnTextActive,
+                  ]}
+                >
+                  따로보기
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* 단일 수치 차트 */}
+          {isSingle &&
+            singleChartInfo &&
+            singleChartInfo.filtered.length >= 2 && (
+              <LineChart
+                data={{
+                  labels: singleChartInfo.labels,
+                  datasets: [
+                    {
+                      data: singleChartInfo.values,
+                      color: (opacity = 1) =>
+                        hexToRGBA(METRIC_COLORS[singleChartInfo.key], opacity),
+                      strokeWidth: 2,
+                    },
+                  ],
+                }}
+                width={CHART_WIDTH}
+                height={220}
+                chartConfig={{
+                  backgroundGradientFrom: "#fff",
+                  backgroundGradientTo: "#fff",
+                  color: (opacity = 1) =>
+                    hexToRGBA(METRIC_COLORS[singleChartInfo.key], opacity),
+                  labelColor: (opacity = 1) => `rgba(113,128,150,${opacity})`,
+                  strokeWidth: 2,
+                  propsForDots: {
+                    r: "3.5",
+                    strokeWidth: "1.5",
+                    stroke: METRIC_COLORS[singleChartInfo.key],
+                    fill: "#fff",
+                  },
+                  propsForBackgroundLines: { stroke: "#F0F4F8" },
+                  decimalPlaces: 1,
+                }}
+                bezier
+                style={s.chart}
+                withVerticalLines={false}
+                withShadow={false}
+                formatYLabel={(v) => parseFloat(v).toFixed(1)}
+                onDataPointClick={({ index }) =>
+                  handleDotPress(singleChartInfo.filtered, index)
+                }
+              />
+            )}
+
+          {isSingle &&
+            (!singleChartInfo || singleChartInfo.filtered.length < 2) && (
+              <View style={s.emptyChart}>
+                <Text style={s.emptyIcon}>📈</Text>
+                <Text style={s.emptyText}>
+                  {METRIC_LABELS[selectedMetrics[0]]} 데이터가 부족합니다.
                 </Text>
               </View>
             )}
-          </>
-        ) : (
-          <Text style={s.noDataText}>해당 수치 데이터가 없습니다.</Text>
-        )}
-      </View>
 
-      {/* 활동 요약 */}
-      {allRecords.length > 0 && (
+          {/* 다중 수치 - 오버레이 모드 */}
+          {isMulti && overlayMode && overlayInfo && (
+            <>
+              <Text style={s.multiAxisNote}>
+                📐 정규화된 비교 (각 수치 0~100% 스케일)
+              </Text>
+              <LineChart
+                data={{
+                  labels: overlayInfo.labels,
+                  datasets: overlayInfo.datasets,
+                }}
+                width={CHART_WIDTH}
+                height={240}
+                chartConfig={{
+                  backgroundGradientFrom: "#fff",
+                  backgroundGradientTo: "#fff",
+                  color: (opacity = 1) => `rgba(113,128,150,${opacity})`,
+                  labelColor: (opacity = 1) => `rgba(113,128,150,${opacity})`,
+                  strokeWidth: 2,
+                  propsForDots: {
+                    r: "3",
+                    strokeWidth: "1",
+                    stroke: "#718096",
+                    fill: "#fff",
+                  },
+                  propsForBackgroundLines: { stroke: "#F0F4F8" },
+                  decimalPlaces: 0,
+                }}
+                bezier
+                style={s.chart}
+                withVerticalLines={false}
+                withShadow={false}
+                formatYLabel={(v) => `${parseFloat(v).toFixed(0)}%`}
+                onDataPointClick={({ index }) =>
+                  handleDotPress(overlayInfo.filtered, index)
+                }
+              />
+              <View style={s.overlayLegend}>
+                {selectedMetrics.map((key) => {
+                  const range = overlayInfo.ranges[key];
+                  return (
+                    <View key={key} style={s.overlayLegendItem}>
+                      <View
+                        style={[
+                          s.legendDot,
+                          { backgroundColor: METRIC_COLORS[key] },
+                        ]}
+                      />
+                      <Text style={s.legendText}>
+                        {METRIC_LABELS[key]} ({range.min.toFixed(1)}~
+                        {range.max.toFixed(1)}
+                        {METRIC_UNITS[key]})
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+            </>
+          )}
+
+          {isMulti && overlayMode && !overlayInfo && (
+            <View style={s.emptyChart}>
+              <Text style={s.emptyIcon}>📈</Text>
+              <Text style={s.emptyText}>
+                선택한 수치들의 동시 기록이 부족합니다.
+              </Text>
+            </View>
+          )}
+
+          {/* 다중 수치 - 개별 차트 모드 */}
+          {isMulti && !overlayMode && separateCharts && (
+            <>
+              <Text style={s.multiAxisNote}>📐 각 수치별 독립 차트</Text>
+              {separateCharts.map((info) => (
+                <View key={info.key} style={s.miniChartWrap}>
+                  <View style={s.miniChartHeader}>
+                    <View
+                      style={[
+                        s.legendDot,
+                        { backgroundColor: METRIC_COLORS[info.key] },
+                      ]}
+                    />
+                    <Text style={s.miniChartTitle}>
+                      {METRIC_LABELS[info.key]} ({METRIC_UNITS[info.key]})
+                    </Text>
+                  </View>
+                  {info.filtered.length >= 2 ? (
+                    <LineChart
+                      data={{
+                        labels: info.labels,
+                        datasets: [
+                          {
+                            data: info.values,
+                            color: (opacity = 1) =>
+                              hexToRGBA(METRIC_COLORS[info.key], opacity),
+                            strokeWidth: 2,
+                          },
+                        ],
+                      }}
+                      width={CHART_WIDTH}
+                      height={160}
+                      chartConfig={{
+                        backgroundGradientFrom: "#fff",
+                        backgroundGradientTo: "#fff",
+                        color: (opacity = 1) =>
+                          hexToRGBA(METRIC_COLORS[info.key], opacity),
+                        labelColor: (opacity = 1) =>
+                          `rgba(113,128,150,${opacity})`,
+                        strokeWidth: 2,
+                        propsForDots: {
+                          r: "3.5",
+                          strokeWidth: "1.5",
+                          stroke: METRIC_COLORS[info.key],
+                          fill: "#fff",
+                        },
+                        propsForBackgroundLines: {
+                          stroke: "#F0F4F8",
+                        },
+                        decimalPlaces: 1,
+                      }}
+                      bezier
+                      style={s.chart}
+                      withVerticalLines={false}
+                      withShadow={false}
+                      formatYLabel={(v) => parseFloat(v).toFixed(1)}
+                      onDataPointClick={({ index }) =>
+                        handleDotPress(info.filtered, index)
+                      }
+                    />
+                  ) : (
+                    <View style={s.emptyMiniChart}>
+                      <Text style={s.emptyText}>
+                        {METRIC_LABELS[info.key]} 데이터가 부족합니다.
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              ))}
+            </>
+          )}
+        </View>
+
+        {/* 통계 */}
         <View style={s.card}>
           <View style={s.cardHeader}>
-            <Text style={s.cardTitle}>활동 요약</Text>
-            {activityStart ? (
-              <TouchableOpacity onPress={() => setActivityStart("")}>
+            <Text style={s.cardTitle}>통계</Text>
+            {statsStart ? (
+              <TouchableOpacity onPress={() => setStatsStart("")}>
                 <Text style={s.resetBtn}>초기화</Text>
               </TouchableOpacity>
             ) : null}
           </View>
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={s.statsMetricScroll}
+          >
+            {METRICS.map((k) => (
+              <TouchableOpacity
+                key={k}
+                style={[
+                  s.statsMetricBtn,
+                  statsMetric === k && {
+                    backgroundColor: METRIC_COLORS[k],
+                  },
+                ]}
+                onPress={() => setStatsMetric(k)}
+              >
+                <Text
+                  style={[
+                    s.statsMetricText,
+                    statsMetric === k && s.statsMetricTextActive,
+                  ]}
+                >
+                  {METRIC_LABELS[k]}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
           <DatePickerRow
             label="시작일"
-            value={activityStart}
-            onChange={setActivityStart}
+            value={statsStart}
+            onChange={setStatsStart}
           />
-          <View style={s.summaryRow}>
-            <View style={s.summaryItem}>
-              <Text style={s.summaryEmoji}>📅</Text>
-              <Text style={s.summaryCount}>{activityRecords.length}</Text>
-              <Text style={s.summaryLabel}>총 기록일</Text>
-            </View>
-            <View style={s.summaryItem}>
-              <Text style={s.summaryEmoji}>🏃</Text>
-              <Text style={s.summaryCount}>
-                {activityRecords.filter((r) => r.exercised).length}
-              </Text>
-              <Text style={s.summaryLabel}>운동일</Text>
-            </View>
-            <View style={s.summaryItem}>
-              <Text style={s.summaryEmoji}>🍺</Text>
-              <Text style={s.summaryCount}>
-                {activityRecords.filter((r) => r.drank).length}
-              </Text>
-              <Text style={s.summaryLabel}>음주일</Text>
-            </View>
-            <View style={s.summaryItem}>
-              <Text style={s.summaryEmoji}>💪</Text>
-              <Text style={s.summaryCount}>
-                {activityRecords.length > 0
-                  ? Math.round(
-                      (activityRecords.filter((r) => r.exercised).length /
-                        activityRecords.length) *
-                        100
-                    )
-                  : 0}
-                %
-              </Text>
-              <Text style={s.summaryLabel}>운동률</Text>
-            </View>
-          </View>
-        </View>
-      )}
 
-      {/* 점 클릭 팝업 모달 */}
-      <Modal
-        visible={!!selectedPoint}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setSelectedPoint(null)}
-      >
-        <TouchableOpacity
-          style={s.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setSelectedPoint(null)}
-        >
-          <View style={s.modalCard}>
-            {selectedPoint && (
-              <>
-                <Text style={s.modalDate}>{fmtDate(selectedPoint.date)}</Text>
-                <View style={s.modalRow}>
-                  <Text style={s.modalLabel}>⚖️ 몸무게</Text>
-                  <Text style={s.modalValue}>{selectedPoint.weight} kg</Text>
+          {stats ? (
+            <>
+              <View style={s.statsGrid}>
+                <View style={s.statItem}>
+                  <Text style={s.statLabel}>최근</Text>
+                  <Text style={s.statValue}>{stats.current.toFixed(1)}</Text>
+                  <Text style={s.statUnit}>{stats.unit}</Text>
                 </View>
-                {selectedPoint.waist != null && (
-                  <View style={s.modalRow}>
-                    <Text style={s.modalLabel}>📏 허리둘레</Text>
-                    <Text style={s.modalValue}>{selectedPoint.waist} cm</Text>
-                  </View>
-                )}
-                {selectedPoint.muscleMass != null && (
-                  <View style={s.modalRow}>
-                    <Text style={s.modalLabel}>💪 골격근량</Text>
-                    <Text style={s.modalValue}>
-                      {selectedPoint.muscleMass} kg
-                    </Text>
-                  </View>
-                )}
-                {selectedPoint.bodyFatPercent != null && (
-                  <View style={s.modalRow}>
-                    <Text style={s.modalLabel}>🔥 체지방률</Text>
-                    <Text style={s.modalValue}>
-                      {selectedPoint.bodyFatPercent} %
-                    </Text>
-                  </View>
-                )}
-                {selectedPoint.bodyFatMass != null && (
-                  <View style={s.modalRow}>
-                    <Text style={s.modalLabel}>🟣 체지방량</Text>
-                    <Text style={s.modalValue}>
-                      {selectedPoint.bodyFatMass} kg
-                    </Text>
-                  </View>
-                )}
-                {selectedPoint.photoUri && (
-                  <Image
-                    source={{ uri: selectedPoint.photoUri }}
-                    style={s.modalPhoto}
-                  />
-                )}
-                <View style={s.modalBadges}>
-                  {selectedPoint.exercised && (
-                    <View style={[s.badge, s.badgeGreen]}>
-                      <Text style={s.badgeText}>🏃 운동</Text>
-                    </View>
-                  )}
-                  {selectedPoint.drank && (
-                    <View style={[s.badge, s.badgeOrange]}>
-                      <Text style={s.badgeText}>🍺 음주</Text>
-                    </View>
-                  )}
-                  {!selectedPoint.exercised && !selectedPoint.drank && (
-                    <Text style={s.noDataText}>활동 기록 없음</Text>
-                  )}
+                <View style={s.statItem}>
+                  <Text style={s.statLabel}>최고</Text>
+                  <Text style={[s.statValue, { color: "#E53E3E" }]}>
+                    {stats.max.toFixed(1)}
+                  </Text>
+                  <Text style={s.statUnit}>{stats.unit}</Text>
                 </View>
-              </>
-            )}
-            <TouchableOpacity
-              style={s.modalClose}
-              onPress={() => setSelectedPoint(null)}
-            >
-              <Text style={s.modalCloseText}>닫기</Text>
-            </TouchableOpacity>
+                <View style={s.statItem}>
+                  <Text style={s.statLabel}>최저</Text>
+                  <Text style={[s.statValue, { color: "#38A169" }]}>
+                    {stats.min.toFixed(1)}
+                  </Text>
+                  <Text style={s.statUnit}>{stats.unit}</Text>
+                </View>
+                <View style={s.statItem}>
+                  <Text style={s.statLabel}>평균</Text>
+                  <Text style={s.statValue}>{stats.avg.toFixed(1)}</Text>
+                  <Text style={s.statUnit}>{stats.unit}</Text>
+                </View>
+              </View>
+              {stats.diff !== null && (
+                <View style={s.diffRow}>
+                  <Text style={s.diffLabel}>시작 대비</Text>
+                  <Text
+                    style={[
+                      s.diffValue,
+                      {
+                        color: stats.diff <= 0 ? "#38A169" : "#E53E3E",
+                      },
+                    ]}
+                  >
+                    {stats.diff > 0 ? "+" : ""}
+                    {stats.diff.toFixed(1)} {stats.unit}
+                  </Text>
+                </View>
+              )}
+            </>
+          ) : (
+            <Text style={s.noDataText}>해당 수치 데이터가 없습니다.</Text>
+          )}
+        </View>
+
+        {/* 활동 요약 */}
+        {allRecords.length > 0 && (
+          <View style={s.card}>
+            <View style={s.cardHeader}>
+              <Text style={s.cardTitle}>활동 요약</Text>
+              {activityStart ? (
+                <TouchableOpacity onPress={() => setActivityStart("")}>
+                  <Text style={s.resetBtn}>초기화</Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
+            <DatePickerRow
+              label="시작일"
+              value={activityStart}
+              onChange={setActivityStart}
+            />
+            <View style={s.summaryRow}>
+              <View style={s.summaryItem}>
+                <Text style={s.summaryEmoji}>📅</Text>
+                <Text style={s.summaryCount}>{activityRecords.length}</Text>
+                <Text style={s.summaryLabel}>총 기록일</Text>
+              </View>
+              <View style={s.summaryItem}>
+                <Text style={s.summaryEmoji}>🏃</Text>
+                <Text style={s.summaryCount}>
+                  {activityRecords.filter((r) => r.exercised).length}
+                </Text>
+                <Text style={s.summaryLabel}>운동일</Text>
+              </View>
+              <View style={s.summaryItem}>
+                <Text style={s.summaryEmoji}>🍺</Text>
+                <Text style={s.summaryCount}>
+                  {activityRecords.filter((r) => r.drank).length}
+                </Text>
+                <Text style={s.summaryLabel}>음주일</Text>
+              </View>
+              <View style={s.summaryItem}>
+                <Text style={s.summaryEmoji}>💪</Text>
+                <Text style={s.summaryCount}>
+                  {activityRecords.length > 0
+                    ? Math.round(
+                        (activityRecords.filter((r) => r.exercised).length /
+                          activityRecords.length) *
+                          100
+                      )
+                    : 0}
+                  %
+                </Text>
+                <Text style={s.summaryLabel}>운동률</Text>
+              </View>
+            </View>
           </View>
-        </TouchableOpacity>
-      </Modal>
-    </ScrollView>
+        )}
+
+        {/* 점 클릭 팝업 모달 */}
+        <Modal
+          visible={!!selectedPoint}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setSelectedPoint(null)}
+        >
+          <TouchableOpacity
+            style={s.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setSelectedPoint(null)}
+          >
+            <View style={s.modalCard}>
+              {selectedPoint && (
+                <>
+                  <Text style={s.modalDate}>{fmtDate(selectedPoint.date)}</Text>
+                  <View style={s.modalRow}>
+                    <Text style={s.modalLabel}>⚖️ 몸무게</Text>
+                    <Text style={s.modalValue}>{selectedPoint.weight} kg</Text>
+                  </View>
+                  {selectedPoint.waist != null && (
+                    <View style={s.modalRow}>
+                      <Text style={s.modalLabel}>📏 허리둘레</Text>
+                      <Text style={s.modalValue}>{selectedPoint.waist} cm</Text>
+                    </View>
+                  )}
+                  {selectedPoint.muscleMass != null && (
+                    <View style={s.modalRow}>
+                      <Text style={s.modalLabel}>💪 골격근량</Text>
+                      <Text style={s.modalValue}>
+                        {selectedPoint.muscleMass} kg
+                      </Text>
+                    </View>
+                  )}
+                  {selectedPoint.bodyFatPercent != null && (
+                    <View style={s.modalRow}>
+                      <Text style={s.modalLabel}>🔥 체지방률</Text>
+                      <Text style={s.modalValue}>
+                        {selectedPoint.bodyFatPercent} %
+                      </Text>
+                    </View>
+                  )}
+                  {selectedPoint.bodyFatMass != null && (
+                    <View style={s.modalRow}>
+                      <Text style={s.modalLabel}>🟣 체지방량</Text>
+                      <Text style={s.modalValue}>
+                        {selectedPoint.bodyFatMass} kg
+                      </Text>
+                    </View>
+                  )}
+                  {selectedPoint.photoUri && (
+                    <Image
+                      source={{ uri: selectedPoint.photoUri }}
+                      style={s.modalPhoto}
+                    />
+                  )}
+                  <View style={s.modalBadges}>
+                    {selectedPoint.exercised && (
+                      <View style={[s.badge, s.badgeGreen]}>
+                        <Text style={s.badgeText}>🏃 운동</Text>
+                      </View>
+                    )}
+                    {selectedPoint.drank && (
+                      <View style={[s.badge, s.badgeOrange]}>
+                        <Text style={s.badgeText}>🍺 음주</Text>
+                      </View>
+                    )}
+                    {!selectedPoint.exercised && !selectedPoint.drank && (
+                      <Text style={s.noDataText}>활동 기록 없음</Text>
+                    )}
+                  </View>
+                </>
+              )}
+              <TouchableOpacity
+                style={s.modalClose}
+                onPress={() => setSelectedPoint(null)}
+              >
+                <Text style={s.modalCloseText}>{"\u{B2EB}\u{AE30}"}</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </Modal>
+      </ScrollView>
+    </SwipeableTab>
   );
 }
 
@@ -938,17 +1143,25 @@ const s = StyleSheet.create({
     marginBottom: 6,
   },
   dateLabel: { fontSize: 13, color: "#4A5568", width: 50 },
-  dateInput: {
+  dateInputWrap: {
     flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
     height: 36,
     borderWidth: 1,
     borderColor: "#E2E8F0",
     borderRadius: 8,
+    backgroundColor: "#F7FAFC",
+    paddingRight: 6,
+  },
+  dateInput: {
+    flex: 1,
+    height: 36,
     paddingHorizontal: 10,
     fontSize: 14,
     color: "#2D3748",
-    backgroundColor: "#F7FAFC",
   },
+  dateCalIcon: { fontSize: 16 },
   chartCard: {
     backgroundColor: "#fff",
     borderRadius: 16,

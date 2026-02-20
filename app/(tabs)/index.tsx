@@ -1,3 +1,4 @@
+import { SwipeableTab } from "@/components/swipeable-tab";
 import { WeightRecord } from "@/types";
 import { deletePhoto, pickPhoto, takePhoto } from "@/utils/photo";
 import {
@@ -258,6 +259,18 @@ export default function HomeScreen() {
   const [photoUri, setPhotoUri] = useState<string | undefined>(undefined);
   const scrollRef = useRef<ScrollView>(null);
 
+  /* \ud3b8\uc9d1 \ubaa8\ub2ec \uc0c1\ud0dc */
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editRecord, setEditRecord] = useState<WeightRecord | null>(null);
+  const [emWeight, setEmWeight] = useState("");
+  const [emWaist, setEmWaist] = useState("");
+  const [emMuscleMass, setEmMuscleMass] = useState("");
+  const [emBodyFatPercent, setEmBodyFatPercent] = useState("");
+  const [emBodyFatMass, setEmBodyFatMass] = useState("");
+  const [emExercised, setEmExercised] = useState(false);
+  const [emDrank, setEmDrank] = useState(false);
+  const [emPhotoUri, setEmPhotoUri] = useState<string | undefined>(undefined);
+
   const loadAndSetRecords = useCallback(async () => {
     const data = await loadRecords();
     const sorted = [...data].sort((a, b) => b.date.localeCompare(a.date));
@@ -376,288 +389,641 @@ export default function HomeScreen() {
   };
 
   const handleEdit = (record: WeightRecord) => {
-    setSelectedDate(record.date);
-    setWeight(record.weight.toString());
-    setWaist(record.waist?.toString() ?? "");
-    setMuscleMass(record.muscleMass?.toString() ?? "");
-    setBodyFatPercent(record.bodyFatPercent?.toString() ?? "");
-    setBodyFatMass(record.bodyFatMass?.toString() ?? "");
-    setExercised(record.exercised);
-    setDrank(record.drank);
-    setPhotoUri(record.photoUri);
-    scrollRef.current?.scrollTo({ y: 0, animated: true });
+    setEditRecord(record);
+    setEmWeight(record.weight.toString());
+    setEmWaist(record.waist?.toString() ?? "");
+    setEmMuscleMass(record.muscleMass?.toString() ?? "");
+    setEmBodyFatPercent(record.bodyFatPercent?.toString() ?? "");
+    setEmBodyFatMass(record.bodyFatMass?.toString() ?? "");
+    setEmExercised(record.exercised);
+    setEmDrank(record.drank);
+    setEmPhotoUri(record.photoUri);
+    setShowEditModal(true);
+  };
+
+  const handleEditModalSave = async () => {
+    if (!editRecord) return;
+    const w = parseFloat(emWeight);
+    if (!emWeight || isNaN(w) || w <= 0) {
+      Alert.alert(
+        "\uc785\ub825 \uc624\ub958",
+        "\uc62c\ubc14\ub978 \ubab8\ubb34\uac8c\ub97c \uc785\ub825\ud574\uc8fc\uc138\uc694."
+      );
+      return;
+    }
+    const updated: WeightRecord = {
+      id: editRecord.id,
+      date: editRecord.date,
+      weight: w,
+      waist: emWaist ? parseFloat(emWaist) : undefined,
+      muscleMass: emMuscleMass ? parseFloat(emMuscleMass) : undefined,
+      bodyFatPercent: emBodyFatPercent
+        ? parseFloat(emBodyFatPercent)
+        : undefined,
+      bodyFatMass: emBodyFatMass ? parseFloat(emBodyFatMass) : undefined,
+      exercised: emExercised,
+      drank: emDrank,
+      photoUri: emPhotoUri,
+    };
+    const newRecords = await upsertRecord(updated);
+    setRecords([...newRecords].sort((a, b) => b.date.localeCompare(a.date)));
+    setShowEditModal(false);
+    setEditRecord(null);
+    // \uc120\ud0dd\ub41c \ub0a0\uc9dc\uc640 \uac19\uc73c\uba74 \ud3fc\ub3c4 \uc5c5\ub370\uc774\ud2b8
+    if (editRecord.date === selectedDate) {
+      setWeight(w.toString());
+      setWaist(emWaist);
+      setMuscleMass(emMuscleMass);
+      setBodyFatPercent(emBodyFatPercent);
+      setBodyFatMass(emBodyFatMass);
+      setExercised(emExercised);
+      setDrank(emDrank);
+      setPhotoUri(emPhotoUri);
+    }
+    Alert.alert(
+      "\uc800\uc7a5 \uc644\ub8cc \u2705",
+      `${formatDate(editRecord.date)} \uae30\ub85d\uc774 \uc218\uc815\ub418\uc5c8\uc2b5\ub2c8\ub2e4.`
+    );
   };
 
   const isToday = selectedDate === getLocalDateString();
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
-      <ScrollView
-        ref={scrollRef}
-        style={styles.container}
-        contentContainerStyle={styles.content}
+    <SwipeableTab currentIndex={0}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <Text style={styles.title}>💪 몸무게 트래커</Text>
+        <ScrollView
+          ref={scrollRef}
+          style={styles.container}
+          contentContainerStyle={styles.content}
+        >
+          <Text style={styles.title}>💪 몸무게 트래커</Text>
 
-        {/* 날짜 선택 */}
-        <View style={styles.dateSelectRow}>
-          <TouchableOpacity
-            onPress={() => {
-              const d = new Date(selectedDate);
-              d.setDate(d.getDate() - 1);
-              handleDateSelect(getLocalDateString(d));
-            }}
-            style={styles.dateArrow}
-          >
-            <Text style={styles.dateArrowText}>◀</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => setShowDatePicker(true)}
-            style={styles.dateTouchable}
-          >
-            <Text style={styles.dateText}>{formatDate(selectedDate)}</Text>
-            <Text style={styles.datePickerIcon}>📅</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => {
-              if (!isToday) {
+          {/* 날짜 선택 */}
+          <View style={styles.dateSelectRow}>
+            <TouchableOpacity
+              onPress={() => {
                 const d = new Date(selectedDate);
-                d.setDate(d.getDate() + 1);
-                const next = getLocalDateString(d);
-                if (next <= getLocalDateString()) {
-                  handleDateSelect(next);
+                d.setDate(d.getDate() - 1);
+                handleDateSelect(getLocalDateString(d));
+              }}
+              style={styles.dateArrow}
+            >
+              <Text style={styles.dateArrowText}>◀</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => setShowDatePicker(true)}
+              style={styles.dateTouchable}
+            >
+              <Text style={styles.dateText}>{formatDate(selectedDate)}</Text>
+              <Text style={styles.datePickerIcon}>📅</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => {
+                if (!isToday) {
+                  const d = new Date(selectedDate);
+                  d.setDate(d.getDate() + 1);
+                  const next = getLocalDateString(d);
+                  if (next <= getLocalDateString()) {
+                    handleDateSelect(next);
+                  }
                 }
-              }
-            }}
-            style={[styles.dateArrow, isToday && { opacity: 0.3 }]}
-            disabled={isToday}
-          >
-            <Text style={styles.dateArrowText}>▶</Text>
-          </TouchableOpacity>
-        </View>
-
-        {!isToday && (
-          <TouchableOpacity
-            style={styles.todayLink}
-            onPress={() => handleDateSelect(getLocalDateString())}
-          >
-            <Text style={styles.todayLinkText}>오늘로 이동</Text>
-          </TouchableOpacity>
-        )}
-
-        {/* 입력 카드 */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>
-            {isToday ? "오늘의 기록" : `${formatDate(selectedDate)} 기록`}
-          </Text>
-
-          <Text style={styles.label}>몸무게</Text>
-          <View style={styles.inputRow}>
-            <TextInput
-              style={styles.input}
-              value={weight}
-              onChangeText={setWeight}
-              placeholder="0.0"
-              placeholderTextColor="#aaa"
-              keyboardType="decimal-pad"
-            />
-            <Text style={styles.unit}>kg</Text>
+              }}
+              style={[styles.dateArrow, isToday && { opacity: 0.3 }]}
+              disabled={isToday}
+            >
+              <Text style={styles.dateArrowText}>▶</Text>
+            </TouchableOpacity>
           </View>
 
-          <Text style={styles.label}>허리둘레 (선택)</Text>
-          <View style={styles.inputRow}>
-            <TextInput
-              style={styles.input}
-              value={waist}
-              onChangeText={setWaist}
-              placeholder="0.0"
-              placeholderTextColor="#aaa"
-              keyboardType="decimal-pad"
-            />
-            <Text style={styles.unit}>cm</Text>
-          </View>
+          {!isToday && (
+            <TouchableOpacity
+              style={styles.todayLink}
+              onPress={() => handleDateSelect(getLocalDateString())}
+            >
+              <Text style={styles.todayLinkText}>오늘로 이동</Text>
+            </TouchableOpacity>
+          )}
 
-          <Text style={styles.label}>골격근량 (선택)</Text>
-          <View style={styles.inputRow}>
-            <TextInput
-              style={styles.input}
-              value={muscleMass}
-              onChangeText={setMuscleMass}
-              placeholder="0.0"
-              placeholderTextColor="#aaa"
-              keyboardType="decimal-pad"
-            />
-            <Text style={styles.unit}>kg</Text>
-          </View>
+          {/* 입력 카드 */}
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>
+              {isToday ? "오늘의 기록" : `${formatDate(selectedDate)} 기록`}
+            </Text>
 
-          <Text style={styles.label}>체지방률 (선택)</Text>
-          <View style={styles.inputRow}>
-            <TextInput
-              style={styles.input}
-              value={bodyFatPercent}
-              onChangeText={setBodyFatPercent}
-              placeholder="0.0"
-              placeholderTextColor="#aaa"
-              keyboardType="decimal-pad"
-            />
-            <Text style={styles.unit}>%</Text>
-          </View>
-
-          <Text style={styles.label}>체지방량 (선택)</Text>
-          <View style={styles.inputRow}>
-            <TextInput
-              style={styles.input}
-              value={bodyFatMass}
-              onChangeText={setBodyFatMass}
-              placeholder="0.0"
-              placeholderTextColor="#aaa"
-              keyboardType="decimal-pad"
-            />
-            <Text style={styles.unit}>kg</Text>
-          </View>
-
-          {/* 사진 */}
-          <Text style={styles.label}>바디 사진 (선택)</Text>
-          <View style={styles.photoSection}>
-            {photoUri ? (
-              <View style={styles.photoPreviewWrap}>
-                <Image source={{ uri: photoUri }} style={styles.photoPreview} />
-                <TouchableOpacity
-                  style={styles.photoRemoveBtn}
-                  onPress={async () => {
-                    await deletePhoto(photoUri);
-                    setPhotoUri(undefined);
-                  }}
-                >
-                  <Text style={styles.photoRemoveText}>✕</Text>
-                </TouchableOpacity>
-              </View>
-            ) : null}
-            <View style={styles.photoBtnRow}>
-              <TouchableOpacity
-                style={styles.photoBtn}
-                onPress={async () => {
-                  const uri = await takePhoto();
-                  if (uri) setPhotoUri(uri);
-                }}
-              >
-                <Text style={styles.photoBtnText}>📸 촬영</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.photoBtn}
-                onPress={async () => {
-                  const uri = await pickPhoto();
-                  if (uri) setPhotoUri(uri);
-                }}
-              >
-                <Text style={styles.photoBtnText}>🖼 갤러리</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <View style={styles.switchGroup}>
-            <View style={styles.switchRow}>
-              <Text style={styles.switchLabel}>🏃 오늘 운동했나요?</Text>
-              <Switch
-                value={exercised}
-                onValueChange={setExercised}
-                trackColor={{ true: "#4CAF50", false: "#ddd" }}
-                thumbColor="#fff"
+            <Text style={styles.label}>몸무게</Text>
+            <View style={styles.inputRow}>
+              <TextInput
+                style={styles.input}
+                value={weight}
+                onChangeText={setWeight}
+                placeholder="0.0"
+                placeholderTextColor="#aaa"
+                keyboardType="decimal-pad"
               />
+              <Text style={styles.unit}>kg</Text>
             </View>
-            <View style={styles.switchRow}>
-              <Text style={styles.switchLabel}>🍺 오늘 음주했나요?</Text>
-              <Switch
-                value={drank}
-                onValueChange={setDrank}
-                trackColor={{ true: "#FF9800", false: "#ddd" }}
-                thumbColor="#fff"
+
+            <Text style={styles.label}>허리둘레 (선택)</Text>
+            <View style={styles.inputRow}>
+              <TextInput
+                style={styles.input}
+                value={waist}
+                onChangeText={setWaist}
+                placeholder="0.0"
+                placeholderTextColor="#aaa"
+                keyboardType="decimal-pad"
               />
+              <Text style={styles.unit}>cm</Text>
             </View>
-          </View>
 
-          <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
-            <Text style={styles.saveBtnText}>저장하기</Text>
-          </TouchableOpacity>
-        </View>
+            <Text style={styles.label}>골격근량 (선택)</Text>
+            <View style={styles.inputRow}>
+              <TextInput
+                style={styles.input}
+                value={muscleMass}
+                onChangeText={setMuscleMass}
+                placeholder="0.0"
+                placeholderTextColor="#aaa"
+                keyboardType="decimal-pad"
+              />
+              <Text style={styles.unit}>kg</Text>
+            </View>
 
-        {/* 기록 목록 */}
-        <Text style={styles.sectionTitle}>기록 목록</Text>
-        {records.length === 0 ? (
-          <Text style={styles.emptyText}>
-            아직 기록이 없습니다.{"\n"}첫 번째 기록을 추가해보세요! 🎯
-          </Text>
-        ) : (
-          records.map((record) => (
-            <View key={record.id} style={styles.recordCard}>
-              <View style={styles.recordTop}>
-                <Text style={styles.recordDate}>{formatDate(record.date)}</Text>
-                <View style={styles.recordActions}>
-                  <TouchableOpacity onPress={() => handleEdit(record)}>
-                    <Text style={styles.editBtn}>✏️</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => handleDelete(record.date)}>
-                    <Text style={styles.deleteBtn}>✕</Text>
+            <Text style={styles.label}>체지방률 (선택)</Text>
+            <View style={styles.inputRow}>
+              <TextInput
+                style={styles.input}
+                value={bodyFatPercent}
+                onChangeText={setBodyFatPercent}
+                placeholder="0.0"
+                placeholderTextColor="#aaa"
+                keyboardType="decimal-pad"
+              />
+              <Text style={styles.unit}>%</Text>
+            </View>
+
+            <Text style={styles.label}>체지방량 (선택)</Text>
+            <View style={styles.inputRow}>
+              <TextInput
+                style={styles.input}
+                value={bodyFatMass}
+                onChangeText={setBodyFatMass}
+                placeholder="0.0"
+                placeholderTextColor="#aaa"
+                keyboardType="decimal-pad"
+              />
+              <Text style={styles.unit}>kg</Text>
+            </View>
+
+            {/* 사진 */}
+            <Text style={styles.label}>바디 사진 (선택)</Text>
+            <View style={styles.photoSection}>
+              {photoUri ? (
+                <View style={styles.photoPreviewWrap}>
+                  <Image
+                    source={{ uri: photoUri }}
+                    style={styles.photoPreview}
+                  />
+                  <TouchableOpacity
+                    style={styles.photoRemoveBtn}
+                    onPress={async () => {
+                      await deletePhoto(photoUri);
+                      setPhotoUri(undefined);
+                    }}
+                  >
+                    <Text style={styles.photoRemoveText}>✕</Text>
                   </TouchableOpacity>
                 </View>
-              </View>
-              <Text style={styles.recordWeight}>{record.weight} kg</Text>
-              {record.waist != null && (
-                <Text style={styles.recordSub}>📏 허리: {record.waist} cm</Text>
-              )}
-              {record.muscleMass != null && (
-                <Text style={styles.recordSub}>
-                  💪 골격근: {record.muscleMass} kg
-                </Text>
-              )}
-              {record.bodyFatPercent != null && (
-                <Text style={styles.recordSub}>
-                  🔥 체지방률: {record.bodyFatPercent} %
-                </Text>
-              )}
-              {record.bodyFatMass != null && (
-                <Text style={styles.recordSub}>
-                  🟣 체지방량: {record.bodyFatMass} kg
-                </Text>
-              )}
-              {record.photoUri && (
-                <Image
-                  source={{ uri: record.photoUri }}
-                  style={styles.recordPhoto}
-                />
-              )}
-              <View style={styles.badgeRow}>
-                {record.exercised && (
-                  <View style={[styles.badge, styles.badgeExercise]}>
-                    <Text style={styles.badgeText}>🏃 운동</Text>
-                  </View>
-                )}
-                {record.drank && (
-                  <View style={[styles.badge, styles.badgeDrank]}>
-                    <Text style={styles.badgeText}>🍺 음주</Text>
-                  </View>
-                )}
+              ) : null}
+              <View style={styles.photoBtnRow}>
+                <TouchableOpacity
+                  style={styles.photoBtn}
+                  onPress={async () => {
+                    const uri = await takePhoto();
+                    if (uri) setPhotoUri(uri);
+                  }}
+                >
+                  <Text style={styles.photoBtnText}>📸 촬영</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.photoBtn}
+                  onPress={async () => {
+                    const uri = await pickPhoto();
+                    if (uri) setPhotoUri(uri);
+                  }}
+                >
+                  <Text style={styles.photoBtnText}>🖼 갤러리</Text>
+                </TouchableOpacity>
               </View>
             </View>
-          ))
-        )}
-      </ScrollView>
 
-      {/* 달력 팝업 */}
-      <MiniCalendar
-        visible={showDatePicker}
-        selectedDate={selectedDate}
-        onSelect={handleDateSelect}
-        onClose={() => setShowDatePicker(false)}
-      />
-    </KeyboardAvoidingView>
+            <View style={styles.switchGroup}>
+              <View style={styles.switchRow}>
+                <Text style={styles.switchLabel}>🏃 오늘 운동했나요?</Text>
+                <Switch
+                  value={exercised}
+                  onValueChange={setExercised}
+                  trackColor={{ true: "#4CAF50", false: "#ddd" }}
+                  thumbColor="#fff"
+                />
+              </View>
+              <View style={styles.switchRow}>
+                <Text style={styles.switchLabel}>🍺 오늘 음주했나요?</Text>
+                <Switch
+                  value={drank}
+                  onValueChange={setDrank}
+                  trackColor={{ true: "#FF9800", false: "#ddd" }}
+                  thumbColor="#fff"
+                />
+              </View>
+            </View>
+
+            <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
+              <Text style={styles.saveBtnText}>저장하기</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* 기록 목록 */}
+          <Text style={styles.sectionTitle}>기록 목록</Text>
+          {records.length === 0 ? (
+            <Text style={styles.emptyText}>
+              아직 기록이 없습니다.{"\n"}첫 번째 기록을 추가해보세요! 🎯
+            </Text>
+          ) : (
+            records.map((record) => (
+              <View key={record.id} style={styles.recordCard}>
+                <View style={styles.recordTop}>
+                  <Text style={styles.recordDate}>
+                    {formatDate(record.date)}
+                  </Text>
+                  <View style={styles.recordActions}>
+                    <TouchableOpacity onPress={() => handleEdit(record)}>
+                      <Text style={styles.editBtn}>✏️</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => handleDelete(record.date)}>
+                      <Text style={styles.deleteBtn}>✕</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+                <Text style={styles.recordWeight}>{record.weight} kg</Text>
+                {record.waist != null && (
+                  <Text style={styles.recordSub}>
+                    📏 허리: {record.waist} cm
+                  </Text>
+                )}
+                {record.muscleMass != null && (
+                  <Text style={styles.recordSub}>
+                    💪 골격근: {record.muscleMass} kg
+                  </Text>
+                )}
+                {record.bodyFatPercent != null && (
+                  <Text style={styles.recordSub}>
+                    🔥 체지방률: {record.bodyFatPercent} %
+                  </Text>
+                )}
+                {record.bodyFatMass != null && (
+                  <Text style={styles.recordSub}>
+                    🟣 체지방량: {record.bodyFatMass} kg
+                  </Text>
+                )}
+                {record.photoUri && (
+                  <Image
+                    source={{ uri: record.photoUri }}
+                    style={styles.recordPhoto}
+                  />
+                )}
+                <View style={styles.badgeRow}>
+                  {record.exercised && (
+                    <View style={[styles.badge, styles.badgeExercise]}>
+                      <Text style={styles.badgeText}>🏃 운동</Text>
+                    </View>
+                  )}
+                  {record.drank && (
+                    <View style={[styles.badge, styles.badgeDrank]}>
+                      <Text style={styles.badgeText}>🍺 음주</Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+            ))
+          )}
+        </ScrollView>
+
+        {/* \ub2ec\ub825 \ud31d\uc5c5 */}
+        <MiniCalendar
+          visible={showDatePicker}
+          selectedDate={selectedDate}
+          onSelect={handleDateSelect}
+          onClose={() => setShowDatePicker(false)}
+        />
+
+        {/* \ud3b8\uc9d1 \ud31d\uc5c5 \ubaa8\ub2ec */}
+        <Modal
+          visible={showEditModal}
+          transparent
+          animationType="fade"
+          onRequestClose={() => {
+            setShowEditModal(false);
+            setEditRecord(null);
+          }}
+        >
+          <TouchableOpacity
+            style={editModalStyles.overlay}
+            activeOpacity={1}
+            onPress={() => {
+              setShowEditModal(false);
+              setEditRecord(null);
+            }}
+          >
+            <View
+              style={editModalStyles.card}
+              onStartShouldSetResponder={() => true}
+            >
+              <ScrollView showsVerticalScrollIndicator={false}>
+                <Text style={editModalStyles.title}>
+                  {editRecord
+                    ? `${formatDate(editRecord.date)} \uc218\uc815`
+                    : "\uc218\uc815"}
+                </Text>
+
+                <Text style={editModalStyles.label}>
+                  \ubab8\ubb34\uac8c (kg) *
+                </Text>
+                <TextInput
+                  style={editModalStyles.input}
+                  value={emWeight}
+                  onChangeText={setEmWeight}
+                  keyboardType="decimal-pad"
+                  placeholder="0.0"
+                  placeholderTextColor="#aaa"
+                />
+
+                <Text style={editModalStyles.label}>
+                  \ud5c8\ub9ac\ub458\ub808 (cm)
+                </Text>
+                <TextInput
+                  style={editModalStyles.input}
+                  value={emWaist}
+                  onChangeText={setEmWaist}
+                  keyboardType="decimal-pad"
+                  placeholder="\uc120\ud0dd"
+                  placeholderTextColor="#aaa"
+                />
+
+                <Text style={editModalStyles.label}>
+                  \uacE8\uaca9\uadfc\ub7c9 (kg)
+                </Text>
+                <TextInput
+                  style={editModalStyles.input}
+                  value={emMuscleMass}
+                  onChangeText={setEmMuscleMass}
+                  keyboardType="decimal-pad"
+                  placeholder="\uc120\ud0dd"
+                  placeholderTextColor="#aaa"
+                />
+
+                <Text style={editModalStyles.label}>
+                  \uccb4\uc9c0\ubc29\ub960 (%)
+                </Text>
+                <TextInput
+                  style={editModalStyles.input}
+                  value={emBodyFatPercent}
+                  onChangeText={setEmBodyFatPercent}
+                  keyboardType="decimal-pad"
+                  placeholder="\uc120\ud0dd"
+                  placeholderTextColor="#aaa"
+                />
+
+                <Text style={editModalStyles.label}>
+                  \uccb4\uc9c0\ubc29\ub7c9 (kg)
+                </Text>
+                <TextInput
+                  style={editModalStyles.input}
+                  value={emBodyFatMass}
+                  onChangeText={setEmBodyFatMass}
+                  keyboardType="decimal-pad"
+                  placeholder="\uc120\ud0dd"
+                  placeholderTextColor="#aaa"
+                />
+
+                {/* \uc0ac\uc9c4 */}
+                <Text style={editModalStyles.label}>
+                  \ubc14\ub514 \uc0ac\uc9c4
+                </Text>
+                <View style={{ marginBottom: 12 }}>
+                  {emPhotoUri ? (
+                    <View style={{ position: "relative", marginBottom: 8 }}>
+                      <Image
+                        source={{ uri: emPhotoUri }}
+                        style={{ width: "100%", height: 160, borderRadius: 10 }}
+                      />
+                      <TouchableOpacity
+                        style={{
+                          position: "absolute",
+                          top: 6,
+                          right: 6,
+                          backgroundColor: "rgba(0,0,0,0.5)",
+                          width: 26,
+                          height: 26,
+                          borderRadius: 13,
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                        onPress={async () => {
+                          await deletePhoto(emPhotoUri!);
+                          setEmPhotoUri(undefined);
+                        }}
+                      >
+                        <Text
+                          style={{
+                            color: "#fff",
+                            fontSize: 13,
+                            fontWeight: "700",
+                          }}
+                        >
+                          \u2715
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : null}
+                  <View style={{ flexDirection: "row", gap: 8 }}>
+                    <TouchableOpacity
+                      style={{
+                        flex: 1,
+                        backgroundColor: "#EDF2F7",
+                        borderRadius: 8,
+                        paddingVertical: 10,
+                        alignItems: "center",
+                      }}
+                      onPress={async () => {
+                        const uri = await takePhoto();
+                        if (uri) setEmPhotoUri(uri);
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          fontWeight: "600",
+                          color: "#4A5568",
+                        }}
+                      >
+                        {"\uD83D\uDCF8 \uCD2C\uC601"}
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={{
+                        flex: 1,
+                        backgroundColor: "#EDF2F7",
+                        borderRadius: 8,
+                        paddingVertical: 10,
+                        alignItems: "center",
+                      }}
+                      onPress={async () => {
+                        const uri = await pickPhoto();
+                        if (uri) setEmPhotoUri(uri);
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          fontWeight: "600",
+                          color: "#4A5568",
+                        }}
+                      >
+                        {"\uD83D\uDDBC \uAC24\uB7EC\uB9AC"}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                <View style={editModalStyles.switchRow}>
+                  <Text style={editModalStyles.label}>
+                    {"\uD83C\uDFC3 \uC6B4\uB3D9"}
+                  </Text>
+                  <Switch
+                    value={emExercised}
+                    onValueChange={setEmExercised}
+                    trackColor={{ true: "#4CAF50", false: "#ddd" }}
+                    thumbColor="#fff"
+                  />
+                </View>
+                <View style={editModalStyles.switchRow}>
+                  <Text style={editModalStyles.label}>
+                    {"\uD83C\uDF7A \uC74C\uC8FC"}
+                  </Text>
+                  <Switch
+                    value={emDrank}
+                    onValueChange={setEmDrank}
+                    trackColor={{ true: "#FF9800", false: "#ddd" }}
+                    thumbColor="#fff"
+                  />
+                </View>
+
+                <View style={editModalStyles.btnRow}>
+                  <TouchableOpacity
+                    style={editModalStyles.saveBtn}
+                    onPress={handleEditModalSave}
+                  >
+                    <Text style={editModalStyles.saveBtnText}>
+                      \uc800\uc7a5
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={editModalStyles.cancelBtn}
+                    onPress={() => {
+                      setShowEditModal(false);
+                      setEditRecord(null);
+                    }}
+                  >
+                    <Text style={editModalStyles.cancelBtnText}>
+                      \ucde8\uc18c
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </ScrollView>
+            </View>
+          </TouchableOpacity>
+        </Modal>
+      </KeyboardAvoidingView>
+    </SwipeableTab>
   );
 }
+
+const editModalStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.4)",
+  },
+  card: {
+    width: width * 0.9,
+    maxHeight: "82%",
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#2D3748",
+    marginBottom: 16,
+    textAlign: "center",
+  },
+  label: {
+    fontSize: 13,
+    fontWeight: "500",
+    color: "#4A5568",
+    marginBottom: 4,
+    marginTop: 8,
+  },
+  input: {
+    height: 42,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    fontSize: 15,
+    color: "#2D3748",
+    backgroundColor: "#F7FAFC",
+  },
+  switchRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 8,
+  },
+  btnRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 16,
+  },
+  saveBtn: {
+    flex: 1,
+    backgroundColor: "#4CAF50",
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  saveBtnText: { fontSize: 14, fontWeight: "600", color: "#fff" },
+  cancelBtn: {
+    flex: 1,
+    backgroundColor: "#EDF2F7",
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  cancelBtnText: { fontSize: 14, fontWeight: "600", color: "#718096" },
+});
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F0F4F8" },
