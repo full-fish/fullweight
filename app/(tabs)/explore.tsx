@@ -9,7 +9,7 @@ import {
 } from "@/types";
 import { getLocalDateString, loadRecords } from "@/utils/storage";
 import { useFocusEffect } from "@react-navigation/native";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Dimensions,
   Image,
@@ -93,16 +93,19 @@ function getFirstDayOfWeek(year: number, month: number) {
   return new Date(year, month, 1).getDay();
 }
 
-function DatePickerRow({
-  label,
+/* ───── CalendarModal (캘린더 팝업 모달) ───── */
+
+function CalendarModal({
+  visible,
   value,
   onChange,
+  onClose,
 }: {
-  label: string;
+  visible: boolean;
   value: string;
   onChange: (v: string) => void;
+  onClose: () => void;
 }) {
-  const [showCal, setShowCal] = useState(false);
   const now = new Date();
   const parsed = value ? new Date(value) : now;
   const initY = !isNaN(parsed.getTime())
@@ -111,15 +114,28 @@ function DatePickerRow({
   const initM = !isNaN(parsed.getTime()) ? parsed.getMonth() : now.getMonth();
   const [cYear, setCYear] = useState(initY);
   const [cMonth, setCMonth] = useState(initM);
+  const [textDate, setTextDate] = useState(value);
+  const [pickerMode, setPickerMode] = useState<"calendar" | "year" | "month">(
+    "calendar"
+  );
 
-  const openCal = () => {
-    const p = value ? new Date(value) : new Date();
-    if (!isNaN(p.getTime())) {
-      setCYear(p.getFullYear());
-      setCMonth(p.getMonth());
+  const currYear = new Date().getFullYear();
+  const years = Array.from(
+    { length: currYear - 1920 + 1 },
+    (_, i) => 1920 + i
+  ).reverse();
+
+  useEffect(() => {
+    if (visible) {
+      const p = value ? new Date(value) : new Date();
+      if (!isNaN(p.getTime())) {
+        setCYear(p.getFullYear());
+        setCMonth(p.getMonth());
+      }
+      setTextDate(value);
+      setPickerMode("calendar");
     }
-    setShowCal(true);
-  };
+  }, [visible, value]);
 
   const WKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
   const daysInMonth = getDaysInMonth(cYear, cMonth);
@@ -133,24 +149,257 @@ function DatePickerRow({
     if (cMonth === 0) {
       setCYear(cYear - 1);
       setCMonth(11);
-    } else {
-      setCMonth(cMonth - 1);
-    }
+    } else setCMonth(cMonth - 1);
   };
   const nextM = () => {
     if (cMonth === 11) {
       setCYear(cYear + 1);
       setCMonth(0);
-    } else {
-      setCMonth(cMonth + 1);
+    } else setCMonth(cMonth + 1);
+  };
+
+  const handleTextConfirm = () => {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(textDate)) {
+      onChange(textDate);
+      onClose();
     }
   };
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <TouchableOpacity style={cpS.overlay} activeOpacity={1} onPress={onClose}>
+        <View style={cpS.card} onStartShouldSetResponder={() => true}>
+          {/* 직접 입력 */}
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              marginBottom: 10,
+            }}
+          >
+            <TextInput
+              style={{
+                flex: 1,
+                height: 38,
+                borderWidth: 1,
+                borderColor: "#E2E8F0",
+                borderRadius: 8,
+                paddingHorizontal: 10,
+                fontSize: 14,
+                color: "#2D3748",
+                backgroundColor: "#F7FAFC",
+              }}
+              value={textDate}
+              onChangeText={setTextDate}
+              placeholder="YYYY-MM-DD"
+              placeholderTextColor="#aaa"
+              keyboardType="numbers-and-punctuation"
+              maxLength={10}
+            />
+            <TouchableOpacity
+              style={{
+                marginLeft: 8,
+                backgroundColor: "#4CAF50",
+                borderRadius: 8,
+                paddingHorizontal: 14,
+                paddingVertical: 8,
+              }}
+              onPress={handleTextConfirm}
+            >
+              <Text style={{ color: "#fff", fontWeight: "600", fontSize: 13 }}>
+                확인
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* 네비게이션 */}
+          <View style={cpS.navRow}>
+            <TouchableOpacity onPress={prevM} style={cpS.navBtn}>
+              <Text style={cpS.navBtnText}>◀</Text>
+            </TouchableOpacity>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <TouchableOpacity
+                onPress={() =>
+                  setPickerMode((m) => (m === "year" ? "calendar" : "year"))
+                }
+              >
+                <Text
+                  style={[
+                    cpS.navTitle,
+                    pickerMode === "year" && { color: "#4CAF50" },
+                  ]}
+                >
+                  {cYear}년
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() =>
+                  setPickerMode((m) => (m === "month" ? "calendar" : "month"))
+                }
+              >
+                <Text
+                  style={[
+                    cpS.navTitle,
+                    pickerMode === "month" && { color: "#4CAF50" },
+                  ]}
+                >
+                  {" "}
+                  {cMonth + 1}월
+                </Text>
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity onPress={nextM} style={cpS.navBtn}>
+              <Text style={cpS.navBtnText}>▶</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* 연도 선택 */}
+          {pickerMode === "year" && (
+            <ScrollView style={{ maxHeight: 200, marginBottom: 10 }}>
+              {years.map((y) => (
+                <TouchableOpacity
+                  key={y}
+                  style={{
+                    paddingVertical: 8,
+                    alignItems: "center",
+                    backgroundColor: y === cYear ? "#E8F5E9" : undefined,
+                    borderRadius: 8,
+                  }}
+                  onPress={() => {
+                    setCYear(y);
+                    setPickerMode("calendar");
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 15,
+                      fontWeight: y === cYear ? "700" : "400",
+                      color: y === cYear ? "#4CAF50" : "#2D3748",
+                    }}
+                  >
+                    {y}년
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          )}
+
+          {/* 월 선택 */}
+          {pickerMode === "month" && (
+            <View
+              style={{
+                flexDirection: "row",
+                flexWrap: "wrap",
+                justifyContent: "space-around",
+                marginBottom: 10,
+              }}
+            >
+              {Array.from({ length: 12 }, (_, i) => (
+                <TouchableOpacity
+                  key={i}
+                  style={{
+                    width: "23%",
+                    paddingVertical: 10,
+                    alignItems: "center",
+                    backgroundColor: i === cMonth ? "#E8F5E9" : undefined,
+                    borderRadius: 8,
+                    marginBottom: 6,
+                  }}
+                  onPress={() => {
+                    setCMonth(i);
+                    setPickerMode("calendar");
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      fontWeight: i === cMonth ? "700" : "400",
+                      color: i === cMonth ? "#4CAF50" : "#2D3748",
+                    }}
+                  >
+                    {i + 1}월
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
+          {/* 달력 */}
+          {pickerMode === "calendar" && (
+            <>
+              <View style={cpS.weekRow}>
+                {WKDAYS.map((d, i) => (
+                  <View key={i} style={cpS.weekCell}>
+                    <Text
+                      style={[
+                        cpS.weekText,
+                        i === 0 && { color: "#E53E3E" },
+                        i === 6 && { color: "#3182CE" },
+                      ]}
+                    >
+                      {d}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+              {Array.from({ length: cells.length / 7 }, (_, wi) => (
+                <View key={wi} style={cpS.weekRow}>
+                  {cells.slice(wi * 7, wi * 7 + 7).map((day, di) => {
+                    if (day === null)
+                      return <View key={di} style={cpS.dayCell} />;
+                    const dateStr = `${cYear}-${pad2(cMonth + 1)}-${pad2(day)}`;
+                    const isSelected = dateStr === value;
+                    return (
+                      <TouchableOpacity
+                        key={di}
+                        style={[cpS.dayCell, isSelected && cpS.dayCellSelected]}
+                        onPress={() => {
+                          onChange(dateStr);
+                          onClose();
+                        }}
+                      >
+                        <Text
+                          style={[cpS.dayText, isSelected && { color: "#fff" }]}
+                        >
+                          {day}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              ))}
+            </>
+          )}
+        </View>
+      </TouchableOpacity>
+    </Modal>
+  );
+}
+
+function DatePickerRow({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const [showCal, setShowCal] = useState(false);
 
   return (
     <>
       <View style={s.dateRow}>
         <Text style={s.dateLabel}>{label}</Text>
-        <TouchableOpacity style={s.dateInputWrap} onPress={openCal}>
+        <TouchableOpacity
+          style={s.dateInputWrap}
+          onPress={() => setShowCal(true)}
+        >
           <TextInput
             style={s.dateInput}
             value={value}
@@ -165,83 +414,12 @@ function DatePickerRow({
           <Text style={s.dateCalIcon}>📅</Text>
         </TouchableOpacity>
       </View>
-
-      <Modal
+      <CalendarModal
         visible={showCal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowCal(false)}
-      >
-        <TouchableOpacity
-          style={cpS.overlay}
-          activeOpacity={1}
-          onPress={() => setShowCal(false)}
-        >
-          <View style={cpS.card} onStartShouldSetResponder={() => true}>
-            <View style={cpS.navRow}>
-              <TouchableOpacity onPress={prevM} style={cpS.navBtn}>
-                <Text style={cpS.navBtnText}>◀</Text>
-              </TouchableOpacity>
-              <Text style={cpS.navTitle}>
-                {cYear}년 {cMonth + 1}월
-              </Text>
-              <TouchableOpacity onPress={nextM} style={cpS.navBtn}>
-                <Text style={cpS.navBtnText}>▶</Text>
-              </TouchableOpacity>
-            </View>
-            <View style={cpS.weekRow}>
-              {WKDAYS.map((d, i) => (
-                <View key={i} style={cpS.weekCell}>
-                  <Text
-                    style={[
-                      cpS.weekText,
-                      i === 0 && { color: "#E53E3E" },
-                      i === 6 && { color: "#3182CE" },
-                    ]}
-                  >
-                    {d}
-                  </Text>
-                </View>
-              ))}
-            </View>
-            {Array.from({ length: cells.length / 7 }, (_, wi) => (
-              <View key={wi} style={cpS.weekRow}>
-                {cells.slice(wi * 7, wi * 7 + 7).map((day, di) => {
-                  if (day === null)
-                    return <View key={di} style={cpS.dayCell} />;
-                  const dateStr = `${cYear}-${pad2(cMonth + 1)}-${pad2(day)}`;
-                  const isSelected = dateStr === value;
-                  return (
-                    <TouchableOpacity
-                      key={di}
-                      style={[cpS.dayCell, isSelected && cpS.dayCellSelected]}
-                      onPress={() => {
-                        onChange(dateStr);
-                        setShowCal(false);
-                      }}
-                    >
-                      <Text
-                        style={[cpS.dayText, isSelected && { color: "#fff" }]}
-                      >
-                        {day}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            ))}
-            <TouchableOpacity
-              style={cpS.clearBtn}
-              onPress={() => {
-                onChange("");
-                setShowCal(false);
-              }}
-            >
-              <Text style={cpS.clearBtnText}>초기화</Text>
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      </Modal>
+        value={value}
+        onChange={onChange}
+        onClose={() => setShowCal(false)}
+      />
     </>
   );
 }
@@ -314,6 +492,8 @@ export default function ChartScreen() {
   const [activityStart, setActivityStart] = useState("");
   const [selectedPoint, setSelectedPoint] = useState<WeightRecord | null>(null);
   const [overlayMode, setOverlayMode] = useState(true);
+  const [showStatsCal, setShowStatsCal] = useState(false);
+  const [showActivityCal, setShowActivityCal] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -510,6 +690,7 @@ export default function ChartScreen() {
         <Text style={s.title}>{"\u{1F4CA}"} 기록 그래프</Text>
 
         {/* 수치 선택 칩 */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
         <View style={s.metricRow}>
           {METRICS.map((key) => {
             const active = selectedMetrics.includes(key);
@@ -545,6 +726,7 @@ export default function ChartScreen() {
             );
           })}
         </View>
+        </ScrollView>
 
         {/* 기간 모드 */}
         <View style={s.periodRow}>
@@ -826,11 +1008,23 @@ export default function ChartScreen() {
         <View style={s.card}>
           <View style={s.cardHeader}>
             <Text style={s.cardTitle}>통계</Text>
-            {statsStart ? (
-              <TouchableOpacity onPress={() => setStatsStart("")}>
-                <Text style={s.resetBtn}>초기화</Text>
+            <View
+              style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+            >
+              {statsStart ? (
+                <Text style={{ fontSize: 11, color: "#A0AEC0" }}>
+                  {statsStart}~
+                </Text>
+              ) : null}
+              <TouchableOpacity onPress={() => setShowStatsCal(true)}>
+                <Text style={{ fontSize: 18 }}>📅</Text>
               </TouchableOpacity>
-            ) : null}
+              {statsStart ? (
+                <TouchableOpacity onPress={() => setStatsStart("")}>
+                  <Text style={s.resetBtn}>초기화</Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
           </View>
 
           <ScrollView
@@ -860,12 +1054,6 @@ export default function ChartScreen() {
               </TouchableOpacity>
             ))}
           </ScrollView>
-
-          <DatePickerRow
-            label="시작일"
-            value={statsStart}
-            onChange={setStatsStart}
-          />
 
           {stats ? (
             <>
@@ -922,17 +1110,24 @@ export default function ChartScreen() {
           <View style={s.card}>
             <View style={s.cardHeader}>
               <Text style={s.cardTitle}>활동 요약</Text>
-              {activityStart ? (
-                <TouchableOpacity onPress={() => setActivityStart("")}>
-                  <Text style={s.resetBtn}>초기화</Text>
+              <View
+                style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+              >
+                {activityStart ? (
+                  <Text style={{ fontSize: 11, color: "#A0AEC0" }}>
+                    {activityStart}~
+                  </Text>
+                ) : null}
+                <TouchableOpacity onPress={() => setShowActivityCal(true)}>
+                  <Text style={{ fontSize: 18 }}>📅</Text>
                 </TouchableOpacity>
-              ) : null}
+                {activityStart ? (
+                  <TouchableOpacity onPress={() => setActivityStart("")}>
+                    <Text style={s.resetBtn}>초기화</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
             </View>
-            <DatePickerRow
-              label="시작일"
-              value={activityStart}
-              onChange={setActivityStart}
-            />
             <View style={s.summaryRow}>
               <View style={s.summaryItem}>
                 <Text style={s.summaryEmoji}>📅</Text>
@@ -970,6 +1165,22 @@ export default function ChartScreen() {
             </View>
           </View>
         )}
+
+        {/* 통계 캘린더 팝업 */}
+        <CalendarModal
+          visible={showStatsCal}
+          value={statsStart}
+          onChange={setStatsStart}
+          onClose={() => setShowStatsCal(false)}
+        />
+
+        {/* 활동 요약 캘린더 팝업 */}
+        <CalendarModal
+          visible={showActivityCal}
+          value={activityStart}
+          onChange={setActivityStart}
+          onClose={() => setShowActivityCal(false)}
+        />
 
         {/* 점 클릭 팝업 모달 */}
         <Modal
@@ -1048,7 +1259,7 @@ export default function ChartScreen() {
                 style={s.modalClose}
                 onPress={() => setSelectedPoint(null)}
               >
-                <Text style={s.modalCloseText}>{"\u{B2EB}\u{AE30}"}</Text>
+                <Text style={s.modalCloseText}>닫기</Text>
               </TouchableOpacity>
             </View>
           </TouchableOpacity>
@@ -1075,9 +1286,7 @@ const s = StyleSheet.create({
   },
   metricRow: {
     flexDirection: "row",
-    flexWrap: "wrap",
     gap: 8,
-    marginBottom: 12,
   },
   metricChip: {
     flexDirection: "row",

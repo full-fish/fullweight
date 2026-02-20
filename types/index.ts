@@ -74,8 +74,10 @@ export type ChallengeHistory = {
   completedAt: string;
 };
 
-/** 사용자 설정 (키, 나이 등) */
+/** 사용자 설정 (키, 생년월일, 성별 등) */
 export type UserSettings = {
   height?: number; // cm
-  age?: number;
+  age?: number; // deprecated, 하위호환용
+  birthDate?: string; // YYYY-MM-DD
+  gender?: "male" | "female";
 };

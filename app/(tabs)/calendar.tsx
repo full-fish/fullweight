@@ -51,10 +51,10 @@ function getBmiInfo(weight: number, heightCm: number | undefined) {
   if (bmi < 18.5) {
     label = "저체중";
     color = "#3182CE";
-  } else if (bmi < 25) {
+  } else if (bmi < 23) {
     label = "정상";
     color = "#38A169";
-  } else if (bmi < 30) {
+  } else if (bmi < 25) {
     label = "과체중";
     color = "#DD6B20";
   } else {
@@ -73,6 +73,12 @@ export default function CalendarScreen() {
     null
   );
   const [editMode, setEditMode] = useState(false);
+  const [navMode, setNavMode] = useState<
+    "calendar" | "yearPicker" | "monthPicker"
+  >("calendar");
+  const [summaryMode, setSummaryMode] = useState<
+    "monthly" | "quarterly" | "yearly"
+  >("monthly");
 
   /* 새 기록 추가 모달 */
   const [addMode, setAddMode] = useState(false);
@@ -129,10 +135,52 @@ export default function CalendarScreen() {
     setMonth(now.getMonth());
   };
 
-  const monthRecords = useMemo(() => {
-    const prefix = `${year}-${pad2(month + 1)}`;
-    return records.filter((r) => r.date.startsWith(prefix));
-  }, [records, year, month]);
+  const summaryData = useMemo(() => {
+    let filtered: WeightRecord[];
+    let periodLabel: string;
+
+    if (summaryMode === "monthly") {
+      const prefix = `${year}-${pad2(month + 1)}`;
+      filtered = records.filter((r) => r.date.startsWith(prefix));
+      periodLabel = `${year}년 ${month + 1}월`;
+    } else if (summaryMode === "quarterly") {
+      const quarter = Math.floor(month / 3);
+      const startMonth = quarter * 3;
+      const endMonth = startMonth + 2;
+      filtered = records.filter((r) => {
+        const [ry, rm] = r.date.split("-").map(Number);
+        return ry === year && rm - 1 >= startMonth && rm - 1 <= endMonth;
+      });
+      periodLabel = `${year}년 ${quarter + 1}분기`;
+    } else {
+      filtered = records.filter((r) => r.date.startsWith(`${year}`));
+      periodLabel = `${year}년`;
+    }
+
+    const sorted = [...filtered].sort((a, b) => a.date.localeCompare(b.date));
+    const first = sorted.length > 0 ? sorted[0] : null;
+    const last = sorted.length > 1 ? sorted[sorted.length - 1] : null;
+
+    const findMetricRange = (key: "muscleMass" | "bodyFatPercent" | "bodyFatMass") => {
+      const withData = sorted.filter((r) => r[key] != null);
+      if (withData.length === 0) return null;
+      if (withData.length === 1)
+        return { first: withData[0], last: null as WeightRecord | null };
+      return { first: withData[0], last: withData[withData.length - 1] };
+    };
+
+    return {
+      records: filtered,
+      periodLabel,
+      first,
+      last,
+      muscleMassRange: findMetricRange("muscleMass"),
+      bodyFatPercentRange: findMetricRange("bodyFatPercent"),
+      bodyFatMassRange: findMetricRange("bodyFatMass"),
+      exerciseCount: filtered.filter((r) => r.exercised).length,
+      drinkCount: filtered.filter((r) => r.drank).length,
+    };
+  }, [records, year, month, summaryMode]);
 
   const calendarCells: (number | null)[] = [];
   for (let i = 0; i < firstDay; i++) calendarCells.push(null);
@@ -259,35 +307,346 @@ export default function CalendarScreen() {
           <TouchableOpacity onPress={prevMonth} style={s.navBtn}>
             <Text style={s.navBtnText}>◀</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={goToday}>
-            <Text style={s.navTitle}>
-              {year}년 {month + 1}월
-            </Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <TouchableOpacity
+              onPress={() =>
+                setNavMode((m) =>
+                  m === "yearPicker" ? "calendar" : "yearPicker"
+                )
+              }
+            >
+              <Text style={s.navTitle}>{year}년</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() =>
+                setNavMode((m) =>
+                  m === "monthPicker" ? "calendar" : "monthPicker"
+                )
+              }
+            >
+              <Text style={[s.navTitle, { marginLeft: 4 }]}>{month + 1}월</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={goToday} style={{ marginLeft: 8 }}>
+              <Text
+                style={{ fontSize: 12, color: "#4CAF50", fontWeight: "600" }}
+              >
+                오늘
+              </Text>
+            </TouchableOpacity>
+          </View>
           <TouchableOpacity onPress={nextMonth} style={s.navBtn}>
             <Text style={s.navBtnText}>▶</Text>
           </TouchableOpacity>
         </View>
 
-        {/* 이번 달 요약 */}
+        {/* 연도/월 선택 */}
+        {navMode === "yearPicker" && (
+          <View
+            style={{
+              flexDirection: "row",
+              flexWrap: "wrap",
+              gap: 6,
+              marginBottom: 12,
+              justifyContent: "center",
+            }}
+          >
+            {Array.from(
+              { length: 21 },
+              (_, i) => now.getFullYear() - 10 + i
+            ).map((y) => (
+              <TouchableOpacity
+                key={y}
+                onPress={() => {
+                  setYear(y);
+                  setNavMode("calendar");
+                }}
+                style={{
+                  width: (width - 56) / 7,
+                  paddingVertical: 10,
+                  borderRadius: 8,
+                  backgroundColor: y === year ? "#4CAF50" : "#EDF2F7",
+                  alignItems: "center",
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontWeight: "600",
+                    color: y === year ? "#fff" : "#4A5568",
+                  }}
+                >
+                  {y}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
+        {navMode === "monthPicker" && (
+          <View
+            style={{
+              flexDirection: "row",
+              flexWrap: "wrap",
+              gap: 8,
+              marginBottom: 12,
+              justifyContent: "center",
+            }}
+          >
+            {Array.from({ length: 12 }, (_, i) => i).map((m) => (
+              <TouchableOpacity
+                key={m}
+                onPress={() => {
+                  setMonth(m);
+                  setNavMode("calendar");
+                }}
+                style={{
+                  width: (width - 80) / 4,
+                  paddingVertical: 10,
+                  borderRadius: 8,
+                  backgroundColor: m === month ? "#4CAF50" : "#EDF2F7",
+                  alignItems: "center",
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontWeight: "600",
+                    color: m === month ? "#fff" : "#4A5568",
+                  }}
+                >
+                  {m + 1}월
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
+        {/* 기간 모드 토글 */}
+        <View
+          style={{
+            flexDirection: "row",
+            backgroundColor: "#E2E8F0",
+            borderRadius: 8,
+            padding: 2,
+            marginBottom: 12,
+          }}
+        >
+          {(["monthly", "quarterly", "yearly"] as const).map((m) => (
+            <TouchableOpacity
+              key={m}
+              onPress={() => setSummaryMode(m)}
+              style={{
+                flex: 1,
+                paddingVertical: 6,
+                borderRadius: 6,
+                alignItems: "center",
+                backgroundColor: summaryMode === m ? "#fff" : "transparent",
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 12,
+                  fontWeight: summaryMode === m ? "600" : "500",
+                  color: summaryMode === m ? "#2D3748" : "#718096",
+                }}
+              >
+                {{ monthly: "월별", quarterly: "분기별", yearly: "연별" }[m]}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* 요약 칩 */}
         <View style={s.monthSummary}>
           <View style={s.summaryChip}>
-            <Text style={s.summaryNum}>{monthRecords.length}</Text>
+            <Text style={s.summaryNum}>{summaryData.records.length}</Text>
             <Text style={s.summaryLabel}>기록일</Text>
           </View>
           <View style={s.summaryChip}>
-            <Text style={s.summaryNum}>
-              {monthRecords.filter((r) => r.exercised).length}
-            </Text>
+            <Text style={s.summaryNum}>{summaryData.exerciseCount}</Text>
             <Text style={s.summaryLabel}>운동</Text>
           </View>
           <View style={s.summaryChip}>
-            <Text style={s.summaryNum}>
-              {monthRecords.filter((r) => r.drank).length}
-            </Text>
+            <Text style={s.summaryNum}>{summaryData.drinkCount}</Text>
             <Text style={s.summaryLabel}>음주</Text>
           </View>
         </View>
+
+        {/* 기간 변화 */}
+        {summaryData.first &&
+          summaryData.last &&
+          summaryData.first.date !== summaryData.last.date && (
+            <View
+              style={{
+                backgroundColor: "#fff",
+                borderRadius: 12,
+                padding: 14,
+                marginBottom: 16,
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: 1 },
+                shadowOpacity: 0.06,
+                shadowRadius: 4,
+                elevation: 2,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontWeight: "600",
+                  color: "#4A5568",
+                  marginBottom: 8,
+                }}
+              >
+                📊 {summaryData.periodLabel} 변화
+              </Text>
+              {/* 몸무게 (항상 표시) */}
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  paddingVertical: 4,
+                }}
+              >
+                <Text style={{ fontSize: 13, color: "#718096" }}>
+                  ⚖️ 몸무게
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontWeight: "600",
+                    color:
+                      summaryData.last.weight - summaryData.first.weight <= 0
+                        ? "#38A169"
+                        : "#E53E3E",
+                  }}
+                >
+                  {summaryData.first.weight}→{summaryData.last.weight}kg (
+                  {summaryData.last.weight - summaryData.first.weight > 0
+                    ? "+"
+                    : ""}
+                  {(summaryData.last.weight - summaryData.first.weight).toFixed(
+                    1
+                  )}
+                  )
+                </Text>
+              </View>
+              {/* 골격근량 */}
+              {(() => {
+                const range = summaryData.muscleMassRange;
+                if (!range) return null;
+                const fmtShort = (d: string) => d.slice(2).replace(/-/g, ".");
+                const overallFirst = summaryData.first!.date;
+                const overallLast = summaryData.last!.date;
+                if (!range.last) {
+                  // 데이터 1개만 존재
+                  return (
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 4 }}>
+                      <Text style={{ fontSize: 13, color: "#718096" }}>💪 골격근량</Text>
+                      <Text style={{ fontSize: 13, fontWeight: "600", color: "#4A5568" }}>
+                        {range.first.muscleMass}kg
+                      </Text>
+                    </View>
+                  );
+                }
+                const diff = range.last.muscleMass! - range.first.muscleMass!;
+                const sameStart = range.first.date === overallFirst;
+                const sameEnd = range.last.date === overallLast;
+                let dateLabel = "";
+                if (!sameStart && !sameEnd) dateLabel = `${fmtShort(range.first.date)}~${fmtShort(range.last.date)}`;
+                else if (!sameStart) dateLabel = `${fmtShort(range.first.date)}~`;
+                else if (!sameEnd) dateLabel = `~${fmtShort(range.last.date)}`;
+                return (
+                  <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 4, alignItems: "center" }}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                      <Text style={{ fontSize: 13, color: "#718096" }}>💪 골격근량</Text>
+                      {dateLabel !== "" && (
+                        <Text style={{ fontSize: 10, color: "#A0AEC0" }}>{dateLabel}</Text>
+                      )}
+                    </View>
+                    <Text style={{ fontSize: 13, fontWeight: "600", color: diff >= 0 ? "#38A169" : "#E53E3E" }}>
+                      {range.first.muscleMass}→{range.last.muscleMass}kg ({diff > 0 ? "+" : ""}{diff.toFixed(1)})
+                    </Text>
+                  </View>
+                );
+              })()}
+              {/* 체지방률 */}
+              {(() => {
+                const range = summaryData.bodyFatPercentRange;
+                if (!range) return null;
+                const fmtShort = (d: string) => d.slice(2).replace(/-/g, ".");
+                const overallFirst = summaryData.first!.date;
+                const overallLast = summaryData.last!.date;
+                if (!range.last) {
+                  return (
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 4 }}>
+                      <Text style={{ fontSize: 13, color: "#718096" }}>🔥 체지방률</Text>
+                      <Text style={{ fontSize: 13, fontWeight: "600", color: "#4A5568" }}>
+                        {range.first.bodyFatPercent}%
+                      </Text>
+                    </View>
+                  );
+                }
+                const diff = range.last.bodyFatPercent! - range.first.bodyFatPercent!;
+                const sameStart = range.first.date === overallFirst;
+                const sameEnd = range.last.date === overallLast;
+                let dateLabel = "";
+                if (!sameStart && !sameEnd) dateLabel = `${fmtShort(range.first.date)}~${fmtShort(range.last.date)}`;
+                else if (!sameStart) dateLabel = `${fmtShort(range.first.date)}~`;
+                else if (!sameEnd) dateLabel = `~${fmtShort(range.last.date)}`;
+                return (
+                  <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 4, alignItems: "center" }}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                      <Text style={{ fontSize: 13, color: "#718096" }}>🔥 체지방률</Text>
+                      {dateLabel !== "" && (
+                        <Text style={{ fontSize: 10, color: "#A0AEC0" }}>{dateLabel}</Text>
+                      )}
+                    </View>
+                    <Text style={{ fontSize: 13, fontWeight: "600", color: diff <= 0 ? "#38A169" : "#E53E3E" }}>
+                      {range.first.bodyFatPercent}→{range.last.bodyFatPercent}% ({diff > 0 ? "+" : ""}{diff.toFixed(1)})
+                    </Text>
+                  </View>
+                );
+              })()}
+              {/* 체지방량 */}
+              {(() => {
+                const range = summaryData.bodyFatMassRange;
+                if (!range) return null;
+                const fmtShort = (d: string) => d.slice(2).replace(/-/g, ".");
+                const overallFirst = summaryData.first!.date;
+                const overallLast = summaryData.last!.date;
+                if (!range.last) {
+                  return (
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 4 }}>
+                      <Text style={{ fontSize: 13, color: "#718096" }}>🟣 체지방량</Text>
+                      <Text style={{ fontSize: 13, fontWeight: "600", color: "#4A5568" }}>
+                        {range.first.bodyFatMass}kg
+                      </Text>
+                    </View>
+                  );
+                }
+                const diff = range.last.bodyFatMass! - range.first.bodyFatMass!;
+                const sameStart = range.first.date === overallFirst;
+                const sameEnd = range.last.date === overallLast;
+                let dateLabel = "";
+                if (!sameStart && !sameEnd) dateLabel = `${fmtShort(range.first.date)}~${fmtShort(range.last.date)}`;
+                else if (!sameStart) dateLabel = `${fmtShort(range.first.date)}~`;
+                else if (!sameEnd) dateLabel = `~${fmtShort(range.last.date)}`;
+                return (
+                  <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 4, alignItems: "center" }}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                      <Text style={{ fontSize: 13, color: "#718096" }}>🟣 체지방량</Text>
+                      {dateLabel !== "" && (
+                        <Text style={{ fontSize: 10, color: "#A0AEC0" }}>{dateLabel}</Text>
+                      )}
+                    </View>
+                    <Text style={{ fontSize: 13, fontWeight: "600", color: diff <= 0 ? "#38A169" : "#E53E3E" }}>
+                      {range.first.bodyFatMass}→{range.last.bodyFatMass}kg ({diff > 0 ? "+" : ""}{diff.toFixed(1)})
+                    </Text>
+                  </View>
+                );
+              })()}
+            </View>
+          )}
 
         {/* 캘린더 */}
         <View style={s.calendarCard}>
@@ -493,15 +852,15 @@ export default function CalendarScreen() {
                               />
                               <View
                                 style={{
-                                  flex: 6.5,
+                                  flex: 4.5,
                                   backgroundColor: "#C6F6D5",
                                 }}
                               />
                               <View
-                                style={{ flex: 5, backgroundColor: "#FEEBC8" }}
+                                style={{ flex: 2, backgroundColor: "#FEEBC8" }}
                               />
                               <View
-                                style={{ flex: 10, backgroundColor: "#FED7D7" }}
+                                style={{ flex: 15, backgroundColor: "#FED7D7" }}
                               />
                             </View>
                             <View

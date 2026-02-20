@@ -66,6 +66,10 @@ function DateCalendarPicker({
   label: string;
 }) {
   const [showCal, setShowCal] = useState(false);
+  const [textDate, setTextDate] = useState(value);
+  const [pickerMode, setPickerMode] = useState<"calendar" | "year" | "month">(
+    "calendar"
+  );
   const now = new Date();
   const parsed = value ? new Date(value) : now;
   const initY = !isNaN(parsed.getTime())
@@ -81,6 +85,8 @@ function DateCalendarPicker({
       setCYear(p.getFullYear());
       setCMonth(p.getMonth());
     }
+    setTextDate(value);
+    setPickerMode("calendar");
     setShowCal(true);
   };
 
@@ -108,6 +114,26 @@ function DateCalendarPicker({
       setCMonth(cMonth + 1);
     }
   };
+
+  const handleTextConfirm = () => {
+    const v = textDate.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(v)) {
+      const [y, m, d] = v.split("-").map(Number);
+      const dt = new Date(y, m - 1, d);
+      if (
+        dt.getFullYear() === y &&
+        dt.getMonth() === m - 1 &&
+        dt.getDate() === d
+      ) {
+        onChange(v);
+        setShowCal(false);
+        return;
+      }
+    }
+    Alert.alert("형식 오류", "YYYY-MM-DD 형식으로 입력해주세요.");
+  };
+
+  const CURRENT_YEAR = now.getFullYear();
 
   return (
     <>
@@ -139,58 +165,216 @@ function DateCalendarPicker({
           onPress={() => setShowCal(false)}
         >
           <View style={dcpS.card} onStartShouldSetResponder={() => true}>
+            {/* 텍스트 입력 */}
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                marginBottom: 10,
+              }}
+            >
+              <TextInput
+                style={{
+                  flex: 1,
+                  height: 38,
+                  borderWidth: 1,
+                  borderColor: "#E2E8F0",
+                  borderRadius: 8,
+                  paddingHorizontal: 10,
+                  fontSize: 14,
+                  color: "#2D3748",
+                  backgroundColor: "#F7FAFC",
+                }}
+                value={textDate}
+                onChangeText={setTextDate}
+                placeholder="YYYY-MM-DD"
+                placeholderTextColor="#aaa"
+                keyboardType={
+                  Platform.OS === "ios" ? "numbers-and-punctuation" : "default"
+                }
+                maxLength={10}
+                returnKeyType="done"
+                onSubmitEditing={handleTextConfirm}
+              />
+              <TouchableOpacity
+                style={{
+                  marginLeft: 8,
+                  backgroundColor: "#4CAF50",
+                  borderRadius: 8,
+                  paddingHorizontal: 14,
+                  paddingVertical: 8,
+                }}
+                onPress={handleTextConfirm}
+              >
+                <Text
+                  style={{ color: "#fff", fontWeight: "600", fontSize: 13 }}
+                >
+                  확인
+                </Text>
+              </TouchableOpacity>
+            </View>
+
             <View style={dcpS.navRow}>
               <TouchableOpacity onPress={prevM} style={dcpS.navBtn}>
                 <Text style={dcpS.navBtnText}>◀</Text>
               </TouchableOpacity>
-              <Text style={dcpS.navTitle}>
-                {cYear}년 {cMonth + 1}월
-              </Text>
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <TouchableOpacity
+                  onPress={() =>
+                    setPickerMode((m) => (m === "year" ? "calendar" : "year"))
+                  }
+                >
+                  <Text style={dcpS.navTitle}>{cYear}년</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() =>
+                    setPickerMode((m) => (m === "month" ? "calendar" : "month"))
+                  }
+                >
+                  <Text style={[dcpS.navTitle, { marginLeft: 4 }]}>
+                    {cMonth + 1}월
+                  </Text>
+                </TouchableOpacity>
+              </View>
               <TouchableOpacity onPress={nextM} style={dcpS.navBtn}>
                 <Text style={dcpS.navBtnText}>▶</Text>
               </TouchableOpacity>
             </View>
-            <View style={dcpS.weekRow}>
-              {WKDAYS.map((d, i) => (
-                <View key={i} style={dcpS.weekCell}>
-                  <Text
-                    style={[
-                      dcpS.weekText,
-                      i === 0 && { color: "#E53E3E" },
-                      i === 6 && { color: "#3182CE" },
-                    ]}
-                  >
-                    {d}
-                  </Text>
-                </View>
-              ))}
-            </View>
-            {Array.from({ length: cells.length / 7 }, (_, wi) => (
-              <View key={wi} style={dcpS.weekRow}>
-                {cells.slice(wi * 7, wi * 7 + 7).map((day, di) => {
-                  if (day === null)
-                    return <View key={di} style={dcpS.dayCell} />;
-                  const dateStr = `${cYear}-${pad2ch(cMonth + 1)}-${pad2ch(day)}`;
-                  const isSelected = dateStr === value;
-                  return (
+
+            {/* 연도 선택 */}
+            {pickerMode === "year" && (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={{ marginBottom: 8 }}
+              >
+                <View
+                  style={{ flexDirection: "row", gap: 6, paddingVertical: 6 }}
+                >
+                  {Array.from(
+                    { length: 21 },
+                    (_, i) => CURRENT_YEAR - 10 + i
+                  ).map((y) => (
                     <TouchableOpacity
-                      key={di}
-                      style={[dcpS.dayCell, isSelected && dcpS.dayCellSelected]}
+                      key={y}
                       onPress={() => {
-                        onChange(dateStr);
-                        setShowCal(false);
+                        setCYear(y);
+                        setPickerMode("calendar");
+                      }}
+                      style={{
+                        paddingHorizontal: 12,
+                        paddingVertical: 6,
+                        borderRadius: 8,
+                        backgroundColor: y === cYear ? "#4CAF50" : "#EDF2F7",
                       }}
                     >
                       <Text
-                        style={[dcpS.dayText, isSelected && { color: "#fff" }]}
+                        style={{
+                          fontSize: 13,
+                          fontWeight: "600",
+                          color: y === cYear ? "#fff" : "#4A5568",
+                        }}
                       >
-                        {day}
+                        {y}
                       </Text>
                     </TouchableOpacity>
-                  );
-                })}
+                  ))}
+                </View>
+              </ScrollView>
+            )}
+
+            {/* 월 선택 */}
+            {pickerMode === "month" && (
+              <View
+                style={{
+                  flexDirection: "row",
+                  flexWrap: "wrap",
+                  gap: 6,
+                  marginBottom: 8,
+                  justifyContent: "center",
+                }}
+              >
+                {Array.from({ length: 12 }, (_, i) => i).map((m) => (
+                  <TouchableOpacity
+                    key={m}
+                    onPress={() => {
+                      setCMonth(m);
+                      setPickerMode("calendar");
+                    }}
+                    style={{
+                      width: 60,
+                      paddingVertical: 8,
+                      borderRadius: 8,
+                      backgroundColor: m === cMonth ? "#4CAF50" : "#EDF2F7",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        fontWeight: "600",
+                        color: m === cMonth ? "#fff" : "#4A5568",
+                      }}
+                    >
+                      {m + 1}월
+                    </Text>
+                  </TouchableOpacity>
+                ))}
               </View>
-            ))}
+            )}
+
+            {/* 달력 */}
+            {pickerMode === "calendar" && (
+              <>
+                <View style={dcpS.weekRow}>
+                  {WKDAYS.map((d, i) => (
+                    <View key={i} style={dcpS.weekCell}>
+                      <Text
+                        style={[
+                          dcpS.weekText,
+                          i === 0 && { color: "#E53E3E" },
+                          i === 6 && { color: "#3182CE" },
+                        ]}
+                      >
+                        {d}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+                {Array.from({ length: cells.length / 7 }, (_, wi) => (
+                  <View key={wi} style={dcpS.weekRow}>
+                    {cells.slice(wi * 7, wi * 7 + 7).map((day, di) => {
+                      if (day === null)
+                        return <View key={di} style={dcpS.dayCell} />;
+                      const dateStr = `${cYear}-${pad2ch(cMonth + 1)}-${pad2ch(day)}`;
+                      const isSelected = dateStr === value;
+                      return (
+                        <TouchableOpacity
+                          key={di}
+                          style={[
+                            dcpS.dayCell,
+                            isSelected && dcpS.dayCellSelected,
+                          ]}
+                          onPress={() => {
+                            onChange(dateStr);
+                            setShowCal(false);
+                          }}
+                        >
+                          <Text
+                            style={[
+                              dcpS.dayText,
+                              isSelected && { color: "#fff" },
+                            ]}
+                          >
+                            {day}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                ))}
+              </>
+            )}
           </View>
         </TouchableOpacity>
       </Modal>
