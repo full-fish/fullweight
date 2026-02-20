@@ -14,7 +14,7 @@ import {
   View,
 } from "react-native";
 
-const { width } = Dimensions.get("window");
+const { width, height: screenHeight } = Dimensions.get("window");
 const THUMB_GAP = 6;
 const THUMB_COLS = 3;
 const THUMB_SIZE = Math.floor(
@@ -239,6 +239,9 @@ export default function PhotosScreen() {
                     <Image
                       source={{ uri: item.photoUri }}
                       style={s.thumbImage}
+                      resizeMode="cover"
+                      fadeDuration={0}
+                      key={item.photoUri}
                     />
                     <View style={s.thumbOverlay}>
                       <Text style={s.thumbDate}>{fmtDateShort(item.date)}</Text>
@@ -495,6 +498,7 @@ const s = StyleSheet.create({
     borderWidth: 3,
     borderColor: "#4CAF50",
     borderRadius: 12,
+    opacity: 1,
   },
   thumbImage: {
     width: "100%",
@@ -546,9 +550,9 @@ const s = StyleSheet.create({
     alignItems: "center",
   },
   viewerImage: {
-    width: width - 20,
-    height: width - 20,
-    borderRadius: 12,
+    width: width,
+    height: screenHeight * 0.65,
+    borderRadius: 0,
   },
   viewerInfo: {
     position: "absolute",

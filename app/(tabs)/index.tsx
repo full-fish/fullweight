@@ -731,15 +731,6 @@ export default function HomeScreen() {
         >
           <Text style={styles.title}>💪 몸무게 트래커</Text>
 
-          {!isToday && (
-            <TouchableOpacity
-              style={styles.todayLink}
-              onPress={() => handleDateSelect(getLocalDateString())}
-            >
-              <Text style={styles.todayLinkText}>오늘로 이동</Text>
-            </TouchableOpacity>
-          )}
-
           {/* 입력 카드 */}
           <View style={styles.card}>
             <View style={styles.cardTitleRow}>
@@ -747,6 +738,14 @@ export default function HomeScreen() {
                 {isToday ? "오늘의 기록" : "기록"}
               </Text>
               <View style={styles.cardDateSelector}>
+                {!isToday && (
+                  <TouchableOpacity
+                    style={styles.todayLink}
+                    onPress={() => handleDateSelect(getLocalDateString())}
+                  >
+                    <Text style={styles.todayLinkText}>오늘 ↩</Text>
+                  </TouchableOpacity>
+                )}
                 <TouchableOpacity
                   onPress={() => {
                     const d = new Date(selectedDate);
@@ -1420,8 +1419,14 @@ const styles = StyleSheet.create({
   },
   dateText: { fontSize: 16, fontWeight: "600", color: "#2D3748" },
   datePickerIcon: { fontSize: 18 },
-  todayLink: { alignItems: "center", marginBottom: 12 },
-  todayLinkText: { fontSize: 13, color: "#4CAF50", fontWeight: "600" },
+  todayLink: {
+    marginRight: 6,
+    backgroundColor: "#E8F5E9",
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  todayLinkText: { fontSize: 11, color: "#4CAF50", fontWeight: "700" },
 
   /* card */
   card: {

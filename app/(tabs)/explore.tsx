@@ -494,6 +494,8 @@ export default function ChartScreen() {
   const [activityEnd, setActivityEnd] = useState("");
   const [selectedPoint, setSelectedPoint] = useState<WeightRecord | null>(null);
   const [overlayMode, setOverlayMode] = useState(true);
+  const [chartZoom, setChartZoom] = useState(30); // 표시할 데이터 포인트 수 (X축 줌)
+  const [yPadding, setYPadding] = useState(0); // Y축 여유 비율 (0~5단계)
   const [showStatsCal, setShowStatsCal] = useState(false);
   const [showStatsEndCal, setShowStatsEndCal] = useState(false);
   const [showActivityCal, setShowActivityCal] = useState(false);
@@ -565,7 +567,7 @@ export default function ChartScreen() {
       });
   }, [filteredRecords, periodMode]);
 
-  const slicedData = chartData.slice(-30);
+  const slicedData = chartData.slice(-chartZoom);
 
   /* ── 차트 라벨 생성 ── */
   const makeLabels = useCallback(
@@ -591,47 +593,94 @@ export default function ChartScreen() {
     return { key, filtered, values: values.length > 0 ? values : [0], labels };
   }, [slicedData, selectedMetrics, makeLabels]);
 
-  /* ── 오버레이 차트 데이터 (정규화) ── */
+  /* ── 오버레이 차트 데이터 (정규화 + 모든 데이터 포함, 누락값은 빈칸) ── */
   const overlayInfo = useMemo(() => {
     if (selectedMetrics.length <= 1 || !overlayMode) return null;
+    // 선택된 수치 중 하나라도 있는 레코드를 모두 사용
     const filtered = slicedData.filter((r) =>
-      selectedMetrics.every((key) => getMetricValue(r, key) !== null)
+      selectedMetrics.some((key) => getMetricValue(r, key) !== null)
     );
     if (filtered.length < 2) return null;
     const labels = makeLabels(filtered);
     const ranges: Record<string, { min: number; max: number }> = {};
-    const datasets = selectedMetrics.map((key) => {
-      const vals = filtered.map((r) => getMetricValue(r, key)!);
-      const min = Math.min(...vals);
-      const max = Math.max(...vals);
-      ranges[key] = { min, max };
-      const span = max - min || 1;
-      const normalized = vals.map(
-        (v) => Math.round(((v - min) / span) * 100 * 10) / 10
+    const datasets = selectedMetrics
+      .map((key) => {
+        const rawVals = filtered.map((r) => getMetricValue(r, key));
+        const validVals = rawVals.filter((v): v is number => v !== null);
+        if (validVals.length === 0) return null;
+        const min = Math.min(...validVals);
+        const max = Math.max(...validVals);
+        ranges[key] = { min, max };
+        const span = max - min || 1;
+        // 정규화: 누락값은 이전 유효값으로 대체 (선이 끊기지 않도록)
+        // 하지만 앞에 유효값이 없으면 다음 유효값 사용
+        let lastValid: number | null = null;
+        const normalized = rawVals.map((v) => {
+          if (v !== null) {
+            lastValid = Math.round(((v - min) / span) * 100 * 10) / 10;
+            return lastValid;
+          }
+          // 누락: 마지막 유효값이 있으면 그대로 유지 (수평선), 없으면 0
+          return lastValid ?? 0;
+        });
+        // 앞쪽 누락값 채우기 (첫 유효값 이전)
+        const firstValidIdx = rawVals.findIndex((v) => v !== null);
+        if (firstValidIdx > 0) {
+          const firstNorm = normalized[firstValidIdx];
+          for (let i = 0; i < firstValidIdx; i++) normalized[i] = firstNorm;
+        }
+        return {
+          data: normalized,
+          color: (opacity = 1) => hexToRGBA(METRIC_COLORS[key], opacity),
+          strokeWidth: 2,
+        };
+      })
+      .filter(
+        (
+          d
+        ): d is {
+          data: number[];
+          color: (o?: number) => string;
+          strokeWidth: number;
+        } => d !== null
       );
-      return {
-        data: normalized,
-        color: (opacity = 1) => hexToRGBA(METRIC_COLORS[key], opacity),
-        strokeWidth: 2,
-      };
-    });
+    if (datasets.length === 0) return null;
     return { filtered, labels, datasets, ranges };
   }, [slicedData, selectedMetrics, overlayMode, makeLabels]);
 
-  /* ── 개별 차트 데이터 (null 제외) ── */
+  /* ── 개별 차트 데이터 (전체 날짜 기반, 빈 값은 이전값 유지) ── */
   const separateCharts = useMemo(() => {
     if (selectedMetrics.length <= 1) return null;
+    // 모든 수치가 하나의 통일된 X축(날짜) 기반을 사용
+    const allDatesFiltered = slicedData.filter((r) =>
+      selectedMetrics.some((key) => getMetricValue(r, key) !== null)
+    );
+    const commonLabels = makeLabels(allDatesFiltered);
     return selectedMetrics.map((key) => {
-      const filtered = slicedData.filter(
-        (r) => getMetricValue(r, key) !== null
-      );
-      const values = filtered.map((r) => getMetricValue(r, key)!);
-      const labels = makeLabels(filtered);
+      const values = allDatesFiltered.map((r) => getMetricValue(r, key));
+      // 유효값만 추출
+      const validValues = values.filter((v): v is number => v !== null);
+      // 빈 값은 이전 유효값으로 채움 (차트 선이 끊기지 않게)
+      let lastValid: number | null = null;
+      const filledValues = values.map((v) => {
+        if (v !== null) {
+          lastValid = v;
+          return v;
+        }
+        return lastValid;
+      });
+      // 앞부분 채우기
+      const firstValidIdx = values.findIndex((v) => v !== null);
+      if (firstValidIdx > 0 && filledValues[firstValidIdx] !== null) {
+        for (let i = 0; i < firstValidIdx; i++)
+          filledValues[i] = filledValues[firstValidIdx];
+      }
       return {
         key,
-        filtered,
-        values: values.length > 0 ? values : [0],
-        labels,
+        filtered: allDatesFiltered,
+        values: validValues.length > 0 ? filledValues.map((v) => v ?? 0) : [0],
+        labels: commonLabels,
+        hasData: validValues.length >= 2,
       };
     });
   }, [slicedData, selectedMetrics, makeLabels]);
@@ -787,6 +836,46 @@ export default function ChartScreen() {
             {selectedMetrics.map((k) => METRIC_LABELS[k]).join(" · ")} 추이
           </Text>
 
+          {/* X축/Y축 줌 컨트롤 */}
+          <View style={s.zoomRow}>
+            <View style={s.zoomGroup}>
+              <Text style={s.zoomLabel}>X축</Text>
+              <TouchableOpacity
+                style={s.zoomBtn}
+                onPress={() => setChartZoom((z) => Math.max(5, z - 5))}
+              >
+                <Text style={s.zoomBtnText}>-</Text>
+              </TouchableOpacity>
+              <Text style={s.zoomValue}>{chartZoom}개</Text>
+              <TouchableOpacity
+                style={s.zoomBtn}
+                onPress={() =>
+                  setChartZoom((z) => Math.min(chartData.length, z + 5))
+                }
+              >
+                <Text style={s.zoomBtnText}>+</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={s.zoomGroup}>
+              <Text style={s.zoomLabel}>Y축</Text>
+              <TouchableOpacity
+                style={s.zoomBtn}
+                onPress={() => setYPadding((p) => Math.max(0, p - 1))}
+              >
+                <Text style={s.zoomBtnText}>-</Text>
+              </TouchableOpacity>
+              <Text style={s.zoomValue}>
+                {yPadding === 0 ? "자동" : `±${yPadding * 5}%`}
+              </Text>
+              <TouchableOpacity
+                style={s.zoomBtn}
+                onPress={() => setYPadding((p) => Math.min(5, p + 1))}
+              >
+                <Text style={s.zoomBtnText}>+</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
           {/* 오버레이 토글 (다중 선택 시) */}
           {isMulti && (
             <View style={s.overlayToggleRow}>
@@ -833,6 +922,28 @@ export default function ChartScreen() {
                         hexToRGBA(METRIC_COLORS[singleChartInfo.key], opacity),
                       strokeWidth: 2,
                     },
+                    ...(yPadding > 0
+                      ? [
+                          {
+                            data: [
+                              Math.min(...singleChartInfo.values) *
+                                (1 - yPadding * 0.05),
+                            ],
+                            withDots: false,
+                            strokeWidth: 0,
+                            color: () => "transparent",
+                          },
+                          {
+                            data: [
+                              Math.max(...singleChartInfo.values) *
+                                (1 + yPadding * 0.05),
+                            ],
+                            withDots: false,
+                            strokeWidth: 0,
+                            color: () => "transparent",
+                          },
+                        ]
+                      : []),
                   ],
                 }}
                 width={CHART_WIDTH}
@@ -845,10 +956,10 @@ export default function ChartScreen() {
                   labelColor: (opacity = 1) => `rgba(113,128,150,${opacity})`,
                   strokeWidth: 2,
                   propsForDots: {
-                    r: "3.5",
+                    r: "4",
                     strokeWidth: "1.5",
                     stroke: METRIC_COLORS[singleChartInfo.key],
-                    fill: "#fff",
+                    fill: METRIC_COLORS[singleChartInfo.key],
                   },
                   propsForBackgroundLines: { stroke: "#F0F4F8" },
                   decimalPlaces: 1,
@@ -894,10 +1005,8 @@ export default function ChartScreen() {
                   labelColor: (opacity = 1) => `rgba(113,128,150,${opacity})`,
                   strokeWidth: 2,
                   propsForDots: {
-                    r: "3",
-                    strokeWidth: "1",
-                    stroke: "#718096",
-                    fill: "#fff",
+                    r: "3.5",
+                    strokeWidth: "2",
                   },
                   propsForBackgroundLines: { stroke: "#F0F4F8" },
                   decimalPlaces: 0,
@@ -938,7 +1047,7 @@ export default function ChartScreen() {
             <View style={s.emptyChart}>
               <Text style={s.emptyIcon}>📈</Text>
               <Text style={s.emptyText}>
-                선택한 수치들의 동시 기록이 부족합니다.
+                선택한 수치들의 기록이 부족합니다.
               </Text>
             </View>
           )}
@@ -946,7 +1055,9 @@ export default function ChartScreen() {
           {/* 다중 수치 - 개별 차트 모드 */}
           {isMulti && !overlayMode && separateCharts && (
             <>
-              <Text style={s.multiAxisNote}>📐 각 수치별 독립 차트</Text>
+              <Text style={s.multiAxisNote}>
+                📐 각 수치별 독립 차트 (동일 X축)
+              </Text>
               {separateCharts.map((info) => (
                 <View key={info.key} style={s.miniChartWrap}>
                   <View style={s.miniChartHeader}>
@@ -960,7 +1071,7 @@ export default function ChartScreen() {
                       {METRIC_LABELS[info.key]} ({METRIC_UNITS[info.key]})
                     </Text>
                   </View>
-                  {info.filtered.length >= 2 ? (
+                  {info.hasData ? (
                     <LineChart
                       data={{
                         labels: info.labels,
@@ -971,6 +1082,28 @@ export default function ChartScreen() {
                               hexToRGBA(METRIC_COLORS[info.key], opacity),
                             strokeWidth: 2,
                           },
+                          ...(yPadding > 0
+                            ? [
+                                {
+                                  data: [
+                                    Math.min(...info.values) *
+                                      (1 - yPadding * 0.05),
+                                  ],
+                                  withDots: false,
+                                  strokeWidth: 0,
+                                  color: () => "transparent",
+                                },
+                                {
+                                  data: [
+                                    Math.max(...info.values) *
+                                      (1 + yPadding * 0.05),
+                                  ],
+                                  withDots: false,
+                                  strokeWidth: 0,
+                                  color: () => "transparent",
+                                },
+                              ]
+                            : []),
                         ],
                       }}
                       width={CHART_WIDTH}
@@ -984,10 +1117,10 @@ export default function ChartScreen() {
                           `rgba(113,128,150,${opacity})`,
                         strokeWidth: 2,
                         propsForDots: {
-                          r: "3.5",
+                          r: "4",
                           strokeWidth: "1.5",
                           stroke: METRIC_COLORS[info.key],
-                          fill: "#fff",
+                          fill: METRIC_COLORS[info.key],
                         },
                         propsForBackgroundLines: {
                           stroke: "#F0F4F8",
@@ -1438,6 +1571,46 @@ const s = StyleSheet.create({
     color: "#A0AEC0",
     textAlign: "center",
     marginBottom: 8,
+  },
+  zoomRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 16,
+    marginBottom: 12,
+    paddingVertical: 6,
+    backgroundColor: "#F7FAFC",
+    borderRadius: 10,
+  },
+  zoomGroup: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  zoomLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#718096",
+  },
+  zoomBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#EDF2F7",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  zoomBtnText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#4A5568",
+  },
+  zoomValue: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: "#4A5568",
+    minWidth: 36,
+    textAlign: "center",
   },
   overlayToggleRow: {
     flexDirection: "row",

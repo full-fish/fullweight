@@ -518,11 +518,24 @@ export default function CalendarScreen() {
                   flexDirection: "row",
                   justifyContent: "space-between",
                   paddingVertical: 4,
+                  alignItems: "center",
                 }}
               >
-                <Text style={{ fontSize: 13, color: "#718096" }}>
-                  ⚖️ 몸무게
-                </Text>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 4,
+                  }}
+                >
+                  <Text style={{ fontSize: 13, color: "#718096" }}>
+                    ⚖️ 몸무게
+                  </Text>
+                  <Text style={{ fontSize: 10, color: "#A0AEC0" }}>
+                    {summaryData.first.date.slice(2).replace(/-/g, ".")}~
+                    {summaryData.last.date.slice(2).replace(/-/g, ".")}
+                  </Text>
+                </View>
                 <Text
                   style={{
                     fontSize: 13,
@@ -548,8 +561,6 @@ export default function CalendarScreen() {
                 const range = summaryData.muscleMassRange;
                 if (!range) return null;
                 const fmtShort = (d: string) => d.slice(2).replace(/-/g, ".");
-                const overallFirst = summaryData.first!.date;
-                const overallLast = summaryData.last!.date;
                 if (!range.last) {
                   // 데이터 1개만 존재
                   return (
@@ -576,14 +587,7 @@ export default function CalendarScreen() {
                   );
                 }
                 const diff = range.last.muscleMass! - range.first.muscleMass!;
-                const sameStart = range.first.date === overallFirst;
-                const sameEnd = range.last.date === overallLast;
-                let dateLabel = "";
-                if (!sameStart && !sameEnd)
-                  dateLabel = `${fmtShort(range.first.date)}~${fmtShort(range.last.date)}`;
-                else if (!sameStart)
-                  dateLabel = `${fmtShort(range.first.date)}~`;
-                else if (!sameEnd) dateLabel = `~${fmtShort(range.last.date)}`;
+                const dateLabel = `${fmtShort(range.first.date)}~${fmtShort(range.last.date)}`;
                 return (
                   <View
                     style={{
@@ -603,11 +607,9 @@ export default function CalendarScreen() {
                       <Text style={{ fontSize: 13, color: "#718096" }}>
                         💪 골격근량
                       </Text>
-                      {dateLabel !== "" && (
-                        <Text style={{ fontSize: 10, color: "#A0AEC0" }}>
-                          {dateLabel}
-                        </Text>
-                      )}
+                      <Text style={{ fontSize: 10, color: "#A0AEC0" }}>
+                        {dateLabel}
+                      </Text>
                     </View>
                     <Text
                       style={{
@@ -628,8 +630,6 @@ export default function CalendarScreen() {
                 const range = summaryData.bodyFatPercentRange;
                 if (!range) return null;
                 const fmtShort = (d: string) => d.slice(2).replace(/-/g, ".");
-                const overallFirst = summaryData.first!.date;
-                const overallLast = summaryData.last!.date;
                 if (!range.last) {
                   return (
                     <View
@@ -656,14 +656,7 @@ export default function CalendarScreen() {
                 }
                 const diff =
                   range.last.bodyFatPercent! - range.first.bodyFatPercent!;
-                const sameStart = range.first.date === overallFirst;
-                const sameEnd = range.last.date === overallLast;
-                let dateLabel = "";
-                if (!sameStart && !sameEnd)
-                  dateLabel = `${fmtShort(range.first.date)}~${fmtShort(range.last.date)}`;
-                else if (!sameStart)
-                  dateLabel = `${fmtShort(range.first.date)}~`;
-                else if (!sameEnd) dateLabel = `~${fmtShort(range.last.date)}`;
+                const dateLabel = `${fmtShort(range.first.date)}~${fmtShort(range.last.date)}`;
                 return (
                   <View
                     style={{
@@ -683,11 +676,9 @@ export default function CalendarScreen() {
                       <Text style={{ fontSize: 13, color: "#718096" }}>
                         🔥 체지방률
                       </Text>
-                      {dateLabel !== "" && (
-                        <Text style={{ fontSize: 10, color: "#A0AEC0" }}>
-                          {dateLabel}
-                        </Text>
-                      )}
+                      <Text style={{ fontSize: 10, color: "#A0AEC0" }}>
+                        {dateLabel}
+                      </Text>
                     </View>
                     <Text
                       style={{
@@ -708,8 +699,6 @@ export default function CalendarScreen() {
                 const range = summaryData.bodyFatMassRange;
                 if (!range) return null;
                 const fmtShort = (d: string) => d.slice(2).replace(/-/g, ".");
-                const overallFirst = summaryData.first!.date;
-                const overallLast = summaryData.last!.date;
                 if (!range.last) {
                   return (
                     <View
@@ -735,14 +724,7 @@ export default function CalendarScreen() {
                   );
                 }
                 const diff = range.last.bodyFatMass! - range.first.bodyFatMass!;
-                const sameStart = range.first.date === overallFirst;
-                const sameEnd = range.last.date === overallLast;
-                let dateLabel = "";
-                if (!sameStart && !sameEnd)
-                  dateLabel = `${fmtShort(range.first.date)}~${fmtShort(range.last.date)}`;
-                else if (!sameStart)
-                  dateLabel = `${fmtShort(range.first.date)}~`;
-                else if (!sameEnd) dateLabel = `~${fmtShort(range.last.date)}`;
+                const dateLabel = `${fmtShort(range.first.date)}~${fmtShort(range.last.date)}`;
                 return (
                   <View
                     style={{
@@ -762,11 +744,9 @@ export default function CalendarScreen() {
                       <Text style={{ fontSize: 13, color: "#718096" }}>
                         🟣 체지방량
                       </Text>
-                      {dateLabel !== "" && (
-                        <Text style={{ fontSize: 10, color: "#A0AEC0" }}>
-                          {dateLabel}
-                        </Text>
-                      )}
+                      <Text style={{ fontSize: 10, color: "#A0AEC0" }}>
+                        {dateLabel}
+                      </Text>
                     </View>
                     <Text
                       style={{
@@ -868,7 +848,7 @@ export default function CalendarScreen() {
                             <View
                               style={[
                                 s.miniDot,
-                                { backgroundColor: "#90CAF9" },
+                                { backgroundColor: "#78909C" },
                               ]}
                             />
                           )}
@@ -891,7 +871,7 @@ export default function CalendarScreen() {
               <Text style={s.legendText}>음주</Text>
             </View>
             <View style={s.legendItem}>
-              <View style={[s.legendDot, { backgroundColor: "#90CAF9" }]} />
+              <View style={[s.legendDot, { backgroundColor: "#78909C" }]} />
               <Text style={s.legendText}>기록</Text>
             </View>
           </View>
