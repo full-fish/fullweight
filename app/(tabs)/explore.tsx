@@ -9,7 +9,13 @@ import {
 } from "@/types";
 import { getLocalDateString, loadRecords } from "@/utils/storage";
 import { useFocusEffect } from "@react-navigation/native";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   Dimensions,
   Image,
@@ -23,6 +29,7 @@ import {
   View,
 } from "react-native";
 import { LineChart } from "react-native-chart-kit";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 
 const { width } = Dimensions.get("window");
 const CHART_WIDTH = width - 48;
@@ -496,6 +503,15 @@ export default function ChartScreen() {
   const [overlayMode, setOverlayMode] = useState(true);
   const [chartZoom, setChartZoom] = useState(30); // 표시할 데이터 포인트 수 (X축 줌)
   const [yPadding, setYPadding] = useState(0); // Y축 여유 비율 (0~5단계)
+
+  /* ── 핀치 줌 제스처 ── */
+  const pinchBaseZoom = useRef(30);
+  const pinchBaseYPad = useRef(0);
+  const latestZoom = useRef(chartZoom);
+  const latestYPad = useRef(yPadding);
+  latestZoom.current = chartZoom;
+  latestYPad.current = yPadding;
+
   const [showStatsCal, setShowStatsCal] = useState(false);
   const [showStatsEndCal, setShowStatsEndCal] = useState(false);
   const [showActivityCal, setShowActivityCal] = useState(false);
@@ -568,6 +584,27 @@ export default function ChartScreen() {
   }, [filteredRecords, periodMode]);
 
   const slicedData = chartData.slice(-chartZoom);
+
+  /* ── 핀치 줌 제스처 ── */
+  const pinchGesture = useMemo(() => {
+    const dataLen = chartData.length;
+    return Gesture.Pinch()
+      .runOnJS(true)
+      .onBegin(() => {
+        pinchBaseZoom.current = latestZoom.current;
+        pinchBaseYPad.current = latestYPad.current;
+      })
+      .onUpdate((e) => {
+        // X축: 핀치 인(확대) → 적은 데이터, 핀치 아웃(축소) → 많은 데이터
+        const newZoom = Math.round(pinchBaseZoom.current / e.scale);
+        setChartZoom(Math.max(5, Math.min(dataLen, newZoom)));
+
+        // Y축: 핀치 인(확대) → 적은 패딩, 핀치 아웃(축소) → 많은 패딩
+        const scaleDelta = 1 - e.scale;
+        const newYPad = Math.round(pinchBaseYPad.current + scaleDelta * 5);
+        setYPadding(Math.max(0, Math.min(5, newYPad)));
+      });
+  }, [chartData.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ── 차트 라벨 생성 ── */
   const makeLabels = useCallback(
@@ -645,10 +682,17 @@ export default function ChartScreen() {
         } => d !== null
       );
     if (datasets.length === 0) return null;
-    return { filtered, labels, datasets, ranges };
+    // 어느 위치가 널이었는지 추적 (데이셋 인덱스 순서와 동일)
+    const nullMasks = selectedMetrics
+      .filter((key) => {
+        const rawVals = filtered.map((r) => getMetricValue(r, key));
+        return rawVals.some((v) => v !== null);
+      })
+      .map((key) => filtered.map((r) => getMetricValue(r, key) === null));
+    return { filtered, labels, datasets, ranges, nullMasks };
   }, [slicedData, selectedMetrics, overlayMode, makeLabels]);
 
-  /* ── 개별 차트 데이터 (전체 날짜 기반, 빈 값은 이전값 유지) ── */
+  /* ── 개별 차트 데이터 (전체 날짜 기반, 선형보간 + 점은 실제데이터만) ── */
   const separateCharts = useMemo(() => {
     if (selectedMetrics.length <= 1) return null;
     // 모든 수치가 하나의 통일된 X축(날짜) 기반을 사용
@@ -657,30 +701,45 @@ export default function ChartScreen() {
     );
     const commonLabels = makeLabels(allDatesFiltered);
     return selectedMetrics.map((key) => {
-      const values = allDatesFiltered.map((r) => getMetricValue(r, key));
-      // 유효값만 추출
-      const validValues = values.filter((v): v is number => v !== null);
-      // 빈 값은 이전 유효값으로 채움 (차트 선이 끊기지 않게)
-      let lastValid: number | null = null;
-      const filledValues = values.map((v) => {
-        if (v !== null) {
-          lastValid = v;
-          return v;
+      const rawValues = allDatesFiltered.map((r) => getMetricValue(r, key));
+      const validValues = rawValues.filter((v): v is number => v !== null);
+      // 선형보간: null 위치를 이전/다음 유효값 사이 직선으로
+      const interpolated = [...rawValues];
+      for (let i = 0; i < interpolated.length; i++) {
+        if (interpolated[i] !== null) continue;
+        let prevIdx = -1;
+        let nextIdx = -1;
+        for (let j = i - 1; j >= 0; j--)
+          if (interpolated[j] !== null) {
+            prevIdx = j;
+            break;
+          }
+        for (let j = i + 1; j < interpolated.length; j++)
+          if (rawValues[j] !== null) {
+            nextIdx = j;
+            break;
+          }
+        if (prevIdx !== -1 && nextIdx !== -1) {
+          const t = (i - prevIdx) / (nextIdx - prevIdx);
+          interpolated[i] =
+            Math.round(
+              (interpolated[prevIdx]! * (1 - t) + rawValues[nextIdx]! * t) * 10
+            ) / 10;
+        } else if (prevIdx !== -1) {
+          interpolated[i] = interpolated[prevIdx]!;
+        } else if (nextIdx !== -1) {
+          interpolated[i] = rawValues[nextIdx]!;
+        } else {
+          interpolated[i] = 0;
         }
-        return lastValid;
-      });
-      // 앞부분 채우기
-      const firstValidIdx = values.findIndex((v) => v !== null);
-      if (firstValidIdx > 0 && filledValues[firstValidIdx] !== null) {
-        for (let i = 0; i < firstValidIdx; i++)
-          filledValues[i] = filledValues[firstValidIdx];
       }
       return {
         key,
         filtered: allDatesFiltered,
-        values: validValues.length > 0 ? filledValues.map((v) => v ?? 0) : [0],
+        values: validValues.length > 0 ? (interpolated as number[]) : [0],
         labels: commonLabels,
         hasData: validValues.length >= 2,
+        nullMask: rawValues.map((v) => v === null),
       };
     });
   }, [slicedData, selectedMetrics, makeLabels]);
@@ -831,323 +890,316 @@ export default function ChartScreen() {
         )}
 
         {/* 차트 카드 */}
-        <View style={s.chartCard}>
-          <Text style={s.chartTitle}>
-            {selectedMetrics.map((k) => METRIC_LABELS[k]).join(" · ")} 추이
-          </Text>
+        <GestureDetector gesture={pinchGesture}>
+          <View style={s.chartCard}>
+            <Text style={s.chartTitle}>
+              {selectedMetrics.map((k) => METRIC_LABELS[k]).join(" · ")} 추이
+            </Text>
 
-          {/* X축/Y축 줌 컨트롤 */}
-          <View style={s.zoomRow}>
-            <View style={s.zoomGroup}>
-              <Text style={s.zoomLabel}>X축</Text>
-              <TouchableOpacity
-                style={s.zoomBtn}
-                onPress={() => setChartZoom((z) => Math.max(5, z - 5))}
-              >
-                <Text style={s.zoomBtnText}>-</Text>
-              </TouchableOpacity>
-              <Text style={s.zoomValue}>{chartZoom}개</Text>
-              <TouchableOpacity
-                style={s.zoomBtn}
-                onPress={() =>
-                  setChartZoom((z) => Math.min(chartData.length, z + 5))
-                }
-              >
-                <Text style={s.zoomBtnText}>+</Text>
-              </TouchableOpacity>
-            </View>
-            <View style={s.zoomGroup}>
-              <Text style={s.zoomLabel}>Y축</Text>
-              <TouchableOpacity
-                style={s.zoomBtn}
-                onPress={() => setYPadding((p) => Math.max(0, p - 1))}
-              >
-                <Text style={s.zoomBtnText}>-</Text>
-              </TouchableOpacity>
-              <Text style={s.zoomValue}>
-                {yPadding === 0 ? "자동" : `±${yPadding * 5}%`}
-              </Text>
-              <TouchableOpacity
-                style={s.zoomBtn}
-                onPress={() => setYPadding((p) => Math.min(5, p + 1))}
-              >
-                <Text style={s.zoomBtnText}>+</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+            <Text style={s.pinchHint}>🔍 두 손가락으로 확대/축소</Text>
 
-          {/* 오버레이 토글 (다중 선택 시) */}
-          {isMulti && (
-            <View style={s.overlayToggleRow}>
-              <TouchableOpacity
-                style={[s.overlayBtn, overlayMode && s.overlayBtnActive]}
-                onPress={() => setOverlayMode(true)}
-              >
-                <Text
-                  style={[
-                    s.overlayBtnText,
-                    overlayMode && s.overlayBtnTextActive,
-                  ]}
+            {/* 오버레이 토글 (다중 선택 시) */}
+            {isMulti && (
+              <View style={s.overlayToggleRow}>
+                <TouchableOpacity
+                  style={[s.overlayBtn, overlayMode && s.overlayBtnActive]}
+                  onPress={() => setOverlayMode(true)}
                 >
-                  겹쳐보기
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[s.overlayBtn, !overlayMode && s.overlayBtnActive]}
-                onPress={() => setOverlayMode(false)}
-              >
-                <Text
-                  style={[
-                    s.overlayBtnText,
-                    !overlayMode && s.overlayBtnTextActive,
-                  ]}
+                  <Text
+                    style={[
+                      s.overlayBtnText,
+                      overlayMode && s.overlayBtnTextActive,
+                    ]}
+                  >
+                    겹쳐보기
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[s.overlayBtn, !overlayMode && s.overlayBtnActive]}
+                  onPress={() => setOverlayMode(false)}
                 >
-                  따로보기
-                </Text>
-              </TouchableOpacity>
-            </View>
-          )}
+                  <Text
+                    style={[
+                      s.overlayBtnText,
+                      !overlayMode && s.overlayBtnTextActive,
+                    ]}
+                  >
+                    따로보기
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
 
-          {/* 단일 수치 차트 */}
-          {isSingle &&
-            singleChartInfo &&
-            singleChartInfo.filtered.length >= 2 && (
-              <LineChart
-                data={{
-                  labels: singleChartInfo.labels,
-                  datasets: [
-                    {
-                      data: singleChartInfo.values,
-                      color: (opacity = 1) =>
-                        hexToRGBA(METRIC_COLORS[singleChartInfo.key], opacity),
-                      strokeWidth: 2,
+            {/* 단일 수치 차트 */}
+            {isSingle &&
+              singleChartInfo &&
+              singleChartInfo.filtered.length >= 2 && (
+                <LineChart
+                  data={{
+                    labels: singleChartInfo.labels,
+                    datasets: [
+                      {
+                        data: singleChartInfo.values,
+                        color: (opacity = 1) =>
+                          hexToRGBA(
+                            METRIC_COLORS[singleChartInfo.key],
+                            opacity
+                          ),
+                        strokeWidth: 2,
+                      },
+                      ...(yPadding > 0
+                        ? [
+                            {
+                              data: [
+                                Math.min(...singleChartInfo.values) *
+                                  (1 - yPadding * 0.05),
+                              ],
+                              withDots: false,
+                              strokeWidth: 0,
+                              color: () => "transparent",
+                            },
+                            {
+                              data: [
+                                Math.max(...singleChartInfo.values) *
+                                  (1 + yPadding * 0.05),
+                              ],
+                              withDots: false,
+                              strokeWidth: 0,
+                              color: () => "transparent",
+                            },
+                          ]
+                        : []),
+                    ],
+                  }}
+                  width={CHART_WIDTH}
+                  height={220}
+                  chartConfig={{
+                    backgroundGradientFrom: "#fff",
+                    backgroundGradientTo: "#fff",
+                    color: (opacity = 1) =>
+                      hexToRGBA(METRIC_COLORS[singleChartInfo.key], opacity),
+                    labelColor: (opacity = 1) => `rgba(113,128,150,${opacity})`,
+                    strokeWidth: 2,
+                    propsForDots: {
+                      r: "4",
+                      strokeWidth: "1.5",
+                      stroke: METRIC_COLORS[singleChartInfo.key],
+                      fill: METRIC_COLORS[singleChartInfo.key],
                     },
-                    ...(yPadding > 0
-                      ? [
-                          {
-                            data: [
-                              Math.min(...singleChartInfo.values) *
-                                (1 - yPadding * 0.05),
-                            ],
-                            withDots: false,
-                            strokeWidth: 0,
-                            color: () => "transparent",
-                          },
-                          {
-                            data: [
-                              Math.max(...singleChartInfo.values) *
-                                (1 + yPadding * 0.05),
-                            ],
-                            withDots: false,
-                            strokeWidth: 0,
-                            color: () => "transparent",
-                          },
-                        ]
-                      : []),
-                  ],
-                }}
-                width={CHART_WIDTH}
-                height={220}
-                chartConfig={{
-                  backgroundGradientFrom: "#fff",
-                  backgroundGradientTo: "#fff",
-                  color: (opacity = 1) =>
-                    hexToRGBA(METRIC_COLORS[singleChartInfo.key], opacity),
-                  labelColor: (opacity = 1) => `rgba(113,128,150,${opacity})`,
-                  strokeWidth: 2,
-                  propsForDots: {
-                    r: "4",
-                    strokeWidth: "1.5",
-                    stroke: METRIC_COLORS[singleChartInfo.key],
-                    fill: METRIC_COLORS[singleChartInfo.key],
-                  },
-                  propsForBackgroundLines: { stroke: "#F0F4F8" },
-                  decimalPlaces: 1,
-                }}
-                bezier
-                style={s.chart}
-                withVerticalLines={false}
-                withShadow={false}
-                formatYLabel={(v) => parseFloat(v).toFixed(1)}
-                onDataPointClick={({ index }) =>
-                  handleDotPress(singleChartInfo.filtered, index)
-                }
-              />
-            )}
+                    propsForBackgroundLines: { stroke: "#F0F4F8" },
+                    decimalPlaces: 1,
+                  }}
+                  bezier
+                  style={s.chart}
+                  withVerticalLines={false}
+                  withShadow={false}
+                  formatYLabel={(v) => parseFloat(v).toFixed(1)}
+                  onDataPointClick={({ index }) =>
+                    handleDotPress(singleChartInfo.filtered, index)
+                  }
+                />
+              )}
 
-          {isSingle &&
-            (!singleChartInfo || singleChartInfo.filtered.length < 2) && (
-              <View style={s.emptyChart}>
-                <Text style={s.emptyIcon}>📈</Text>
-                <Text style={s.emptyText}>
-                  {METRIC_LABELS[selectedMetrics[0]]} 데이터가 부족합니다.
+            {isSingle &&
+              (!singleChartInfo || singleChartInfo.filtered.length < 2) && (
+                <View style={s.emptyChart}>
+                  <Text style={s.emptyIcon}>📈</Text>
+                  <Text style={s.emptyText}>
+                    {METRIC_LABELS[selectedMetrics[0]]} 데이터가 부족합니다.
+                  </Text>
+                </View>
+              )}
+
+            {/* 다중 수치 - 오버레이 모드 */}
+            {isMulti && overlayMode && overlayInfo && (
+              <>
+                <Text style={s.multiAxisNote}>
+                  📐 정규화된 비교 (각 수치 0~100% 스케일)
                 </Text>
-              </View>
-            )}
-
-          {/* 다중 수치 - 오버레이 모드 */}
-          {isMulti && overlayMode && overlayInfo && (
-            <>
-              <Text style={s.multiAxisNote}>
-                📐 정규화된 비교 (각 수치 0~100% 스케일)
-              </Text>
-              <LineChart
-                data={{
-                  labels: overlayInfo.labels,
-                  datasets: overlayInfo.datasets,
-                }}
-                width={CHART_WIDTH}
-                height={240}
-                chartConfig={{
-                  backgroundGradientFrom: "#fff",
-                  backgroundGradientTo: "#fff",
-                  color: (opacity = 1) => `rgba(113,128,150,${opacity})`,
-                  labelColor: (opacity = 1) => `rgba(113,128,150,${opacity})`,
-                  strokeWidth: 2,
-                  propsForDots: {
-                    r: "3.5",
-                    strokeWidth: "2",
-                  },
-                  propsForBackgroundLines: { stroke: "#F0F4F8" },
-                  decimalPlaces: 0,
-                }}
-                bezier
-                style={s.chart}
-                withVerticalLines={false}
-                withShadow={false}
-                formatYLabel={(v) => `${parseFloat(v).toFixed(0)}%`}
-                onDataPointClick={({ index }) =>
-                  handleDotPress(overlayInfo.filtered, index)
-                }
-              />
-              <View style={s.overlayLegend}>
-                {selectedMetrics.map((key) => {
-                  const range = overlayInfo.ranges[key];
+                {(() => {
+                  let dotCallIdx = 0;
+                  const N = overlayInfo.filtered.length;
                   return (
-                    <View key={key} style={s.overlayLegendItem}>
-                      <View
-                        style={[
-                          s.legendDot,
-                          { backgroundColor: METRIC_COLORS[key] },
-                        ]}
-                      />
-                      <Text style={s.legendText}>
-                        {METRIC_LABELS[key]} ({range.min.toFixed(1)}~
-                        {range.max.toFixed(1)}
-                        {METRIC_UNITS[key]})
-                      </Text>
-                    </View>
-                  );
-                })}
-              </View>
-            </>
-          )}
-
-          {isMulti && overlayMode && !overlayInfo && (
-            <View style={s.emptyChart}>
-              <Text style={s.emptyIcon}>📈</Text>
-              <Text style={s.emptyText}>
-                선택한 수치들의 기록이 부족합니다.
-              </Text>
-            </View>
-          )}
-
-          {/* 다중 수치 - 개별 차트 모드 */}
-          {isMulti && !overlayMode && separateCharts && (
-            <>
-              <Text style={s.multiAxisNote}>
-                📐 각 수치별 독립 차트 (동일 X축)
-              </Text>
-              {separateCharts.map((info) => (
-                <View key={info.key} style={s.miniChartWrap}>
-                  <View style={s.miniChartHeader}>
-                    <View
-                      style={[
-                        s.legendDot,
-                        { backgroundColor: METRIC_COLORS[info.key] },
-                      ]}
-                    />
-                    <Text style={s.miniChartTitle}>
-                      {METRIC_LABELS[info.key]} ({METRIC_UNITS[info.key]})
-                    </Text>
-                  </View>
-                  {info.hasData ? (
                     <LineChart
                       data={{
-                        labels: info.labels,
-                        datasets: [
-                          {
-                            data: info.values,
-                            color: (opacity = 1) =>
-                              hexToRGBA(METRIC_COLORS[info.key], opacity),
-                            strokeWidth: 2,
-                          },
-                          ...(yPadding > 0
-                            ? [
-                                {
-                                  data: [
-                                    Math.min(...info.values) *
-                                      (1 - yPadding * 0.05),
-                                  ],
-                                  withDots: false,
-                                  strokeWidth: 0,
-                                  color: () => "transparent",
-                                },
-                                {
-                                  data: [
-                                    Math.max(...info.values) *
-                                      (1 + yPadding * 0.05),
-                                  ],
-                                  withDots: false,
-                                  strokeWidth: 0,
-                                  color: () => "transparent",
-                                },
-                              ]
-                            : []),
-                        ],
+                        labels: overlayInfo.labels,
+                        datasets: overlayInfo.datasets,
                       }}
                       width={CHART_WIDTH}
-                      height={160}
-                      chartConfig={{
-                        backgroundGradientFrom: "#fff",
-                        backgroundGradientTo: "#fff",
-                        color: (opacity = 1) =>
-                          hexToRGBA(METRIC_COLORS[info.key], opacity),
-                        labelColor: (opacity = 1) =>
-                          `rgba(113,128,150,${opacity})`,
-                        strokeWidth: 2,
-                        propsForDots: {
-                          r: "4",
-                          strokeWidth: "1.5",
-                          stroke: METRIC_COLORS[info.key],
-                          fill: METRIC_COLORS[info.key],
-                        },
-                        propsForBackgroundLines: {
-                          stroke: "#F0F4F8",
-                        },
-                        decimalPlaces: 1,
-                      }}
+                      height={240}
+                      chartConfig={
+                        {
+                          backgroundGradientFrom: "#fff",
+                          backgroundGradientTo: "#fff",
+                          color: (opacity = 1) =>
+                            `rgba(113,128,150,${opacity})`,
+                          labelColor: (opacity = 1) =>
+                            `rgba(113,128,150,${opacity})`,
+                          strokeWidth: 2,
+                          getDotColor: (_: unknown, j: number) => {
+                            const dsIdx = Math.floor(dotCallIdx / N);
+                            dotCallIdx++;
+                            const isNull =
+                              overlayInfo.nullMasks[dsIdx]?.[j] ?? false;
+                            if (isNull) return "transparent";
+                            return (
+                              overlayInfo.datasets[dsIdx]?.color(1) ?? "#718096"
+                            );
+                          },
+                          propsForDots: {
+                            r: "3.5",
+                            strokeWidth: "2",
+                          },
+                          propsForBackgroundLines: { stroke: "#F0F4F8" },
+                          decimalPlaces: 0,
+                        } as unknown as import("react-native-chart-kit/dist/AbstractChart").AbstractChartConfig
+                      }
                       bezier
                       style={s.chart}
                       withVerticalLines={false}
                       withShadow={false}
-                      formatYLabel={(v) => parseFloat(v).toFixed(1)}
+                      formatYLabel={(v) => `${parseFloat(v).toFixed(0)}%`}
                       onDataPointClick={({ index }) =>
-                        handleDotPress(info.filtered, index)
+                        handleDotPress(overlayInfo.filtered, index)
                       }
                     />
-                  ) : (
-                    <View style={s.emptyMiniChart}>
-                      <Text style={s.emptyText}>
-                        {METRIC_LABELS[info.key]} 데이터가 부족합니다.
+                  );
+                })()}
+                <View style={s.overlayLegend}>
+                  {selectedMetrics.map((key) => {
+                    const range = overlayInfo.ranges[key];
+                    return (
+                      <View key={key} style={s.overlayLegendItem}>
+                        <View
+                          style={[
+                            s.legendDot,
+                            { backgroundColor: METRIC_COLORS[key] },
+                          ]}
+                        />
+                        <Text style={s.legendText}>
+                          {METRIC_LABELS[key]} ({range.min.toFixed(1)}~
+                          {range.max.toFixed(1)}
+                          {METRIC_UNITS[key]})
+                        </Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              </>
+            )}
+
+            {isMulti && overlayMode && !overlayInfo && (
+              <View style={s.emptyChart}>
+                <Text style={s.emptyIcon}>📈</Text>
+                <Text style={s.emptyText}>
+                  선택한 수치들의 기록이 부족합니다.
+                </Text>
+              </View>
+            )}
+
+            {/* 다중 수치 - 개별 차트 모드 */}
+            {isMulti && !overlayMode && separateCharts && (
+              <>
+                <Text style={s.multiAxisNote}>
+                  📐 각 수치별 독립 차트 (동일 X축)
+                </Text>
+                {separateCharts.map((info) => (
+                  <View key={info.key} style={s.miniChartWrap}>
+                    <View style={s.miniChartHeader}>
+                      <View
+                        style={[
+                          s.legendDot,
+                          { backgroundColor: METRIC_COLORS[info.key] },
+                        ]}
+                      />
+                      <Text style={s.miniChartTitle}>
+                        {METRIC_LABELS[info.key]} ({METRIC_UNITS[info.key]})
                       </Text>
                     </View>
-                  )}
-                </View>
-              ))}
-            </>
-          )}
-        </View>
+                    {info.hasData ? (
+                      <LineChart
+                        data={{
+                          labels: info.labels,
+                          datasets: [
+                            {
+                              data: info.values,
+                              color: (opacity = 1) =>
+                                hexToRGBA(METRIC_COLORS[info.key], opacity),
+                              strokeWidth: 2,
+                            },
+                            ...(yPadding > 0
+                              ? [
+                                  {
+                                    data: [
+                                      Math.min(...info.values) *
+                                        (1 - yPadding * 0.05),
+                                    ],
+                                    withDots: false,
+                                    strokeWidth: 0,
+                                    color: () => "transparent",
+                                  },
+                                  {
+                                    data: [
+                                      Math.max(...info.values) *
+                                        (1 + yPadding * 0.05),
+                                    ],
+                                    withDots: false,
+                                    strokeWidth: 0,
+                                    color: () => "transparent",
+                                  },
+                                ]
+                              : []),
+                          ],
+                        }}
+                        width={CHART_WIDTH}
+                        height={160}
+                        chartConfig={
+                          {
+                            backgroundGradientFrom: "#fff",
+                            backgroundGradientTo: "#fff",
+                            color: (opacity = 1) =>
+                              hexToRGBA(METRIC_COLORS[info.key], opacity),
+                            labelColor: (opacity = 1) =>
+                              `rgba(113,128,150,${opacity})`,
+                            strokeWidth: 2,
+                            propsForDots: {
+                              r: "4",
+                              strokeWidth: "1.5",
+                              stroke: METRIC_COLORS[info.key],
+                              fill: METRIC_COLORS[info.key],
+                            },
+                            getDotColor: (_: unknown, j: number) =>
+                              info.nullMask[j]
+                                ? "transparent"
+                                : METRIC_COLORS[info.key],
+                            propsForBackgroundLines: {
+                              stroke: "#F0F4F8",
+                            },
+                            decimalPlaces: 1,
+                          } as unknown as import("react-native-chart-kit/dist/AbstractChart").AbstractChartConfig
+                        }
+                        bezier
+                        style={s.chart}
+                        withVerticalLines={false}
+                        withShadow={false}
+                        formatYLabel={(v) => parseFloat(v).toFixed(1)}
+                        onDataPointClick={({ index }) =>
+                          handleDotPress(info.filtered, index)
+                        }
+                      />
+                    ) : (
+                      <View style={s.emptyMiniChart}>
+                        <Text style={s.emptyText}>
+                          {METRIC_LABELS[info.key]} 데이터가 부족합니다.
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                ))}
+              </>
+            )}
+          </View>
+        </GestureDetector>
 
         {/* 통계 */}
         <View style={s.card}>
@@ -1572,45 +1624,11 @@ const s = StyleSheet.create({
     textAlign: "center",
     marginBottom: 8,
   },
-  zoomRow: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 16,
-    marginBottom: 12,
-    paddingVertical: 6,
-    backgroundColor: "#F7FAFC",
-    borderRadius: 10,
-  },
-  zoomGroup: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  zoomLabel: {
+  pinchHint: {
     fontSize: 11,
-    fontWeight: "600",
-    color: "#718096",
-  },
-  zoomBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: "#EDF2F7",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  zoomBtnText: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#4A5568",
-  },
-  zoomValue: {
-    fontSize: 12,
-    fontWeight: "500",
-    color: "#4A5568",
-    minWidth: 36,
+    color: "#A0AEC0",
     textAlign: "center",
+    marginBottom: 8,
   },
   overlayToggleRow: {
     flexDirection: "row",
