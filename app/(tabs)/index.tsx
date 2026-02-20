@@ -1,30 +1,37 @@
-import React, { useState, useCallback } from 'react';
+import { WeightRecord } from "@/types";
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
-  StyleSheet,
-  Switch,
+  clearAllRecords,
+  deleteRecord,
+  getLocalDateString,
+  loadRecords,
+  seedDummyData,
+  upsertRecord,
+} from "@/utils/storage";
+import { useFocusEffect } from "@react-navigation/native";
+import React, { useCallback, useState } from "react";
+import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-} from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
-import { getLocalDateString, loadRecords, upsertRecord, deleteRecord } from '@/utils/storage';
-import { WeightRecord } from '@/types';
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 function formatDate(dateStr: string) {
-  const [year, month, day] = dateStr.split('-');
+  const [year, month, day] = dateStr.split("-");
   return `${year}년 ${parseInt(month)}월 ${parseInt(day)}일`;
 }
 
 export default function HomeScreen() {
   const [today] = useState(() => getLocalDateString());
   const [records, setRecords] = useState<WeightRecord[]>([]);
-  const [weight, setWeight] = useState('');
-  const [waist, setWaist] = useState('');
+  const [weight, setWeight] = useState("");
+  const [waist, setWaist] = useState("");
   const [exercised, setExercised] = useState(false);
   const [drank, setDrank] = useState(false);
 
@@ -36,7 +43,7 @@ export default function HomeScreen() {
         const todayRecord = data.find((r) => r.date === today);
         if (todayRecord) {
           setWeight(todayRecord.weight.toString());
-          setWaist(todayRecord.waist?.toString() ?? '');
+          setWaist(todayRecord.waist?.toString() ?? "");
           setExercised(todayRecord.exercised);
           setDrank(todayRecord.drank);
         }
@@ -47,7 +54,7 @@ export default function HomeScreen() {
   const handleSave = async () => {
     const w = parseFloat(weight);
     if (!weight || isNaN(w) || w <= 0) {
-      Alert.alert('입력 오류', '올바른 몸무게를 입력해주세요.');
+      Alert.alert("입력 오류", "올바른 몸무게를 입력해주세요.");
       return;
     }
     const record: WeightRecord = {
@@ -60,15 +67,51 @@ export default function HomeScreen() {
     };
     const updated = await upsertRecord(record);
     setRecords([...updated].sort((a, b) => b.date.localeCompare(a.date)));
-    Alert.alert('저장 완료 ✅', '오늘의 기록이 저장되었습니다.');
+    Alert.alert("저장 완료 ✅", "오늘의 기록이 저장되었습니다.");
+  };
+
+  const handleSeedDummy = () => {
+    Alert.alert(
+      "더미 데이터 삽입",
+      "약 1년치 랜덤 데이터를 생성합니다.\n기존 데이터는 모두 지워집니다.",
+      [
+        { text: "취소", style: "cancel" },
+        {
+          text: "생성",
+          onPress: async () => {
+            const updated = await seedDummyData();
+            setRecords([...updated].sort((a, b) => b.date.localeCompare(a.date)));
+            Alert.alert("완료 ✅", `${updated.length}개의 더미 데이터가 생성됐습니다.`);
+          },
+        },
+      ]
+    );
+  };
+
+  const handleClearAll = () => {
+    Alert.alert("전체 초기화", "모든 기록을 삭제합니다.", [
+      { text: "취소", style: "cancel" },
+      {
+        text: "삭제",
+        style: "destructive",
+        onPress: async () => {
+          await clearAllRecords();
+          setRecords([]);
+          setWeight("");
+          setWaist("");
+          setExercised(false);
+          setDrank(false);
+        },
+      },
+    ]);
   };
 
   const handleDelete = (date: string) => {
-    Alert.alert('기록 삭제', '이 기록을 삭제하시겠습니까?', [
-      { text: '취소', style: 'cancel' },
+    Alert.alert("기록 삭제", "이 기록을 삭제하시겠습니까?", [
+      { text: "취소", style: "cancel" },
       {
-        text: '삭제',
-        style: 'destructive',
+        text: "삭제",
+        style: "destructive",
         onPress: async () => {
           const updated = await deleteRecord(date);
           setRecords([...updated].sort((a, b) => b.date.localeCompare(a.date)));
@@ -80,9 +123,12 @@ export default function HomeScreen() {
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.content}
+      >
         <Text style={styles.title}>💪 몸무게 트래커</Text>
         <Text style={styles.dateText}>{formatDate(today)}</Text>
 
@@ -122,7 +168,7 @@ export default function HomeScreen() {
               <Switch
                 value={exercised}
                 onValueChange={setExercised}
-                trackColor={{ true: '#4CAF50', false: '#ddd' }}
+                trackColor={{ true: "#4CAF50", false: "#ddd" }}
                 thumbColor="#fff"
               />
             </View>
@@ -131,7 +177,7 @@ export default function HomeScreen() {
               <Switch
                 value={drank}
                 onValueChange={setDrank}
-                trackColor={{ true: '#FF9800', false: '#ddd' }}
+                trackColor={{ true: "#FF9800", false: "#ddd" }}
                 thumbColor="#fff"
               />
             </View>
@@ -143,10 +189,23 @@ export default function HomeScreen() {
         </View>
 
         {/* 기록 목록 */}
-        <Text style={styles.sectionTitle}>기록 목록</Text>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>기록 목록</Text>
+          <View style={styles.devBtnRow}>
+            <TouchableOpacity style={styles.devBtn} onPress={handleSeedDummy}>
+              <Text style={styles.devBtnText}>🎲 더미</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.devBtn, styles.devBtnRed]}
+              onPress={handleClearAll}
+            >
+              <Text style={[styles.devBtnText, { color: '#E53E3E' }]}>🗑 초기화</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
         {records.length === 0 ? (
           <Text style={styles.emptyText}>
-            아직 기록이 없습니다.{'\n'}첫 번째 기록을 추가해보세요! 🎯
+            아직 기록이 없습니다.{"\n"}첫 번째 기록을 추가해보세요! 🎯
           </Text>
         ) : (
           records.map((record) => (
@@ -184,7 +243,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F0F4F8',
+    backgroundColor: "#F0F4F8",
   },
   content: {
     paddingTop: 60,
@@ -193,21 +252,21 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontWeight: '700',
-    color: '#1A202C',
+    fontWeight: "700",
+    color: "#1A202C",
     marginBottom: 4,
   },
   dateText: {
     fontSize: 14,
-    color: '#718096',
+    color: "#718096",
     marginBottom: 24,
   },
   card: {
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderRadius: 16,
     padding: 20,
     marginBottom: 24,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
@@ -215,37 +274,37 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#2D3748',
+    fontWeight: "600",
+    color: "#2D3748",
     marginBottom: 16,
   },
   label: {
     fontSize: 14,
-    fontWeight: '500',
-    color: '#4A5568',
+    fontWeight: "500",
+    color: "#4A5568",
     marginBottom: 6,
   },
   inputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 16,
   },
   input: {
     flex: 1,
     height: 48,
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderColor: "#E2E8F0",
     borderRadius: 10,
     paddingHorizontal: 14,
     fontSize: 16,
-    color: '#2D3748',
-    backgroundColor: '#F7FAFC',
+    color: "#2D3748",
+    backgroundColor: "#F7FAFC",
   },
   unit: {
     marginLeft: 8,
     fontSize: 16,
-    color: '#718096',
-    fontWeight: '500',
+    color: "#718096",
+    fontWeight: "500",
     width: 24,
   },
   switchGroup: {
@@ -253,83 +312,106 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   switchRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#F7FAFC',
+    borderBottomColor: "#F7FAFC",
   },
   switchLabel: {
     fontSize: 15,
-    color: '#4A5568',
+    color: "#4A5568",
   },
   saveBtn: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: "#4CAF50",
     borderRadius: 12,
     paddingVertical: 14,
-    alignItems: 'center',
+    alignItems: "center",
     marginTop: 4,
   },
   saveBtnText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
   },
   sectionTitle: {
     fontSize: 20,
-    fontWeight: '600',
-    color: '#2D3748',
-    marginBottom: 12,
+    fontWeight: "600",
+    color: "#2D3748",
+  },
+  devBtnRow: {
+    flexDirection: "row",
+    gap: 6,
+  },
+  devBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    backgroundColor: "#EDF2F7",
+  },
+  devBtnRed: {
+    backgroundColor: "#FFF5F5",
+  },
+  devBtnText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#4A5568",
   },
   emptyText: {
-    textAlign: 'center',
-    color: '#A0AEC0',
+    textAlign: "center",
+    color: "#A0AEC0",
     fontSize: 15,
     lineHeight: 26,
     marginTop: 40,
   },
   recordCard: {
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderRadius: 12,
     padding: 16,
     marginBottom: 10,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
   },
   recordTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 6,
   },
   recordDate: {
     fontSize: 13,
-    color: '#718096',
-    fontWeight: '500',
+    color: "#718096",
+    fontWeight: "500",
   },
   deleteBtn: {
     fontSize: 15,
-    color: '#CBD5E0',
+    color: "#CBD5E0",
     paddingHorizontal: 4,
     paddingVertical: 2,
   },
   recordWeight: {
     fontSize: 26,
-    fontWeight: '700',
-    color: '#2D3748',
+    fontWeight: "700",
+    color: "#2D3748",
     marginBottom: 4,
   },
   recordWaist: {
     fontSize: 14,
-    color: '#718096',
+    color: "#718096",
     marginBottom: 6,
   },
   badgeRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 8,
     marginTop: 6,
   },
@@ -339,14 +421,14 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   badgeExercise: {
-    backgroundColor: '#E8F5E9',
+    backgroundColor: "#E8F5E9",
   },
   badgeDrank: {
-    backgroundColor: '#FFF3E0',
+    backgroundColor: "#FFF3E0",
   },
   badgeText: {
     fontSize: 12,
-    fontWeight: '500',
-    color: '#4A5568',
+    fontWeight: "500",
+    color: "#4A5568",
   },
 });
