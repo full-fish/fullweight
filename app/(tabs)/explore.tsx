@@ -502,8 +502,9 @@ export default function ChartScreen() {
     record: WeightRecord;
     x: number;
     y: number;
-    chartId: string;
   } | null>(null);
+  const tooltipPointRef = useRef(tooltipPoint);
+  tooltipPointRef.current = tooltipPoint;
   const [overlayMode, setOverlayMode] = useState(true);
   const [chartZoom, setChartZoom] = useState(30); // 표시할 데이터 포인트 수 (X축 줌)
   const [chartOffset, setChartOffset] = useState(0); // 우측 끝에서의 오프셋 (팬)
@@ -663,12 +664,6 @@ export default function ChartScreen() {
         );
       });
   }, [chartData.length]);
-
-  /* ── 핀치 + 팬 동시 제스처 ── */
-  const composedGesture = useMemo(
-    () => Gesture.Simultaneous(pinchGesture, panGesture),
-    [pinchGesture, panGesture]
-  );
 
   /* ── 차트 라벨 생성 ── */
   const makeLabels = useCallback(
@@ -883,39 +878,35 @@ export default function ChartScreen() {
     });
   };
 
-  /* ── 점 클릭 → 인라인 툴팁 ── */
-  const handleDotPress = (
-    filteredRecs: WeightRecord[],
-    idx: number,
-    x: number,
-    y: number,
-    chartId: string
-  ) => {
-    const rec = filteredRecs[idx];
-    if (!rec) return;
-    // 같은 점 다시 누르면 닫기
-    if (tooltipPoint && tooltipPoint.record.date === rec.date && tooltipPoint.chartId === chartId) {
-      setTooltipPoint(null);
-    } else {
-      setTooltipPoint({ record: rec, x, y, chartId });
-    }
-  };
-
-  /* ── 인라인 툴팁 렌더링 ── */
-  const renderTooltip = (chartId: string, chartHeight: number) => {
-    if (!tooltipPoint || tooltipPoint.chartId !== chartId) return null;
+  /* ── 인라인 툴팁 렌더링 (chartCard 레벨) ── */
+  const renderCardTooltip = () => {
+    if (!tooltipPoint) return null;
     const { record, x, y } = tooltipPoint;
     const tooltipW = 160;
-    const left = Math.max(4, Math.min(x - tooltipW / 2, CHART_WIDTH - tooltipW - 4));
-    // 점 위에 표시, 공간 부족하면 아래에 표시
-    const showAbove = y > 90;
+    // x: dot SVG x + chartCard→SVG 오프셋(6) 기준으로 left 계산
+    const svgToCard = 16 + -10; // chartCard padding + chart marginLeft
+    const left = Math.max(
+      4,
+      Math.min(
+        svgToCard + x - tooltipW / 2,
+        CHART_WIDTH - tooltipW + svgToCard - 4
+      )
+    );
 
     const metrics: { icon: string; val: string }[] = [];
     metrics.push({ icon: "⚖️", val: `${record.weight} kg` });
-    if (record.waist != null) metrics.push({ icon: "📏", val: `${record.waist} cm` });
-    if (record.muscleMass != null) metrics.push({ icon: "💪", val: `${record.muscleMass} kg` });
-    if (record.bodyFatPercent != null) metrics.push({ icon: "🔥", val: `${record.bodyFatPercent} %` });
-    if (record.bodyFatMass != null) metrics.push({ icon: "🟣", val: `${record.bodyFatMass} kg` });
+    if (record.waist != null)
+      metrics.push({ icon: "📏", val: `${record.waist} cm` });
+    if (record.muscleMass != null)
+      metrics.push({ icon: "💪", val: `${record.muscleMass} kg` });
+    if (record.bodyFatPercent != null)
+      metrics.push({ icon: "🔥", val: `${record.bodyFatPercent} %` });
+    if (record.bodyFatMass != null)
+      metrics.push({ icon: "🟣", val: `${record.bodyFatMass} kg` });
+
+    // y는 탭 좌표(chartCard 기준) — 툴팁을 탭 위치 위에 표시
+    const tooltipH = 24 + metrics.length * 18;
+    const showAbove = y > tooltipH + 20;
 
     return (
       <TouchableOpacity
@@ -923,10 +914,11 @@ export default function ChartScreen() {
         onPress={() => setTooltipPoint(null)}
         style={[
           s.tooltip,
-          { left, width: tooltipW },
-          showAbove
-            ? { bottom: chartHeight - y + 10 }
-            : { top: y + 12 },
+          {
+            left,
+            width: tooltipW,
+            top: showAbove ? y - tooltipH - 8 : y + 12,
+          },
         ]}
       >
         <Text style={s.tooltipDate}>{fmtDate(record.date)}</Text>
@@ -948,6 +940,83 @@ export default function ChartScreen() {
   ];
   const isSingle = selectedMetrics.length === 1;
   const isMulti = selectedMetrics.length > 1;
+
+  /* ── 탭 제스처 (점 클릭 → 인라인 툴팁) ── */
+  const tapGesture = useMemo(() => {
+    return Gesture.Tap()
+      .runOnJS(true)
+      .maxDuration(250)
+      .onEnd((e) => {
+        // react-native-chart-kit 내부 좌표계:
+        // paddingRight(=좌측패딩) = 64, s.chart marginLeft = -10, chartCard padding = 16
+        const CHART_LEFT_PAD = 64;
+        const CARD_TO_SVG = 16 + -10; // chartCard padding + chart marginLeft
+        const svgX = e.x - CARD_TO_SVG;
+
+        // 현재 표시 중인 차트의 데이터 확인
+        let dataLen = 0;
+        let filtered: WeightRecord[] = [];
+        if (
+          isSingle &&
+          singleChartInfo &&
+          singleChartInfo.filtered.length >= 2
+        ) {
+          dataLen = singleChartInfo.values.length;
+          filtered = singleChartInfo.filtered;
+        } else if (isMulti && overlayMode && overlayInfo) {
+          dataLen = overlayInfo.filtered.length;
+          filtered = overlayInfo.filtered;
+        } else if (
+          isMulti &&
+          !overlayMode &&
+          separateCharts &&
+          separateCharts.length > 0
+        ) {
+          dataLen = separateCharts[0].values.length;
+          filtered = separateCharts[0].filtered;
+        }
+        if (dataLen < 2 || filtered.length === 0) return;
+
+        // x좌표 → 데이터 인덱스
+        const index = Math.round(
+          ((svgX - CHART_LEFT_PAD) * dataLen) / (CHART_WIDTH - CHART_LEFT_PAD)
+        );
+        if (index < 0 || index >= dataLen) return;
+
+        const rec = filtered[index];
+        if (!rec) return;
+
+        // 같은 점 다시 누르면 닫기
+        const prev = tooltipPointRef.current;
+        if (prev && prev.record.date === rec.date) {
+          setTooltipPoint(null);
+          return;
+        }
+
+        // dot의 SVG x 좌표 계산 (툴팁 위치용)
+        const dotX =
+          CHART_LEFT_PAD + (index * (CHART_WIDTH - CHART_LEFT_PAD)) / dataLen;
+
+        setTooltipPoint({ record: rec, x: dotX, y: e.y });
+      });
+  }, [
+    isSingle,
+    isMulti,
+    overlayMode,
+    singleChartInfo,
+    overlayInfo,
+    separateCharts,
+  ]);
+
+  /* ── 핀치 + (팬 | 탭) 동시 제스처 ── */
+  const composedGesture = useMemo(
+    () =>
+      Gesture.Simultaneous(
+        pinchGesture,
+        Gesture.Exclusive(panGesture, tapGesture)
+      ),
+    [pinchGesture, panGesture, tapGesture]
+  );
 
   return (
     <SwipeableTab currentIndex={1}>
@@ -1091,7 +1160,6 @@ export default function ChartScreen() {
             {isSingle &&
               singleChartInfo &&
               singleChartInfo.filtered.length >= 2 && (
-                <View style={{ position: "relative" }}>
                 <LineChart
                   data={{
                     labels: singleChartInfo.labels,
@@ -1152,12 +1220,7 @@ export default function ChartScreen() {
                   withVerticalLines={false}
                   withShadow={false}
                   formatYLabel={(v) => parseFloat(v).toFixed(1)}
-                  onDataPointClick={({ index, x, y }) =>
-                    handleDotPress(singleChartInfo.filtered, index, x, y, "single")
-                  }
                 />
-                {renderTooltip("single", 220)}
-                </View>
               )}
 
             {isSingle &&
@@ -1180,7 +1243,6 @@ export default function ChartScreen() {
                   let dotCallIdx = 0;
                   const N = overlayInfo.filtered.length;
                   return (
-                    <View style={{ position: "relative" }}>
                     <LineChart
                       data={{
                         labels: overlayInfo.labels,
@@ -1221,12 +1283,7 @@ export default function ChartScreen() {
                       withVerticalLines={false}
                       withShadow={false}
                       formatYLabel={(v) => `${parseFloat(v).toFixed(0)}%`}
-                      onDataPointClick={({ index, x, y }) =>
-                        handleDotPress(overlayInfo.filtered, index, x, y, "overlay")
-                      }
                     />
-                    {renderTooltip("overlay", 240)}
-                    </View>
                   );
                 })()}
                 <View style={s.overlayLegend}>
@@ -1281,7 +1338,6 @@ export default function ChartScreen() {
                       </Text>
                     </View>
                     {info.hasData ? (
-                      <View style={{ position: "relative" }}>
                       <LineChart
                         data={{
                           labels: info.labels,
@@ -1347,12 +1403,7 @@ export default function ChartScreen() {
                         withVerticalLines={false}
                         withShadow={false}
                         formatYLabel={(v) => parseFloat(v).toFixed(1)}
-                        onDataPointClick={({ index, x, y }) =>
-                          handleDotPress(info.filtered, index, x, y, `sep-${info.key}`)
-                        }
                       />
-                      {renderTooltip(`sep-${info.key}`, 160)}
-                      </View>
                     ) : (
                       <View style={s.emptyMiniChart}>
                         <Text style={s.emptyText}>
@@ -1364,6 +1415,7 @@ export default function ChartScreen() {
                 ))}
               </>
             )}
+            {renderCardTooltip()}
           </View>
         </GestureDetector>
 
@@ -1576,8 +1628,6 @@ export default function ChartScreen() {
           onChange={setActivityEnd}
           onClose={() => setShowActivityEndCal(false)}
         />
-
-
       </ScrollView>
     </SwipeableTab>
   );
@@ -1678,6 +1728,7 @@ const s = StyleSheet.create({
   },
   dateCalIcon: { fontSize: 16 },
   chartCard: {
+    position: "relative" as const,
     backgroundColor: "#fff",
     borderRadius: 16,
     padding: 16,
