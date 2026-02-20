@@ -1,10 +1,8 @@
 import { WeightRecord } from "@/types";
 import {
-  clearAllRecords,
   deleteRecord,
   getLocalDateString,
   loadRecords,
-  seedDummyData,
   upsertRecord,
 } from "@/utils/storage";
 import { useFocusEffect } from "@react-navigation/native";
@@ -32,6 +30,9 @@ export default function HomeScreen() {
   const [records, setRecords] = useState<WeightRecord[]>([]);
   const [weight, setWeight] = useState("");
   const [waist, setWaist] = useState("");
+  const [muscleMass, setMuscleMass] = useState("");
+  const [bodyFat, setBodyFat] = useState("");
+  const [bodyFatUnit, setBodyFatUnit] = useState<"percent" | "kg">("percent");
   const [exercised, setExercised] = useState(false);
   const [drank, setDrank] = useState(false);
 
@@ -44,6 +45,9 @@ export default function HomeScreen() {
         if (todayRecord) {
           setWeight(todayRecord.weight.toString());
           setWaist(todayRecord.waist?.toString() ?? "");
+          setMuscleMass(todayRecord.muscleMass?.toString() ?? "");
+          setBodyFat(todayRecord.bodyFat?.toString() ?? "");
+          setBodyFatUnit(todayRecord.bodyFatUnit ?? "percent");
           setExercised(todayRecord.exercised);
           setDrank(todayRecord.drank);
         }
@@ -62,48 +66,15 @@ export default function HomeScreen() {
       date: today,
       weight: w,
       waist: waist ? parseFloat(waist) : undefined,
+      muscleMass: muscleMass ? parseFloat(muscleMass) : undefined,
+      bodyFat: bodyFat ? parseFloat(bodyFat) : undefined,
+      bodyFatUnit,
       exercised,
       drank,
     };
     const updated = await upsertRecord(record);
     setRecords([...updated].sort((a, b) => b.date.localeCompare(a.date)));
     Alert.alert("저장 완료 ✅", "오늘의 기록이 저장되었습니다.");
-  };
-
-  const handleSeedDummy = () => {
-    Alert.alert(
-      "더미 데이터 삽입",
-      "약 1년치 랜덤 데이터를 생성합니다.\n기존 데이터는 모두 지워집니다.",
-      [
-        { text: "취소", style: "cancel" },
-        {
-          text: "생성",
-          onPress: async () => {
-            const updated = await seedDummyData();
-            setRecords([...updated].sort((a, b) => b.date.localeCompare(a.date)));
-            Alert.alert("완료 ✅", `${updated.length}개의 더미 데이터가 생성됐습니다.`);
-          },
-        },
-      ]
-    );
-  };
-
-  const handleClearAll = () => {
-    Alert.alert("전체 초기화", "모든 기록을 삭제합니다.", [
-      { text: "취소", style: "cancel" },
-      {
-        text: "삭제",
-        style: "destructive",
-        onPress: async () => {
-          await clearAllRecords();
-          setRecords([]);
-          setWeight("");
-          setWaist("");
-          setExercised(false);
-          setDrank(false);
-        },
-      },
-    ]);
   };
 
   const handleDelete = (date: string) => {
@@ -162,6 +133,65 @@ export default function HomeScreen() {
             <Text style={styles.unit}>cm</Text>
           </View>
 
+          <Text style={styles.label}>골격근량 (선택)</Text>
+          <View style={styles.inputRow}>
+            <TextInput
+              style={styles.input}
+              value={muscleMass}
+              onChangeText={setMuscleMass}
+              placeholder="0.0"
+              placeholderTextColor="#aaa"
+              keyboardType="decimal-pad"
+            />
+            <Text style={styles.unit}>kg</Text>
+          </View>
+
+          <Text style={styles.label}>체지방 (선택)</Text>
+          <View style={styles.inputRow}>
+            <TextInput
+              style={[styles.input, { flex: 0.7 }]}
+              value={bodyFat}
+              onChangeText={setBodyFat}
+              placeholder="0.0"
+              placeholderTextColor="#aaa"
+              keyboardType="decimal-pad"
+            />
+            <View style={styles.unitToggle}>
+              <TouchableOpacity
+                style={[
+                  styles.unitBtn,
+                  bodyFatUnit === "percent" && styles.unitBtnActive,
+                ]}
+                onPress={() => setBodyFatUnit("percent")}
+              >
+                <Text
+                  style={[
+                    styles.unitBtnText,
+                    bodyFatUnit === "percent" && styles.unitBtnTextActive,
+                  ]}
+                >
+                  %
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.unitBtn,
+                  bodyFatUnit === "kg" && styles.unitBtnActive,
+                ]}
+                onPress={() => setBodyFatUnit("kg")}
+              >
+                <Text
+                  style={[
+                    styles.unitBtnText,
+                    bodyFatUnit === "kg" && styles.unitBtnTextActive,
+                  ]}
+                >
+                  kg
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
           <View style={styles.switchGroup}>
             <View style={styles.switchRow}>
               <Text style={styles.switchLabel}>🏃 오늘 운동했나요?</Text>
@@ -189,20 +219,7 @@ export default function HomeScreen() {
         </View>
 
         {/* 기록 목록 */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>기록 목록</Text>
-          <View style={styles.devBtnRow}>
-            <TouchableOpacity style={styles.devBtn} onPress={handleSeedDummy}>
-              <Text style={styles.devBtnText}>🎲 더미</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.devBtn, styles.devBtnRed]}
-              onPress={handleClearAll}
-            >
-              <Text style={[styles.devBtnText, { color: '#E53E3E' }]}>🗑 초기화</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+        <Text style={styles.sectionTitle}>기록 목록</Text>
         {records.length === 0 ? (
           <Text style={styles.emptyText}>
             아직 기록이 없습니다.{"\n"}첫 번째 기록을 추가해보세요! 🎯
@@ -218,7 +235,18 @@ export default function HomeScreen() {
               </View>
               <Text style={styles.recordWeight}>{record.weight} kg</Text>
               {record.waist != null && (
-                <Text style={styles.recordWaist}>허리: {record.waist} cm</Text>
+                <Text style={styles.recordSub}>허리: {record.waist} cm</Text>
+              )}
+              {record.muscleMass != null && (
+                <Text style={styles.recordSub}>
+                  골격근: {record.muscleMass} kg
+                </Text>
+              )}
+              {record.bodyFat != null && (
+                <Text style={styles.recordSub}>
+                  체지방: {record.bodyFat}
+                  {record.bodyFatUnit === "kg" ? " kg" : " %"}
+                </Text>
               )}
               <View style={styles.badgeRow}>
                 {record.exercised && (
@@ -335,34 +363,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
-  sectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
-  },
   sectionTitle: {
     fontSize: 20,
     fontWeight: "600",
     color: "#2D3748",
-  },
-  devBtnRow: {
-    flexDirection: "row",
-    gap: 6,
-  },
-  devBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-    backgroundColor: "#EDF2F7",
-  },
-  devBtnRed: {
-    backgroundColor: "#FFF5F5",
-  },
-  devBtnText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#4A5568",
+    marginBottom: 12,
   },
   emptyText: {
     textAlign: "center",
@@ -405,10 +410,32 @@ const styles = StyleSheet.create({
     color: "#2D3748",
     marginBottom: 4,
   },
-  recordWaist: {
+  recordSub: {
     fontSize: 14,
     color: "#718096",
-    marginBottom: 6,
+    marginBottom: 2,
+  },
+  unitToggle: {
+    flexDirection: "row",
+    marginLeft: 8,
+    backgroundColor: "#E2E8F0",
+    borderRadius: 8,
+    overflow: "hidden",
+  },
+  unitBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  unitBtnActive: {
+    backgroundColor: "#4CAF50",
+  },
+  unitBtnText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#718096",
+  },
+  unitBtnTextActive: {
+    color: "#fff",
   },
   badgeRow: {
     flexDirection: "row",
