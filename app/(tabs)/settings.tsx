@@ -16,6 +16,7 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   TouchableOpacity,
@@ -367,6 +368,7 @@ export default function SettingsScreen() {
     undefined
   );
   const [calendarVisible, setCalendarVisible] = useState(false);
+  const [swipeEnabled, setSwipeEnabled] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -375,6 +377,7 @@ export default function SettingsScreen() {
         setHeight(settings.height != null ? String(settings.height) : "");
         setBirthDate(settings.birthDate ?? "");
         setGender(settings.gender);
+        setSwipeEnabled(settings.swipeEnabled ?? false);
       });
     }, [])
   );
@@ -411,7 +414,13 @@ export default function SettingsScreen() {
     // age is computed from birthDate for backward compat
     const age = bd ? (calcAge(bd) ?? undefined) : undefined;
 
-    await saveUserSettings({ height: h, birthDate: bd, gender, age });
+    await saveUserSettings({
+      height: h,
+      birthDate: bd,
+      gender,
+      age,
+      swipeEnabled,
+    });
     Alert.alert("저장 완료", "프로필 정보가 저장되었습니다.");
   };
 
@@ -456,7 +465,7 @@ export default function SettingsScreen() {
   };
 
   return (
-    <SwipeableTab currentIndex={4}>
+    <SwipeableTab currentIndex={5} enabled={swipeEnabled}>
       <ScrollView style={s.container} contentContainerStyle={s.content}>
         <Text style={s.title}>⚙️ 설정</Text>
 
@@ -554,6 +563,29 @@ export default function SettingsScreen() {
           <TouchableOpacity style={s.saveBtn} onPress={handleSaveProfile}>
             <Text style={s.saveBtnText}>저장</Text>
           </TouchableOpacity>
+        </View>
+
+        {/* 환경 설정 */}
+        <View style={s.card}>
+          <Text style={s.cardTitle}>환경 설정</Text>
+          <View style={s.infoRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={s.infoLabel}>좌우 스와이프로 탭 전환</Text>
+              <Text style={{ fontSize: 11, color: "#A0AEC0", marginTop: 2 }}>
+                화면을 좌우로 밀어 다른 탭으로 이동합니다
+              </Text>
+            </View>
+            <Switch
+              value={swipeEnabled}
+              onValueChange={async (v) => {
+                setSwipeEnabled(v);
+                const cur = await loadUserSettings();
+                await saveUserSettings({ ...cur, swipeEnabled: v });
+              }}
+              trackColor={{ false: "#E2E8F0", true: "#68D391" }}
+              thumbColor={swipeEnabled ? "#38A169" : "#fff"}
+            />
+          </View>
         </View>
 
         {/* 데이터 정보 */}

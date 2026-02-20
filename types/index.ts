@@ -80,4 +80,5 @@ export type UserSettings = {
   age?: number; // deprecated, 하위호환용
   birthDate?: string; // YYYY-MM-DD
   gender?: "male" | "female";
+  swipeEnabled?: boolean; // 좌우 스와이프 탭 전환 (기본 false)
 };

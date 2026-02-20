@@ -55,6 +55,13 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="photos"
+        options={{
+          title: "눈바디",
+          tabBarIcon: () => <EmojiIcon emoji="📸" />,
+        }}
+      />
+      <Tabs.Screen
         name="settings"
         options={{
           title: "설정",

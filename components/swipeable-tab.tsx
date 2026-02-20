@@ -1,5 +1,6 @@
-import { useRouter } from "expo-router";
-import React, { ReactNode } from "react";
+import { loadUserSettings } from "@/utils/storage";
+import { useFocusEffect, useRouter } from "expo-router";
+import React, { ReactNode, useCallback, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import {
   Directions,
@@ -13,17 +14,29 @@ const ROUTES: string[] = [
   "/explore",
   "/calendar",
   "/challenge",
+  "/photos",
   "/settings",
 ];
 
 export function SwipeableTab({
   currentIndex,
   children,
+  enabled,
 }: {
   currentIndex: number;
   children: ReactNode;
+  enabled?: boolean;
 }) {
   const router = useRouter();
+  const [swipeEnabled, setSwipeEnabled] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadUserSettings().then((s) => setSwipeEnabled(s.swipeEnabled ?? false));
+    }, [])
+  );
+
+  const isEnabled = enabled !== undefined ? enabled : swipeEnabled;
 
   const navigateLeft = () => {
     if (currentIndex > 0) {
@@ -50,6 +63,10 @@ export function SwipeableTab({
     });
 
   const gesture = Gesture.Simultaneous(flingLeft, flingRight);
+
+  if (!isEnabled) {
+    return <View style={styles.container}>{children}</View>;
+  }
 
   return (
     <GestureDetector gesture={gesture}>

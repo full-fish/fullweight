@@ -690,42 +690,48 @@ export default function ChartScreen() {
         <Text style={s.title}>{"\u{1F4CA}"} 기록 그래프</Text>
 
         {/* 수치 선택 칩 */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
-        <View style={s.metricRow}>
-          {METRICS.map((key) => {
-            const active = selectedMetrics.includes(key);
-            return (
-              <TouchableOpacity
-                key={key}
-                style={[
-                  s.metricChip,
-                  active && {
-                    backgroundColor: METRIC_COLORS[key] + "22",
-                    borderColor: METRIC_COLORS[key],
-                  },
-                ]}
-                onPress={() => toggleMetric(key)}
-              >
-                <View
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={{ marginBottom: 12 }}
+        >
+          <View style={s.metricRow}>
+            {METRICS.map((key) => {
+              const active = selectedMetrics.includes(key);
+              return (
+                <TouchableOpacity
+                  key={key}
                   style={[
-                    s.metricDot,
-                    {
-                      backgroundColor: active ? METRIC_COLORS[key] : "#CBD5E0",
+                    s.metricChip,
+                    active && {
+                      backgroundColor: METRIC_COLORS[key] + "22",
+                      borderColor: METRIC_COLORS[key],
                     },
                   ]}
-                />
-                <Text
-                  style={[
-                    s.metricChipText,
-                    active && { color: METRIC_COLORS[key] },
-                  ]}
+                  onPress={() => toggleMetric(key)}
                 >
-                  {METRIC_LABELS[key]}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+                  <View
+                    style={[
+                      s.metricDot,
+                      {
+                        backgroundColor: active
+                          ? METRIC_COLORS[key]
+                          : "#CBD5E0",
+                      },
+                    ]}
+                  />
+                  <Text
+                    style={[
+                      s.metricChipText,
+                      active && { color: METRIC_COLORS[key] },
+                    ]}
+                  >
+                    {METRIC_LABELS[key]}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </ScrollView>
 
         {/* 기간 모드 */}

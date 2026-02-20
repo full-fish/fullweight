@@ -161,7 +161,9 @@ export default function CalendarScreen() {
     const first = sorted.length > 0 ? sorted[0] : null;
     const last = sorted.length > 1 ? sorted[sorted.length - 1] : null;
 
-    const findMetricRange = (key: "muscleMass" | "bodyFatPercent" | "bodyFatMass") => {
+    const findMetricRange = (
+      key: "muscleMass" | "bodyFatPercent" | "bodyFatMass"
+    ) => {
       const withData = sorted.filter((r) => r[key] != null);
       if (withData.length === 0) return null;
       if (withData.length === 1)
@@ -341,45 +343,50 @@ export default function CalendarScreen() {
 
         {/* 연도/월 선택 */}
         {navMode === "yearPicker" && (
-          <View
-            style={{
-              flexDirection: "row",
-              flexWrap: "wrap",
-              gap: 6,
-              marginBottom: 12,
-              justifyContent: "center",
-            }}
+          <ScrollView
+            style={{ maxHeight: 180, marginBottom: 12 }}
+            showsVerticalScrollIndicator
+            nestedScrollEnabled
           >
-            {Array.from(
-              { length: 21 },
-              (_, i) => now.getFullYear() - 10 + i
-            ).map((y) => (
-              <TouchableOpacity
-                key={y}
-                onPress={() => {
-                  setYear(y);
-                  setNavMode("calendar");
-                }}
-                style={{
-                  width: (width - 56) / 7,
-                  paddingVertical: 10,
-                  borderRadius: 8,
-                  backgroundColor: y === year ? "#4CAF50" : "#EDF2F7",
-                  alignItems: "center",
-                }}
-              >
-                <Text
+            <View
+              style={{
+                flexDirection: "row",
+                flexWrap: "wrap",
+                gap: 6,
+                justifyContent: "center",
+              }}
+            >
+              {Array.from(
+                { length: now.getFullYear() - 1950 + 1 },
+                (_, i) => now.getFullYear() - i
+              ).map((y) => (
+                <TouchableOpacity
+                  key={y}
+                  onPress={() => {
+                    setYear(y);
+                    setNavMode("calendar");
+                  }}
                   style={{
-                    fontSize: 13,
-                    fontWeight: "600",
-                    color: y === year ? "#fff" : "#4A5568",
+                    width: (width - 56) / 7,
+                    paddingVertical: 10,
+                    borderRadius: 8,
+                    backgroundColor: y === year ? "#4CAF50" : "#EDF2F7",
+                    alignItems: "center",
                   }}
                 >
-                  {y}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      fontWeight: "600",
+                      color: y === year ? "#fff" : "#4A5568",
+                    }}
+                  >
+                    {y}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
         )}
 
         {navMode === "monthPicker" && (
@@ -540,9 +547,23 @@ export default function CalendarScreen() {
                 if (!range.last) {
                   // 데이터 1개만 존재
                   return (
-                    <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 4 }}>
-                      <Text style={{ fontSize: 13, color: "#718096" }}>💪 골격근량</Text>
-                      <Text style={{ fontSize: 13, fontWeight: "600", color: "#4A5568" }}>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        justifyContent: "space-between",
+                        paddingVertical: 4,
+                      }}
+                    >
+                      <Text style={{ fontSize: 13, color: "#718096" }}>
+                        💪 골격근량
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          fontWeight: "600",
+                          color: "#4A5568",
+                        }}
+                      >
                         {range.first.muscleMass}kg
                       </Text>
                     </View>
@@ -552,19 +573,46 @@ export default function CalendarScreen() {
                 const sameStart = range.first.date === overallFirst;
                 const sameEnd = range.last.date === overallLast;
                 let dateLabel = "";
-                if (!sameStart && !sameEnd) dateLabel = `${fmtShort(range.first.date)}~${fmtShort(range.last.date)}`;
-                else if (!sameStart) dateLabel = `${fmtShort(range.first.date)}~`;
+                if (!sameStart && !sameEnd)
+                  dateLabel = `${fmtShort(range.first.date)}~${fmtShort(range.last.date)}`;
+                else if (!sameStart)
+                  dateLabel = `${fmtShort(range.first.date)}~`;
                 else if (!sameEnd) dateLabel = `~${fmtShort(range.last.date)}`;
                 return (
-                  <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 4, alignItems: "center" }}>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                      <Text style={{ fontSize: 13, color: "#718096" }}>💪 골격근량</Text>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      justifyContent: "space-between",
+                      paddingVertical: 4,
+                      alignItems: "center",
+                    }}
+                  >
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 4,
+                      }}
+                    >
+                      <Text style={{ fontSize: 13, color: "#718096" }}>
+                        💪 골격근량
+                      </Text>
                       {dateLabel !== "" && (
-                        <Text style={{ fontSize: 10, color: "#A0AEC0" }}>{dateLabel}</Text>
+                        <Text style={{ fontSize: 10, color: "#A0AEC0" }}>
+                          {dateLabel}
+                        </Text>
                       )}
                     </View>
-                    <Text style={{ fontSize: 13, fontWeight: "600", color: diff >= 0 ? "#38A169" : "#E53E3E" }}>
-                      {range.first.muscleMass}→{range.last.muscleMass}kg ({diff > 0 ? "+" : ""}{diff.toFixed(1)})
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        fontWeight: "600",
+                        color: diff >= 0 ? "#38A169" : "#E53E3E",
+                      }}
+                    >
+                      {range.first.muscleMass}→{range.last.muscleMass}kg (
+                      {diff > 0 ? "+" : ""}
+                      {diff.toFixed(1)})
                     </Text>
                   </View>
                 );
@@ -578,31 +626,73 @@ export default function CalendarScreen() {
                 const overallLast = summaryData.last!.date;
                 if (!range.last) {
                   return (
-                    <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 4 }}>
-                      <Text style={{ fontSize: 13, color: "#718096" }}>🔥 체지방률</Text>
-                      <Text style={{ fontSize: 13, fontWeight: "600", color: "#4A5568" }}>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        justifyContent: "space-between",
+                        paddingVertical: 4,
+                      }}
+                    >
+                      <Text style={{ fontSize: 13, color: "#718096" }}>
+                        🔥 체지방률
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          fontWeight: "600",
+                          color: "#4A5568",
+                        }}
+                      >
                         {range.first.bodyFatPercent}%
                       </Text>
                     </View>
                   );
                 }
-                const diff = range.last.bodyFatPercent! - range.first.bodyFatPercent!;
+                const diff =
+                  range.last.bodyFatPercent! - range.first.bodyFatPercent!;
                 const sameStart = range.first.date === overallFirst;
                 const sameEnd = range.last.date === overallLast;
                 let dateLabel = "";
-                if (!sameStart && !sameEnd) dateLabel = `${fmtShort(range.first.date)}~${fmtShort(range.last.date)}`;
-                else if (!sameStart) dateLabel = `${fmtShort(range.first.date)}~`;
+                if (!sameStart && !sameEnd)
+                  dateLabel = `${fmtShort(range.first.date)}~${fmtShort(range.last.date)}`;
+                else if (!sameStart)
+                  dateLabel = `${fmtShort(range.first.date)}~`;
                 else if (!sameEnd) dateLabel = `~${fmtShort(range.last.date)}`;
                 return (
-                  <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 4, alignItems: "center" }}>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                      <Text style={{ fontSize: 13, color: "#718096" }}>🔥 체지방률</Text>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      justifyContent: "space-between",
+                      paddingVertical: 4,
+                      alignItems: "center",
+                    }}
+                  >
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 4,
+                      }}
+                    >
+                      <Text style={{ fontSize: 13, color: "#718096" }}>
+                        🔥 체지방률
+                      </Text>
                       {dateLabel !== "" && (
-                        <Text style={{ fontSize: 10, color: "#A0AEC0" }}>{dateLabel}</Text>
+                        <Text style={{ fontSize: 10, color: "#A0AEC0" }}>
+                          {dateLabel}
+                        </Text>
                       )}
                     </View>
-                    <Text style={{ fontSize: 13, fontWeight: "600", color: diff <= 0 ? "#38A169" : "#E53E3E" }}>
-                      {range.first.bodyFatPercent}→{range.last.bodyFatPercent}% ({diff > 0 ? "+" : ""}{diff.toFixed(1)})
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        fontWeight: "600",
+                        color: diff <= 0 ? "#38A169" : "#E53E3E",
+                      }}
+                    >
+                      {range.first.bodyFatPercent}→{range.last.bodyFatPercent}%
+                      ({diff > 0 ? "+" : ""}
+                      {diff.toFixed(1)})
                     </Text>
                   </View>
                 );
@@ -616,9 +706,23 @@ export default function CalendarScreen() {
                 const overallLast = summaryData.last!.date;
                 if (!range.last) {
                   return (
-                    <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 4 }}>
-                      <Text style={{ fontSize: 13, color: "#718096" }}>🟣 체지방량</Text>
-                      <Text style={{ fontSize: 13, fontWeight: "600", color: "#4A5568" }}>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        justifyContent: "space-between",
+                        paddingVertical: 4,
+                      }}
+                    >
+                      <Text style={{ fontSize: 13, color: "#718096" }}>
+                        🟣 체지방량
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          fontWeight: "600",
+                          color: "#4A5568",
+                        }}
+                      >
                         {range.first.bodyFatMass}kg
                       </Text>
                     </View>
@@ -628,19 +732,46 @@ export default function CalendarScreen() {
                 const sameStart = range.first.date === overallFirst;
                 const sameEnd = range.last.date === overallLast;
                 let dateLabel = "";
-                if (!sameStart && !sameEnd) dateLabel = `${fmtShort(range.first.date)}~${fmtShort(range.last.date)}`;
-                else if (!sameStart) dateLabel = `${fmtShort(range.first.date)}~`;
+                if (!sameStart && !sameEnd)
+                  dateLabel = `${fmtShort(range.first.date)}~${fmtShort(range.last.date)}`;
+                else if (!sameStart)
+                  dateLabel = `${fmtShort(range.first.date)}~`;
                 else if (!sameEnd) dateLabel = `~${fmtShort(range.last.date)}`;
                 return (
-                  <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 4, alignItems: "center" }}>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                      <Text style={{ fontSize: 13, color: "#718096" }}>🟣 체지방량</Text>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      justifyContent: "space-between",
+                      paddingVertical: 4,
+                      alignItems: "center",
+                    }}
+                  >
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 4,
+                      }}
+                    >
+                      <Text style={{ fontSize: 13, color: "#718096" }}>
+                        🟣 체지방량
+                      </Text>
                       {dateLabel !== "" && (
-                        <Text style={{ fontSize: 10, color: "#A0AEC0" }}>{dateLabel}</Text>
+                        <Text style={{ fontSize: 10, color: "#A0AEC0" }}>
+                          {dateLabel}
+                        </Text>
                       )}
                     </View>
-                    <Text style={{ fontSize: 13, fontWeight: "600", color: diff <= 0 ? "#38A169" : "#E53E3E" }}>
-                      {range.first.bodyFatMass}→{range.last.bodyFatMass}kg ({diff > 0 ? "+" : ""}{diff.toFixed(1)})
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        fontWeight: "600",
+                        color: diff <= 0 ? "#38A169" : "#E53E3E",
+                      }}
+                    >
+                      {range.first.bodyFatMass}→{range.last.bodyFatMass}kg (
+                      {diff > 0 ? "+" : ""}
+                      {diff.toFixed(1)})
                     </Text>
                   </View>
                 );
