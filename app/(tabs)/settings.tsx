@@ -1,5 +1,12 @@
 import { SwipeableTab } from "@/components/swipeable-tab";
 import {
+  calcAge,
+  getDaysInMonth,
+  getFirstDayOfWeek,
+  isValidDateString,
+  WEEKDAY_LABELS,
+} from "@/utils/format";
+import {
   clearAllRecords,
   loadRecords,
   loadUserSettings,
@@ -27,43 +34,11 @@ import {
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
-function getDaysInMonth(year: number, month: number): number {
-  return new Date(year, month, 0).getDate();
-}
-
-function getFirstDayOfWeek(year: number, month: number): number {
-  return new Date(year, month - 1, 1).getDay();
-}
-
-function isValidDateString(s: string): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
-  const [y, m, d] = s.split("-").map(Number);
-  const date = new Date(y, m - 1, d);
-  return (
-    date.getFullYear() === y &&
-    date.getMonth() === m - 1 &&
-    date.getDate() === d
-  );
-}
-
-function calcAge(birthDate: string): number | null {
-  if (!isValidDateString(birthDate)) return null;
-  const [by, bm, bd] = birthDate.split("-").map(Number);
-  const today = new Date();
-  let age = today.getFullYear() - by;
-  const monthDiff = today.getMonth() + 1 - bm;
-  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < bd)) {
-    age--;
-  }
-  return age >= 0 ? age : null;
-}
-
 const CURRENT_YEAR = new Date().getFullYear();
 const YEAR_LIST = Array.from(
   { length: CURRENT_YEAR - 1920 + 1 },
   (_, i) => 1920 + i
 ).reverse();
-const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
 
 /* ───── 캘린더 팝업 컴포넌트 ───── */
 
@@ -115,8 +90,8 @@ function CalendarPopup({
     }
   }, [visible, initialDate, parseInitial]);
 
-  const daysInMonth = getDaysInMonth(viewYear, viewMonth);
-  const firstDay = getFirstDayOfWeek(viewYear, viewMonth);
+  const daysInMonth = getDaysInMonth(viewYear, viewMonth - 1);
+  const firstDay = getFirstDayOfWeek(viewYear, viewMonth - 1);
 
   const dayGrid = useMemo(() => {
     const cells: (number | null)[] = [];

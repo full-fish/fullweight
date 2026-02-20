@@ -1,5 +1,13 @@
 import { SwipeableTab } from "@/components/swipeable-tab";
 import { UserSettings, WeightRecord } from "@/types";
+import {
+  fmtDate,
+  getBmiInfo,
+  getDaysInMonth,
+  getFirstDayOfWeek,
+  pad2,
+  WEEKDAY_LABELS,
+} from "@/utils/format";
 import { pickPhoto, takePhoto } from "@/utils/photo";
 import {
   deleteRecord,
@@ -25,45 +33,6 @@ import {
 
 const { width } = Dimensions.get("window");
 const DAY_SIZE = Math.floor((width - 56) / 7);
-const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
-
-function fmtDate(dateStr: string) {
-  const [y, m, d] = dateStr.split("-");
-  return `${y}년 ${parseInt(m)}월 ${parseInt(d)}일`;
-}
-
-function getDaysInMonth(year: number, month: number) {
-  return new Date(year, month + 1, 0).getDate();
-}
-
-function getFirstDayOfWeek(year: number, month: number) {
-  return new Date(year, month, 1).getDay();
-}
-
-function pad2(n: number) {
-  return String(n).padStart(2, "0");
-}
-
-function getBmiInfo(weight: number, heightCm: number | undefined) {
-  if (!heightCm || heightCm <= 0) return null;
-  const heightM = heightCm / 100;
-  const bmi = weight / (heightM * heightM);
-  let label: string, color: string;
-  if (bmi < 18.5) {
-    label = "저체중";
-    color = "#3182CE";
-  } else if (bmi < 23) {
-    label = "정상";
-    color = "#38A169";
-  } else if (bmi < 25) {
-    label = "과체중";
-    color = "#DD6B20";
-  } else {
-    label = "비만";
-    color = "#E53E3E";
-  }
-  return { bmi: Math.round(bmi * 10) / 10, label, color };
-}
 
 export default function CalendarScreen() {
   const now = new Date();
@@ -769,7 +738,7 @@ export default function CalendarScreen() {
         <View style={s.calendarCard}>
           {/* 요일 헤더 */}
           <View style={s.weekRow}>
-            {WEEKDAYS.map((d, i) => (
+            {WEEKDAY_LABELS.map((d, i) => (
               <View key={i} style={s.weekCell}>
                 <Text
                   style={[

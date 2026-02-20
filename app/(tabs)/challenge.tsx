@@ -1,3 +1,4 @@
+import { ProgressBar } from "@/components/progress-bar";
 import { SwipeableTab } from "@/components/swipeable-tab";
 import {
   Challenge,
@@ -5,6 +6,13 @@ import {
   METRIC_COLORS,
   WeightRecord,
 } from "@/types";
+import {
+  daysBetween,
+  fmtDate,
+  getDaysInMonth,
+  getFirstDayOfWeek,
+  pad2,
+} from "@/utils/format";
 import {
   addChallengeToHistory,
   deleteChallenge,
@@ -31,29 +39,6 @@ import {
 
 const { width } = Dimensions.get("window");
 const CP_DAY2 = Math.floor((width * 0.82 - 56) / 7);
-
-function fmtDate(dateStr: string) {
-  const [y, m, d] = dateStr.split("-");
-  return `${y}년 ${parseInt(m)}월 ${parseInt(d)}일`;
-}
-
-function daysBetween(a: string, b: string) {
-  const da = new Date(a);
-  const db = new Date(b);
-  return Math.round((db.getTime() - da.getTime()) / 86400000);
-}
-
-function pad2ch(n: number) {
-  return String(n).padStart(2, "0");
-}
-
-function getDaysInMonthCh(year: number, month: number) {
-  return new Date(year, month + 1, 0).getDate();
-}
-
-function getFirstDayOfWeekCh(year: number, month: number) {
-  return new Date(year, month, 1).getDay();
-}
 
 /* ───── 날짜 캘린더 픽커 ───── */
 function DateCalendarPicker({
@@ -91,8 +76,8 @@ function DateCalendarPicker({
   };
 
   const WKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
-  const daysInMonth = getDaysInMonthCh(cYear, cMonth);
-  const firstDay = getFirstDayOfWeekCh(cYear, cMonth);
+  const daysInMonth = getDaysInMonth(cYear, cMonth);
+  const firstDay = getFirstDayOfWeek(cYear, cMonth);
   const cells: (number | null)[] = [];
   for (let i = 0; i < firstDay; i++) cells.push(null);
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
@@ -346,7 +331,7 @@ function DateCalendarPicker({
                     {cells.slice(wi * 7, wi * 7 + 7).map((day, di) => {
                       if (day === null)
                         return <View key={di} style={dcpS.dayCell} />;
-                      const dateStr = `${cYear}-${pad2ch(cMonth + 1)}-${pad2ch(day)}`;
+                      const dateStr = `${cYear}-${pad2(cMonth + 1)}-${pad2(day)}`;
                       const isSelected = dateStr === value;
                       return (
                         <TouchableOpacity
@@ -443,83 +428,6 @@ const dcpS = StyleSheet.create({
   },
   dayCellSelected: { backgroundColor: "#4CAF50" },
   dayText: { fontSize: 13, fontWeight: "500", color: "#2D3748" },
-});
-
-/* ───── 프로그레스 바 ───── */
-function ProgressBar({
-  label,
-  start,
-  current,
-  target,
-  unit,
-  color,
-}: {
-  label: string;
-  start: number | undefined;
-  current: number | undefined;
-  target: number | undefined;
-  unit: string;
-  color: string;
-}) {
-  if (start == null || current == null || target == null) return null;
-  const total = target - start;
-  const progress = total !== 0 ? ((current - start) / total) * 100 : 0;
-  const clamped = Math.max(0, Math.min(100, progress));
-  const isAchieved = clamped >= 100;
-
-  return (
-    <View style={ps.container}>
-      <View style={ps.headerRow}>
-        <Text style={ps.label}>{label}</Text>
-        <Text style={[ps.percent, isAchieved && { color: "#38A169" }]}>
-          {Math.round(clamped)}%
-        </Text>
-      </View>
-      <View style={ps.track}>
-        <View
-          style={[ps.fill, { width: `${clamped}%`, backgroundColor: color }]}
-        />
-      </View>
-      <View style={ps.detailRow}>
-        <Text style={ps.detail}>
-          시작: {start.toFixed(1)}
-          {unit}
-        </Text>
-        <Text style={[ps.detail, { fontWeight: "600" }]}>
-          현재: {current.toFixed(1)}
-          {unit}
-        </Text>
-        <Text style={ps.detail}>
-          목표: {target.toFixed(1)}
-          {unit}
-        </Text>
-      </View>
-    </View>
-  );
-}
-
-const ps = StyleSheet.create({
-  container: { marginBottom: 16 },
-  headerRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 6,
-  },
-  label: { fontSize: 14, fontWeight: "600", color: "#4A5568" },
-  percent: { fontSize: 14, fontWeight: "700", color: "#2D3748" },
-  track: {
-    height: 10,
-    backgroundColor: "#EDF2F7",
-    borderRadius: 5,
-    overflow: "hidden",
-  },
-  fill: { height: "100%", borderRadius: 5 },
-  detailRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 4,
-  },
-  detail: { fontSize: 11, color: "#A0AEC0" },
 });
 
 /* ───── MAIN ───── */
