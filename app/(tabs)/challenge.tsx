@@ -890,62 +890,189 @@ export default function ChallengeScreen() {
 
         {/* 이전 챌린지 기록 */}
         {history.length > 0 && (
-          <View style={st.card}>
-            <Text style={st.cardTitle}>이전 챌린지</Text>
+          <View style={{ marginBottom: 16 }}>
+            <Text style={[st.cardTitle, { marginBottom: 12, marginTop: 4 }]}>
+              이전 챌린지
+            </Text>
             {history.map((h, idx) => {
               const c = h.challenge;
+
+              /* ── 수치별 개별 달성률 계산 (마이너스 가능) ── */
+              type MetricRow = {
+                label: string;
+                unit: string;
+                start: number;
+                target: number;
+                end: number;
+                pct: number;
+              };
+              const metrics: MetricRow[] = [];
+
+              if (
+                c.startWeight != null &&
+                c.targetWeight != null &&
+                h.endWeight != null
+              ) {
+                const total = c.targetWeight - c.startWeight;
+                const pct =
+                  total !== 0
+                    ? Math.round(((h.endWeight - c.startWeight) / total) * 100)
+                    : 0;
+                metrics.push({
+                  label: "몸무게",
+                  unit: "kg",
+                  start: c.startWeight,
+                  target: c.targetWeight,
+                  end: h.endWeight,
+                  pct,
+                });
+              }
+              if (
+                c.startMuscleMass != null &&
+                c.targetMuscleMass != null &&
+                h.endMuscleMass != null
+              ) {
+                const total = c.targetMuscleMass - c.startMuscleMass;
+                const pct =
+                  total !== 0
+                    ? Math.round(
+                        ((h.endMuscleMass - c.startMuscleMass) / total) * 100
+                      )
+                    : 0;
+                metrics.push({
+                  label: "골격근량",
+                  unit: "kg",
+                  start: c.startMuscleMass,
+                  target: c.targetMuscleMass,
+                  end: h.endMuscleMass,
+                  pct,
+                });
+              }
+              if (
+                c.startBodyFatPercent != null &&
+                c.targetBodyFatPercent != null &&
+                h.endBodyFatPercent != null
+              ) {
+                const total = c.targetBodyFatPercent - c.startBodyFatPercent;
+                const pct =
+                  total !== 0
+                    ? Math.round(
+                        ((h.endBodyFatPercent - c.startBodyFatPercent) /
+                          total) *
+                          100
+                      )
+                    : 0;
+                metrics.push({
+                  label: "체지방률",
+                  unit: "%",
+                  start: c.startBodyFatPercent,
+                  target: c.targetBodyFatPercent,
+                  end: h.endBodyFatPercent,
+                  pct,
+                });
+              }
+              if (
+                c.startBodyFatMass != null &&
+                c.targetBodyFatMass != null &&
+                h.endBodyFatMass != null
+              ) {
+                const total = c.targetBodyFatMass - c.startBodyFatMass;
+                const pct =
+                  total !== 0
+                    ? Math.round(
+                        ((h.endBodyFatMass - c.startBodyFatMass) / total) * 100
+                      )
+                    : 0;
+                metrics.push({
+                  label: "체지방량",
+                  unit: "kg",
+                  start: c.startBodyFatMass,
+                  target: c.targetBodyFatMass,
+                  end: h.endBodyFatMass,
+                  pct,
+                });
+              }
+
+              const avgPct =
+                metrics.length > 0
+                  ? Math.round(
+                      metrics.reduce((s, m) => s + m.pct, 0) / metrics.length
+                    )
+                  : (h.overallProgress ?? 0);
+
+              /* 카드 색상: 성공(100%+)=초록, 0~99=노랑, <0=빨강 */
+              const cardBg =
+                avgPct >= 100 ? "#E6F4EA" : avgPct >= 0 ? "#FFF9E6" : "#FDE8E8";
+              const cardBorder =
+                avgPct >= 100 ? "#38A169" : avgPct >= 0 ? "#D69E2E" : "#E53E3E";
+              const pctColor =
+                avgPct >= 100 ? "#276749" : avgPct >= 0 ? "#975A16" : "#C53030";
+
+              const metricPctColor = (p: number) =>
+                p >= 100 ? "#38A169" : p >= 0 ? "#D69E2E" : "#E53E3E";
+
               return (
-                <View key={h.id + idx} style={st.historyItem}>
-                  <View style={st.historyHeader}>
-                    <Text style={st.historyDate}>
-                      {fmtDate(c.startDate)} → {fmtDate(c.endDate)}
-                    </Text>
-                    {h.overallProgress !== null && (
-                      <Text
-                        style={[
-                          st.historyPercent,
-                          h.overallProgress >= 100 && { color: "#38A169" },
-                        ]}
-                      >
-                        {h.overallProgress}%
+                <View
+                  key={h.id + idx}
+                  style={[
+                    st.hCard,
+                    {
+                      backgroundColor: cardBg,
+                      borderLeftColor: cardBorder,
+                    },
+                  ]}
+                >
+                  {/* 상단: 날짜 + 큰 퍼센트 */}
+                  <View style={st.hCardTop}>
+                    <View>
+                      <Text style={st.hCardDate}>
+                        {fmtDate(c.startDate)} → {fmtDate(c.endDate)}
                       </Text>
-                    )}
+                    </View>
+                    <View style={st.hCardPctBox}>
+                      <Text style={[st.hCardPct, { color: pctColor }]}>
+                        {avgPct > 0 ? "+" : ""}
+                        {avgPct}%
+                      </Text>
+                    </View>
                   </View>
-                  <View style={st.historyDetails}>
-                    {c.targetWeight != null && (
-                      <Text style={st.historyDetail}>
-                        몸무게 목표: {c.targetWeight}kg
-                        {h.endWeight != null ? ` → 결과: ${h.endWeight}kg` : ""}
-                      </Text>
-                    )}
-                    {c.targetMuscleMass != null && (
-                      <Text style={st.historyDetail}>
-                        골격근 목표: {c.targetMuscleMass}kg
-                        {h.endMuscleMass != null
-                          ? ` → 결과: ${h.endMuscleMass}kg`
-                          : ""}
-                      </Text>
-                    )}
-                    {c.targetBodyFatPercent != null && (
-                      <Text style={st.historyDetail}>
-                        체지방 목표: {c.targetBodyFatPercent}%
-                        {h.endBodyFatPercent != null
-                          ? ` → 결과: ${h.endBodyFatPercent}%`
-                          : ""}
-                      </Text>
-                    )}
-                    {c.targetBodyFatMass != null && (
-                      <Text style={st.historyDetail}>
-                        체지방량 목표: {c.targetBodyFatMass}kg
-                        {h.endBodyFatMass != null
-                          ? ` → 결과: ${h.endBodyFatMass}kg`
-                          : ""}
-                      </Text>
-                    )}
-                  </View>
-                  <Text style={st.historyCompleted}>
-                    완료: {new Date(h.completedAt).toLocaleDateString("ko-KR")}
-                  </Text>
+
+                  {/* 수치별 상세 */}
+                  {metrics.length > 0 && (
+                    <View style={st.hMetrics}>
+                      {metrics.map((m) => (
+                        <View key={m.label} style={st.hMetricRow}>
+                          <View style={st.hMetricLabelRow}>
+                            <Text style={st.hMetricLabel}>{m.label}</Text>
+                            <Text style={st.hMetricLabelTarget}>
+                              (목표 {m.target}
+                              {m.unit})
+                            </Text>
+                          </View>
+                          <View style={st.hMetricValues}>
+                            <Text style={st.hMetricValue}>
+                              {m.start}
+                              {m.unit}
+                            </Text>
+                            <Text style={st.hMetricArrow}> → </Text>
+                            <Text style={st.hMetricValue}>
+                              {m.end}
+                              {m.unit}
+                            </Text>
+                            <Text
+                              style={[
+                                st.hMetricPct,
+                                { color: metricPctColor(m.pct) },
+                              ]}
+                            >
+                              {m.pct > 0 ? "+" : ""}
+                              {m.pct}%
+                            </Text>
+                          </View>
+                        </View>
+                      ))}
+                    </View>
+                  )}
                 </View>
               );
             })}
@@ -1171,4 +1298,85 @@ const st = StyleSheet.create({
   historyDetails: { gap: 2, marginBottom: 4 },
   historyDetail: { fontSize: 13, color: "#4A5568" },
   historyCompleted: { fontSize: 11, color: "#A0AEC0", marginTop: 4 },
+
+  /* history card (색상 카드) */
+  hCard: {
+    borderRadius: 14,
+    paddingTop: 12,
+    paddingLeft: 16,
+    paddingRight: 16,
+    paddingBottom: 16,
+    marginBottom: 12,
+    borderLeftWidth: 5,
+  },
+  hCardTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  hCardDate: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#2D3748",
+  },
+  hCardCompleted: {
+    fontSize: 11,
+    color: "#718096",
+    marginTop: 3,
+  },
+  hCardPctBox: {
+    alignItems: "flex-end",
+    marginLeft: 12,
+  },
+  hCardPct: {
+    fontSize: 28,
+    fontWeight: "800",
+  },
+  hCardPctLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    marginTop: 1,
+  },
+
+  /* 수치별 상세 */
+  hMetrics: {
+    marginTop: 8,
+    gap: 8,
+  },
+  hMetricRow: {
+    gap: 2,
+  },
+  hMetricLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginBottom: 1,
+  },
+  hMetricLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#4A5568",
+  },
+  hMetricLabelTarget: {
+    fontSize: 11,
+    color: "#718096",
+  },
+  hMetricValues: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+  },
+  hMetricValue: {
+    fontSize: 12,
+    color: "#4A5568",
+  },
+  hMetricArrow: {
+    fontSize: 12,
+    color: "#A0AEC0",
+  },
+  hMetricPct: {
+    fontSize: 13,
+    fontWeight: "700",
+    marginLeft: 8,
+  },
 });
