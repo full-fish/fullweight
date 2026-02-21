@@ -1165,7 +1165,12 @@ export default function CalendarScreen() {
                       style={s.modalPhoto}
                     />
                   )}
-                  <View style={s.modalBadges}>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    nestedScrollEnabled
+                    contentContainerStyle={s.modalBadges}
+                  >
                     {selectedRecord.exercised && (
                       <View style={[s.badge, s.badgeGreen]}>
                         <Text style={s.badgeText}>운동</Text>
@@ -1191,7 +1196,7 @@ export default function CalendarScreen() {
                         </View>
                       ) : null
                     )}
-                  </View>
+                  </ScrollView>
 
                   {/* 수정/삭제 버튼 */}
                   <View style={s.modalActionRow}>
@@ -1828,10 +1833,9 @@ const s = StyleSheet.create({
   },
   modalBadges: {
     flexDirection: "row",
-    flexWrap: "wrap",
     gap: 8,
     marginTop: 14,
-    justifyContent: "center",
+    alignItems: "center",
   },
   badge: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20 },
   badgeGreen: { backgroundColor: "#E8F5E9" },
