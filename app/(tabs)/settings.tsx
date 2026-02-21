@@ -1,5 +1,10 @@
 import { SwipeableTab } from "@/components/swipeable-tab";
 import {
+  BUILTIN_OPTIONAL_METRICS,
+  CUSTOM_METRIC_COLORS,
+  CustomMetric,
+} from "@/types";
+import {
   exchangeCodeForToken,
   getBackupList,
   getLastBackupTime,
@@ -371,6 +376,20 @@ export default function SettingsScreen() {
   const [newPin, setNewPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
 
+  // ── 수치 관리 상태 ──
+  const [metricInputVisibility, setMetricInputVisibility] = useState<
+    Record<string, boolean>
+  >({});
+  const [metricDisplayVisibility, setMetricDisplayVisibility] = useState<
+    Record<string, boolean>
+  >({});
+  const [customMetrics, setCustomMetrics] = useState<CustomMetric[]>([]);
+  const [showAddMetric, setShowAddMetric] = useState(false);
+  const [newMetricLabel, setNewMetricLabel] = useState("");
+  const [newMetricUnit, setNewMetricUnit] = useState("");
+  const [inputSectionOpen, setInputSectionOpen] = useState(false);
+  const [displaySectionOpen, setDisplaySectionOpen] = useState(false);
+
   // ── Google Drive 백업 상태 ──
   const [googleEmail, setGoogleEmail] = useState<string | null>(null);
   const [isGoogleSignedIn, setIsGoogleSignedIn] = useState(false);
@@ -396,6 +415,9 @@ export default function SettingsScreen() {
         setLockEnabled(settings.lockEnabled ?? false);
         setLockPin(settings.lockPin ?? "");
         setLockBiometric(settings.lockBiometric ?? false);
+        setMetricInputVisibility(settings.metricInputVisibility ?? {});
+        setMetricDisplayVisibility(settings.metricDisplayVisibility ?? {});
+        setCustomMetrics(settings.customMetrics ?? []);
       });
 
       // Google 로그인 상태 & 마지막 백업 시간 불러오기
@@ -583,7 +605,9 @@ export default function SettingsScreen() {
     // age is computed from birthDate for backward compat
     const age = bd ? (calcAge(bd) ?? undefined) : undefined;
 
+    const cur = await loadUserSettings();
     await saveUserSettings({
+      ...cur,
       height: h,
       birthDate: bd,
       gender,
@@ -892,6 +916,386 @@ export default function SettingsScreen() {
             </>
           )}
         </View>
+
+        {/* 수치 입력 설정 */}
+        <View style={s.card}>
+          <TouchableOpacity
+            onPress={() => setInputSectionOpen((v) => !v)}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+            activeOpacity={0.7}
+          >
+            <Text style={s.cardTitle}>수치 입력 설정</Text>
+            <Text style={{ fontSize: 16, color: "#A0AEC0", marginBottom: 2 }}>
+              {inputSectionOpen ? "▲" : "▼"}
+            </Text>
+          </TouchableOpacity>
+          {inputSectionOpen && (
+            <Text
+              style={{
+                fontSize: 12,
+                color: "#A0AEC0",
+                marginBottom: 12,
+                marginTop: 4,
+              }}
+            >
+              기록 작성 시 표시할 입력란을 선택합니다
+            </Text>
+          )}
+          {inputSectionOpen &&
+            BUILTIN_OPTIONAL_METRICS.map((m) => (
+              <View key={m.key} style={s.infoRow}>
+                <Text style={s.infoLabel}>
+                  {m.label} ({m.unit})
+                </Text>
+                <Switch
+                  value={metricInputVisibility[m.key] !== false}
+                  onValueChange={async (v) => {
+                    const next = { ...metricInputVisibility, [m.key]: v };
+                    setMetricInputVisibility(next);
+                    const cur = await loadUserSettings();
+                    await saveUserSettings({
+                      ...cur,
+                      metricInputVisibility: next,
+                    });
+                  }}
+                  trackColor={{ false: "#E2E8F0", true: "#68D391" }}
+                  thumbColor={
+                    metricInputVisibility[m.key] !== false ? "#38A169" : "#fff"
+                  }
+                />
+              </View>
+            ))}
+          {inputSectionOpen &&
+            customMetrics.map((cm) => (
+              <View key={cm.key} style={s.infoRow}>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 6,
+                    flex: 1,
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: 5,
+                      backgroundColor: cm.color,
+                    }}
+                  />
+                  <Text style={s.infoLabel}>
+                    {cm.label} ({cm.unit})
+                  </Text>
+                </View>
+                <Switch
+                  value={metricInputVisibility[cm.key] !== false}
+                  onValueChange={async (v) => {
+                    const next = { ...metricInputVisibility, [cm.key]: v };
+                    setMetricInputVisibility(next);
+                    const cur = await loadUserSettings();
+                    await saveUserSettings({
+                      ...cur,
+                      metricInputVisibility: next,
+                    });
+                  }}
+                  trackColor={{ false: "#E2E8F0", true: "#68D391" }}
+                  thumbColor={
+                    metricInputVisibility[cm.key] !== false ? "#38A169" : "#fff"
+                  }
+                />
+              </View>
+            ))}
+        </View>
+
+        {/* 수치 표시 설정 */}
+        <View style={s.card}>
+          <TouchableOpacity
+            onPress={() => setDisplaySectionOpen((v) => !v)}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+            activeOpacity={0.7}
+          >
+            <Text style={s.cardTitle}>수치 표시 설정</Text>
+            <Text style={{ fontSize: 16, color: "#A0AEC0", marginBottom: 2 }}>
+              {displaySectionOpen ? "▲" : "▼"}
+            </Text>
+          </TouchableOpacity>
+          {displaySectionOpen && (
+            <Text
+              style={{
+                fontSize: 12,
+                color: "#A0AEC0",
+                marginBottom: 12,
+                marginTop: 4,
+              }}
+            >
+              기록 목록, 그래프, 캘린더에서 표시할 수치를 선택합니다
+            </Text>
+          )}
+          {displaySectionOpen &&
+            BUILTIN_OPTIONAL_METRICS.map((m) => (
+              <View key={m.key} style={s.infoRow}>
+                <Text style={s.infoLabel}>
+                  {m.label} ({m.unit})
+                </Text>
+                <Switch
+                  value={metricDisplayVisibility[m.key] !== false}
+                  onValueChange={async (v) => {
+                    const next = { ...metricDisplayVisibility, [m.key]: v };
+                    setMetricDisplayVisibility(next);
+                    const cur = await loadUserSettings();
+                    await saveUserSettings({
+                      ...cur,
+                      metricDisplayVisibility: next,
+                    });
+                  }}
+                  trackColor={{ false: "#E2E8F0", true: "#68D391" }}
+                  thumbColor={
+                    metricDisplayVisibility[m.key] !== false
+                      ? "#38A169"
+                      : "#fff"
+                  }
+                />
+              </View>
+            ))}
+          {displaySectionOpen &&
+            customMetrics.map((cm) => (
+              <View key={cm.key} style={s.infoRow}>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 6,
+                    flex: 1,
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: 5,
+                      backgroundColor: cm.color,
+                    }}
+                  />
+                  <Text style={s.infoLabel}>
+                    {cm.label} ({cm.unit})
+                  </Text>
+                </View>
+                <Switch
+                  value={metricDisplayVisibility[cm.key] !== false}
+                  onValueChange={async (v) => {
+                    const next = { ...metricDisplayVisibility, [cm.key]: v };
+                    setMetricDisplayVisibility(next);
+                    const cur = await loadUserSettings();
+                    await saveUserSettings({
+                      ...cur,
+                      metricDisplayVisibility: next,
+                    });
+                  }}
+                  trackColor={{ false: "#E2E8F0", true: "#68D391" }}
+                  thumbColor={
+                    metricDisplayVisibility[cm.key] !== false
+                      ? "#38A169"
+                      : "#fff"
+                  }
+                />
+              </View>
+            ))}
+        </View>
+
+        {/* 사용자 정의 수치 관리 */}
+        <View style={s.card}>
+          <Text style={s.cardTitle}>사용자 정의 수치</Text>
+          <Text
+            style={{
+              fontSize: 12,
+              color: "#A0AEC0",
+              marginBottom: 12,
+              marginTop: -8,
+            }}
+          >
+            원하는 수치를 직접 추가할 수 있습니다
+          </Text>
+          {customMetrics.map((cm) => (
+            <View key={cm.key} style={s.infoRow}>
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 6,
+                  flex: 1,
+                }}
+              >
+                <View
+                  style={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: 5,
+                    backgroundColor: cm.color,
+                  }}
+                />
+                <Text style={s.infoLabel}>
+                  {cm.label} ({cm.unit})
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => {
+                  Alert.alert(
+                    "수치 삭제",
+                    `"${cm.label}" 수치를 삭제하시겠습니까?\n이미 입력된 데이터는 유지됩니다.`,
+                    [
+                      { text: "취소", style: "cancel" },
+                      {
+                        text: "삭제",
+                        style: "destructive",
+                        onPress: async () => {
+                          const next = customMetrics.filter(
+                            (c) => c.key !== cm.key
+                          );
+                          setCustomMetrics(next);
+                          const cur = await loadUserSettings();
+                          await saveUserSettings({
+                            ...cur,
+                            customMetrics: next,
+                          });
+                        },
+                      },
+                    ]
+                  );
+                }}
+              >
+                <Text
+                  style={{ fontSize: 13, color: "#E53E3E", fontWeight: "600" }}
+                >
+                  삭제
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ))}
+          <TouchableOpacity
+            style={{
+              marginTop: 8,
+              backgroundColor: "#EBF8FF",
+              borderRadius: 10,
+              paddingVertical: 12,
+              alignItems: "center",
+            }}
+            onPress={() => {
+              setNewMetricLabel("");
+              setNewMetricUnit("");
+              setShowAddMetric(true);
+            }}
+          >
+            <Text style={{ fontSize: 14, fontWeight: "600", color: "#3182CE" }}>
+              + 수치 추가
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* 사용자 정의 수치 추가 모달 */}
+        <Modal
+          visible={showAddMetric}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowAddMetric(false)}
+        >
+          <TouchableOpacity
+            style={s.pinModalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowAddMetric(false)}
+          >
+            <View style={s.pinModalCard} onStartShouldSetResponder={() => true}>
+              <Text style={s.pinModalTitle}>수치 추가</Text>
+              <Text style={s.pinModalDesc}>
+                기록할 수치의 이름과 단위를 입력하세요
+              </Text>
+
+              <View style={{ width: "100%", marginBottom: 12 }}>
+                <Text
+                  style={{ fontSize: 13, color: "#4A5568", marginBottom: 4 }}
+                >
+                  이름
+                </Text>
+                <TextInput
+                  style={[s.input, { width: "100%", textAlign: "left" }]}
+                  value={newMetricLabel}
+                  onChangeText={setNewMetricLabel}
+                  placeholder="예: 악력, 혈압, 혈당"
+                  placeholderTextColor="#A0AEC0"
+                  returnKeyType="next"
+                />
+              </View>
+              <View style={{ width: "100%", marginBottom: 20 }}>
+                <Text
+                  style={{ fontSize: 13, color: "#4A5568", marginBottom: 4 }}
+                >
+                  단위
+                </Text>
+                <TextInput
+                  style={[s.input, { width: "100%", textAlign: "left" }]}
+                  value={newMetricUnit}
+                  onChangeText={setNewMetricUnit}
+                  placeholder="예: kg, mmHg, mg/dL"
+                  placeholderTextColor="#A0AEC0"
+                  returnKeyType="done"
+                />
+              </View>
+
+              <View style={{ flexDirection: "row", gap: 10, width: "100%" }}>
+                <TouchableOpacity
+                  style={[s.saveBtn, { flex: 1, marginTop: 0 }]}
+                  onPress={async () => {
+                    const label = newMetricLabel.trim();
+                    const unit = newMetricUnit.trim();
+                    if (!label) {
+                      Alert.alert("입력 오류", "수치 이름을 입력해주세요.");
+                      return;
+                    }
+                    if (!unit) {
+                      Alert.alert("입력 오류", "단위를 입력해주세요.");
+                      return;
+                    }
+                    const key = `custom_${Date.now()}`;
+                    const colorIdx =
+                      customMetrics.length % CUSTOM_METRIC_COLORS.length;
+                    const color = CUSTOM_METRIC_COLORS[colorIdx];
+                    const newCm: CustomMetric = { key, label, unit, color };
+                    const next = [...customMetrics, newCm];
+                    setCustomMetrics(next);
+                    const cur = await loadUserSettings();
+                    await saveUserSettings({ ...cur, customMetrics: next });
+                    setShowAddMetric(false);
+                    Alert.alert(
+                      "추가 완료",
+                      `"${label}" 수치가 추가되었습니다.`
+                    );
+                  }}
+                >
+                  <Text style={s.saveBtnText}>추가</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    s.saveBtn,
+                    { flex: 1, marginTop: 0, backgroundColor: "#EDF2F7" },
+                  ]}
+                  onPress={() => setShowAddMetric(false)}
+                >
+                  <Text style={[s.saveBtnText, { color: "#718096" }]}>
+                    취소
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </TouchableOpacity>
+        </Modal>
 
         {/* PIN 설정 모달 */}
         <Modal

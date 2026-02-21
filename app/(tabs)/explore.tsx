@@ -7,6 +7,7 @@ import {
   METRIC_UNITS,
   MetricKey,
   PeriodMode,
+  UserSettings,
   WeightRecord,
 } from "@/types";
 import {
@@ -19,7 +20,7 @@ import {
   monthKey,
   weekKey,
 } from "@/utils/format";
-import { loadRecords } from "@/utils/storage";
+import { loadRecords, loadUserSettings } from "@/utils/storage";
 import { useFocusEffect } from "@react-navigation/native";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
@@ -40,6 +41,7 @@ const CHART_WIDTH = width - 48;
 
 export default function ChartScreen() {
   const [allRecords, setAllRecords] = useState<WeightRecord[]>([]);
+  const [userSettings, setUserSettings] = useState<UserSettings>({});
   const [selectedMetrics, setSelectedMetrics] = useState<MetricKey[]>([
     "weight",
   ]);
@@ -87,6 +89,7 @@ export default function ChartScreen() {
       loadRecords().then((data) => {
         setAllRecords([...data].sort((a, b) => a.date.localeCompare(b.date)));
       });
+      loadUserSettings().then(setUserSettings);
     }, [])
   );
 
@@ -484,13 +487,16 @@ export default function ChartScreen() {
     );
   };
 
-  const METRICS: MetricKey[] = [
+  const ALL_METRICS: MetricKey[] = [
     "weight",
     "waist",
     "muscleMass",
     "bodyFatPercent",
     "bodyFatMass",
   ];
+  const METRICS = ALL_METRICS.filter(
+    (m) => m === "weight" || userSettings.metricDisplayVisibility?.[m] !== false
+  );
   const isSingle = selectedMetrics.length === 1;
   const isMulti = selectedMetrics.length > 1;
 
@@ -669,10 +675,6 @@ export default function ChartScreen() {
           <View style={s.chartCard}>
             <Text style={s.chartTitle}>
               {selectedMetrics.map((k) => METRIC_LABELS[k]).join(" · ")} 추이
-            </Text>
-
-            <Text style={s.pinchHint}>
-              가로핀치: X축 · 세로핀치: Y축 · 드래그: 이동
             </Text>
 
             {/* 오버레이 토글 (다중 선택 시) */}

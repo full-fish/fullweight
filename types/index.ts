@@ -9,6 +9,7 @@ export type WeightRecord = {
   exercised: boolean;
   drank: boolean;
   photoUri?: string; // 바디 사진 로컬 URI (선택)
+  customValues?: Record<string, number>; // 사용자 정의 수치
 };
 
 /** 그래프에서 선택 가능한 수치 종류 */
@@ -45,6 +46,40 @@ export const METRIC_COLORS: Record<MetricKey, string> = {
 
 /** 그래프 기간 모드 */
 export type PeriodMode = "daily" | "weekly" | "monthly" | "custom";
+
+/** 사용자 정의 수치 */
+export type CustomMetric = {
+  key: string;
+  label: string;
+  unit: string;
+  color: string;
+};
+
+/** 기본 제공 선택 수치 목록 */
+export const BUILTIN_OPTIONAL_METRICS: {
+  key: MetricKey;
+  label: string;
+  unit: string;
+}[] = [
+  { key: "waist", label: "허리둘레", unit: "cm" },
+  { key: "muscleMass", label: "골격근량", unit: "kg" },
+  { key: "bodyFatPercent", label: "체지방률", unit: "%" },
+  { key: "bodyFatMass", label: "체지방량", unit: "kg" },
+];
+
+/** 사용자 정의 수치 기본 색상 팔레트 */
+export const CUSTOM_METRIC_COLORS = [
+  "#00BCD4",
+  "#795548",
+  "#607D8B",
+  "#FF5722",
+  "#3F51B5",
+  "#009688",
+  "#CDDC39",
+  "#FF4081",
+  "#536DFE",
+  "#69F0AE",
+];
 
 /** 챌린지 (목표 설정) */
 export type Challenge = {
@@ -84,4 +119,10 @@ export type UserSettings = {
   lockEnabled?: boolean; // 앱 잠금 활성화
   lockPin?: string; // 4자리 PIN
   lockBiometric?: boolean; // 생체인증 사용
+  /** 수치 입력 표시 여부 (기록 작성 시) — 미설정=true */
+  metricInputVisibility?: Record<string, boolean>;
+  /** 수치 표시 여부 (기록목록/그래프/캘린더) — 미설정=true */
+  metricDisplayVisibility?: Record<string, boolean>;
+  /** 사용자 정의 수치 목록 */
+  customMetrics?: CustomMetric[];
 };

@@ -45,6 +45,7 @@ export default function HomeScreen() {
   const [drank, setDrank] = useState(false);
   const [photoUri, setPhotoUri] = useState<string | undefined>(undefined);
   const scrollRef = useRef<ScrollView>(null);
+  const [customInputs, setCustomInputs] = useState<Record<string, string>>({});
 
   const [userSettings, setUserSettings] = useState<UserSettings>({});
 
@@ -59,6 +60,9 @@ export default function HomeScreen() {
   const [emExercised, setEmExercised] = useState(false);
   const [emDrank, setEmDrank] = useState(false);
   const [emPhotoUri, setEmPhotoUri] = useState<string | undefined>(undefined);
+  const [emCustomInputs, setEmCustomInputs] = useState<Record<string, string>>(
+    {}
+  );
 
   const loadAndSetRecords = useCallback(async () => {
     const data = await loadRecords();
@@ -80,6 +84,14 @@ export default function HomeScreen() {
         setExercised(existing.exercised);
         setDrank(existing.drank);
         setPhotoUri(existing.photoUri);
+        // 사용자 정의 수치
+        const ci: Record<string, string> = {};
+        if (existing.customValues) {
+          for (const [k, v] of Object.entries(existing.customValues)) {
+            ci[k] = v.toString();
+          }
+        }
+        setCustomInputs(ci);
       } else {
         // Pre-fill weight with most recent record
         const sorted = [...allRecords].sort((a, b) =>
@@ -95,6 +107,7 @@ export default function HomeScreen() {
         setExercised(false);
         setDrank(false);
         setPhotoUri(undefined);
+        setCustomInputs({});
       }
     },
     []
@@ -122,6 +135,13 @@ export default function HomeScreen() {
       setExercised(existing.exercised);
       setDrank(existing.drank);
       setPhotoUri(existing.photoUri);
+      const ci: Record<string, string> = {};
+      if (existing.customValues) {
+        for (const [k, v] of Object.entries(existing.customValues)) {
+          ci[k] = v.toString();
+        }
+      }
+      setCustomInputs(ci);
     } else {
       // Pre-fill weight with most recent record
       const sorted = [...records].sort((a, b) => b.date.localeCompare(a.date));
@@ -134,6 +154,7 @@ export default function HomeScreen() {
       setExercised(false);
       setDrank(false);
       setPhotoUri(undefined);
+      setCustomInputs({});
     }
   };
 
@@ -142,6 +163,11 @@ export default function HomeScreen() {
     if (!weight || isNaN(w) || w <= 0) {
       Alert.alert("입력 오류", "올바른 몸무게를 입력해주세요.");
       return;
+    }
+    const customValues: Record<string, number> = {};
+    for (const [k, v] of Object.entries(customInputs)) {
+      const num = parseFloat(v);
+      if (v && !isNaN(num)) customValues[k] = num;
     }
     const record: WeightRecord = {
       id: selectedDate,
@@ -154,6 +180,8 @@ export default function HomeScreen() {
       exercised,
       drank,
       photoUri,
+      customValues:
+        Object.keys(customValues).length > 0 ? customValues : undefined,
     };
     const updated = await upsertRecord(record);
     setRecords([...updated].sort((a, b) => b.date.localeCompare(a.date)));
@@ -178,6 +206,7 @@ export default function HomeScreen() {
             setExercised(false);
             setDrank(false);
             setPhotoUri(undefined);
+            setCustomInputs({});
           }
         },
       },
@@ -194,6 +223,13 @@ export default function HomeScreen() {
     setEmExercised(record.exercised);
     setEmDrank(record.drank);
     setEmPhotoUri(record.photoUri);
+    const ci: Record<string, string> = {};
+    if (record.customValues) {
+      for (const [k, v] of Object.entries(record.customValues)) {
+        ci[k] = v.toString();
+      }
+    }
+    setEmCustomInputs(ci);
     setShowEditModal(true);
   };
 
@@ -203,6 +239,11 @@ export default function HomeScreen() {
     if (!emWeight || isNaN(w) || w <= 0) {
       Alert.alert("입력 오류", "올바른 몸무게를 입력해주세요.");
       return;
+    }
+    const emCustomValues: Record<string, number> = {};
+    for (const [k, v] of Object.entries(emCustomInputs)) {
+      const num = parseFloat(v);
+      if (v && !isNaN(num)) emCustomValues[k] = num;
     }
     const updated: WeightRecord = {
       id: editRecord.id,
@@ -217,6 +258,8 @@ export default function HomeScreen() {
       exercised: emExercised,
       drank: emDrank,
       photoUri: emPhotoUri,
+      customValues:
+        Object.keys(emCustomValues).length > 0 ? emCustomValues : undefined,
     };
     const newRecords = await upsertRecord(updated);
     setRecords([...newRecords].sort((a, b) => b.date.localeCompare(a.date)));
@@ -335,74 +378,114 @@ export default function HomeScreen() {
               <Text style={styles.unit}>kg</Text>
             </View>
 
-            <Text style={styles.label}>허리둘레 (선택)</Text>
-            <View style={styles.inputRow}>
-              <TextInput
-                style={styles.input}
-                value={waist}
-                onChangeText={setWaist}
-                placeholder="0.0"
-                placeholderTextColor="#aaa"
-                keyboardType="decimal-pad"
-              />
-              <Text style={styles.unit}>cm</Text>
-            </View>
+            {userSettings.metricInputVisibility?.waist !== false && (
+              <>
+                <Text style={styles.label}>허리둘레</Text>
+                <View style={styles.inputRow}>
+                  <TextInput
+                    style={styles.input}
+                    value={waist}
+                    onChangeText={setWaist}
+                    placeholder="0.0"
+                    placeholderTextColor="#aaa"
+                    keyboardType="decimal-pad"
+                  />
+                  <Text style={styles.unit}>cm</Text>
+                </View>
+              </>
+            )}
 
-            <Text style={styles.label}>골격근량 (선택)</Text>
-            <View style={styles.inputRow}>
-              <TextInput
-                style={styles.input}
-                value={muscleMass}
-                onChangeText={setMuscleMass}
-                placeholder="0.0"
-                placeholderTextColor="#aaa"
-                keyboardType="decimal-pad"
-              />
-              <Text style={styles.unit}>kg</Text>
-            </View>
+            {userSettings.metricInputVisibility?.muscleMass !== false && (
+              <>
+                <Text style={styles.label}>골격근량</Text>
+                <View style={styles.inputRow}>
+                  <TextInput
+                    style={styles.input}
+                    value={muscleMass}
+                    onChangeText={setMuscleMass}
+                    placeholder="0.0"
+                    placeholderTextColor="#aaa"
+                    keyboardType="decimal-pad"
+                  />
+                  <Text style={styles.unit}>kg</Text>
+                </View>
+              </>
+            )}
 
-            <Text style={styles.label}>체지방률 (선택)</Text>
-            <View style={styles.inputRow}>
-              <TextInput
-                style={styles.input}
-                value={bodyFatPercent}
-                onChangeText={(v) => {
-                  setBodyFatPercent(v);
-                  const w = parseFloat(weight);
-                  const p = parseFloat(v);
-                  if (w > 0 && p >= 0 && !isNaN(p)) {
-                    setBodyFatMass(((w * p) / 100).toFixed(1));
-                  }
-                }}
-                placeholder="0.0"
-                placeholderTextColor="#aaa"
-                keyboardType="decimal-pad"
-              />
-              <Text style={styles.unit}>%</Text>
-            </View>
+            {userSettings.metricInputVisibility?.bodyFatPercent !== false && (
+              <>
+                <Text style={styles.label}>체지방률</Text>
+                <View style={styles.inputRow}>
+                  <TextInput
+                    style={styles.input}
+                    value={bodyFatPercent}
+                    onChangeText={(v) => {
+                      setBodyFatPercent(v);
+                      const w = parseFloat(weight);
+                      const p = parseFloat(v);
+                      if (w > 0 && p >= 0 && !isNaN(p)) {
+                        setBodyFatMass(((w * p) / 100).toFixed(1));
+                      }
+                    }}
+                    placeholder="0.0"
+                    placeholderTextColor="#aaa"
+                    keyboardType="decimal-pad"
+                  />
+                  <Text style={styles.unit}>%</Text>
+                </View>
+              </>
+            )}
 
-            <Text style={styles.label}>체지방량 (선택)</Text>
-            <View style={styles.inputRow}>
-              <TextInput
-                style={styles.input}
-                value={bodyFatMass}
-                onChangeText={(v) => {
-                  setBodyFatMass(v);
-                  const w = parseFloat(weight);
-                  const m = parseFloat(v);
-                  if (w > 0 && m >= 0 && !isNaN(m)) {
-                    setBodyFatPercent(((m / w) * 100).toFixed(1));
-                  }
-                }}
-                placeholder="0.0"
-                placeholderTextColor="#aaa"
-                keyboardType="decimal-pad"
-              />
-              <Text style={styles.unit}>kg</Text>
-            </View>
+            {userSettings.metricInputVisibility?.bodyFatMass !== false && (
+              <>
+                <Text style={styles.label}>체지방량</Text>
+                <View style={styles.inputRow}>
+                  <TextInput
+                    style={styles.input}
+                    value={bodyFatMass}
+                    onChangeText={(v) => {
+                      setBodyFatMass(v);
+                      const w = parseFloat(weight);
+                      const m = parseFloat(v);
+                      if (w > 0 && m >= 0 && !isNaN(m)) {
+                        setBodyFatPercent(((m / w) * 100).toFixed(1));
+                      }
+                    }}
+                    placeholder="0.0"
+                    placeholderTextColor="#aaa"
+                    keyboardType="decimal-pad"
+                  />
+                  <Text style={styles.unit}>kg</Text>
+                </View>
+              </>
+            )}
+
+            {/* 사용자 정의 수치 */}
+            {(userSettings.customMetrics ?? [])
+              .filter(
+                (cm) => userSettings.metricInputVisibility?.[cm.key] !== false
+              )
+              .map((cm) => (
+                <View key={cm.key}>
+                  <Text style={styles.label}>{cm.label}</Text>
+                  <View style={styles.inputRow}>
+                    <TextInput
+                      style={styles.input}
+                      value={customInputs[cm.key] ?? ""}
+                      onChangeText={(v) =>
+                        setCustomInputs((prev) => ({ ...prev, [cm.key]: v }))
+                      }
+                      placeholder="0.0"
+                      placeholderTextColor="#aaa"
+                      keyboardType="decimal-pad"
+                    />
+                    <Text style={styles.unit}>{cm.unit}</Text>
+                  </View>
+                </View>
+              ))}
 
             {/* 사진 */}
-            <Text style={styles.label}>바디 사진 (선택)</Text>
+            <Text style={styles.label}>바디 사진</Text>
             <View style={styles.photoSection}>
               {photoUri ? (
                 <View style={styles.photoPreviewWrap}>
@@ -549,24 +632,46 @@ export default function HomeScreen() {
                       </View>
                     );
                   })()}
-                {record.waist != null && (
-                  <Text style={styles.recordSub}>허리: {record.waist} cm</Text>
-                )}
-                {record.muscleMass != null && (
-                  <Text style={styles.recordSub}>
-                    골격근: {record.muscleMass} kg
-                  </Text>
-                )}
-                {record.bodyFatPercent != null && (
-                  <Text style={styles.recordSub}>
-                    체지방률: {record.bodyFatPercent} %
-                  </Text>
-                )}
-                {record.bodyFatMass != null && (
-                  <Text style={styles.recordSub}>
-                    체지방량: {record.bodyFatMass} kg
-                  </Text>
-                )}
+                {userSettings.metricDisplayVisibility?.waist !== false &&
+                  record.waist != null && (
+                    <Text style={styles.recordSub}>
+                      허리: {record.waist} cm
+                    </Text>
+                  )}
+                {userSettings.metricDisplayVisibility?.muscleMass !== false &&
+                  record.muscleMass != null && (
+                    <Text style={styles.recordSub}>
+                      골격근: {record.muscleMass} kg
+                    </Text>
+                  )}
+                {userSettings.metricDisplayVisibility?.bodyFatPercent !==
+                  false &&
+                  record.bodyFatPercent != null && (
+                    <Text style={styles.recordSub}>
+                      체지방률: {record.bodyFatPercent} %
+                    </Text>
+                  )}
+                {userSettings.metricDisplayVisibility?.bodyFatMass !== false &&
+                  record.bodyFatMass != null && (
+                    <Text style={styles.recordSub}>
+                      체지방량: {record.bodyFatMass} kg
+                    </Text>
+                  )}
+                {/* 사용자 정의 수치 표시 */}
+                {(userSettings.customMetrics ?? [])
+                  .filter(
+                    (cm) =>
+                      userSettings.metricDisplayVisibility?.[cm.key] !== false
+                  )
+                  .map((cm) => {
+                    const val = record.customValues?.[cm.key];
+                    if (val == null) return null;
+                    return (
+                      <Text key={cm.key} style={styles.recordSub}>
+                        {cm.label}: {val} {cm.unit}
+                      </Text>
+                    );
+                  })}
                 {record.photoUri && (
                   <Image
                     source={{ uri: record.photoUri }}
@@ -635,59 +740,103 @@ export default function HomeScreen() {
                   placeholderTextColor="#aaa"
                 />
 
-                <Text style={editModalStyles.label}>허리둘레 (cm)</Text>
-                <TextInput
-                  style={editModalStyles.input}
-                  value={emWaist}
-                  onChangeText={setEmWaist}
-                  keyboardType="decimal-pad"
-                  placeholder="선택"
-                  placeholderTextColor="#aaa"
-                />
+                {userSettings.metricInputVisibility?.waist !== false && (
+                  <>
+                    <Text style={editModalStyles.label}>허리둘레 (cm)</Text>
+                    <TextInput
+                      style={editModalStyles.input}
+                      value={emWaist}
+                      onChangeText={setEmWaist}
+                      keyboardType="decimal-pad"
+                      placeholder="선택"
+                      placeholderTextColor="#aaa"
+                    />
+                  </>
+                )}
 
-                <Text style={editModalStyles.label}>골격근량 (kg)</Text>
-                <TextInput
-                  style={editModalStyles.input}
-                  value={emMuscleMass}
-                  onChangeText={setEmMuscleMass}
-                  keyboardType="decimal-pad"
-                  placeholder="선택"
-                  placeholderTextColor="#aaa"
-                />
+                {userSettings.metricInputVisibility?.muscleMass !== false && (
+                  <>
+                    <Text style={editModalStyles.label}>골격근량 (kg)</Text>
+                    <TextInput
+                      style={editModalStyles.input}
+                      value={emMuscleMass}
+                      onChangeText={setEmMuscleMass}
+                      keyboardType="decimal-pad"
+                      placeholder="선택"
+                      placeholderTextColor="#aaa"
+                    />
+                  </>
+                )}
 
-                <Text style={editModalStyles.label}>체지방률 (%)</Text>
-                <TextInput
-                  style={editModalStyles.input}
-                  value={emBodyFatPercent}
-                  onChangeText={(v) => {
-                    setEmBodyFatPercent(v);
-                    const w = parseFloat(emWeight);
-                    const p = parseFloat(v);
-                    if (w > 0 && p >= 0 && !isNaN(p)) {
-                      setEmBodyFatMass(((w * p) / 100).toFixed(1));
-                    }
-                  }}
-                  keyboardType="decimal-pad"
-                  placeholder="선택"
-                  placeholderTextColor="#aaa"
-                />
+                {userSettings.metricInputVisibility?.bodyFatPercent !==
+                  false && (
+                  <>
+                    <Text style={editModalStyles.label}>체지방률 (%)</Text>
+                    <TextInput
+                      style={editModalStyles.input}
+                      value={emBodyFatPercent}
+                      onChangeText={(v) => {
+                        setEmBodyFatPercent(v);
+                        const w = parseFloat(emWeight);
+                        const p = parseFloat(v);
+                        if (w > 0 && p >= 0 && !isNaN(p)) {
+                          setEmBodyFatMass(((w * p) / 100).toFixed(1));
+                        }
+                      }}
+                      keyboardType="decimal-pad"
+                      placeholder="선택"
+                      placeholderTextColor="#aaa"
+                    />
+                  </>
+                )}
 
-                <Text style={editModalStyles.label}>체지방량 (kg)</Text>
-                <TextInput
-                  style={editModalStyles.input}
-                  value={emBodyFatMass}
-                  onChangeText={(v) => {
-                    setEmBodyFatMass(v);
-                    const w = parseFloat(emWeight);
-                    const m = parseFloat(v);
-                    if (w > 0 && m >= 0 && !isNaN(m)) {
-                      setEmBodyFatPercent(((m / w) * 100).toFixed(1));
-                    }
-                  }}
-                  keyboardType="decimal-pad"
-                  placeholder="선택"
-                  placeholderTextColor="#aaa"
-                />
+                {userSettings.metricInputVisibility?.bodyFatMass !== false && (
+                  <>
+                    <Text style={editModalStyles.label}>체지방량 (kg)</Text>
+                    <TextInput
+                      style={editModalStyles.input}
+                      value={emBodyFatMass}
+                      onChangeText={(v) => {
+                        setEmBodyFatMass(v);
+                        const w = parseFloat(emWeight);
+                        const m = parseFloat(v);
+                        if (w > 0 && m >= 0 && !isNaN(m)) {
+                          setEmBodyFatPercent(((m / w) * 100).toFixed(1));
+                        }
+                      }}
+                      keyboardType="decimal-pad"
+                      placeholder="선택"
+                      placeholderTextColor="#aaa"
+                    />
+                  </>
+                )}
+
+                {/* 사용자 정의 수치 */}
+                {(userSettings.customMetrics ?? [])
+                  .filter(
+                    (cm) =>
+                      userSettings.metricInputVisibility?.[cm.key] !== false
+                  )
+                  .map((cm) => (
+                    <View key={cm.key}>
+                      <Text style={editModalStyles.label}>
+                        {cm.label} ({cm.unit})
+                      </Text>
+                      <TextInput
+                        style={editModalStyles.input}
+                        value={emCustomInputs[cm.key] ?? ""}
+                        onChangeText={(v) =>
+                          setEmCustomInputs((prev) => ({
+                            ...prev,
+                            [cm.key]: v,
+                          }))
+                        }
+                        keyboardType="decimal-pad"
+                        placeholder="선택"
+                        placeholderTextColor="#aaa"
+                      />
+                    </View>
+                  ))}
 
                 {/* 사진 */}
                 <Text style={editModalStyles.label}>바디 사진</Text>

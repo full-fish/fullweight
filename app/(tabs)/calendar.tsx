@@ -63,6 +63,9 @@ export default function CalendarScreen() {
   const [eExercised, setEExercised] = useState(false);
   const [eDrank, setEDrank] = useState(false);
   const [ePhotoUri, setEPhotoUri] = useState<string | undefined>(undefined);
+  const [eCustomInputs, setECustomInputs] = useState<Record<string, string>>(
+    {}
+  );
   const [userSettings, setUserSettings] = useState<UserSettings>({});
 
   useFocusEffect(
@@ -181,6 +184,13 @@ export default function CalendarScreen() {
     setEExercised(selectedRecord.exercised);
     setEDrank(selectedRecord.drank);
     setEPhotoUri(selectedRecord.photoUri);
+    const ci: Record<string, string> = {};
+    if (selectedRecord.customValues) {
+      for (const [k, v] of Object.entries(selectedRecord.customValues)) {
+        ci[k] = String(v);
+      }
+    }
+    setECustomInputs(ci);
     setEditMode(true);
   };
 
@@ -192,6 +202,11 @@ export default function CalendarScreen() {
       Alert.alert("입력 오류", "올바른 몸무게를 입력해주세요.");
       return;
     }
+    const customValues: Record<string, number> = {};
+    for (const [k, v] of Object.entries(eCustomInputs)) {
+      const n = parseFloat(v);
+      if (!isNaN(n)) customValues[k] = n;
+    }
     const updated: WeightRecord = {
       ...selectedRecord,
       weight: w,
@@ -202,6 +217,8 @@ export default function CalendarScreen() {
       exercised: eExercised,
       drank: eDrank,
       photoUri: ePhotoUri,
+      customValues:
+        Object.keys(customValues).length > 0 ? customValues : undefined,
     };
     const newRecords = await upsertRecord(updated);
     setRecords(newRecords);
@@ -246,6 +263,7 @@ export default function CalendarScreen() {
     setEExercised(false);
     setEDrank(false);
     setEPhotoUri(undefined);
+    setECustomInputs({});
     setAddMode(true);
   };
 
@@ -254,6 +272,11 @@ export default function CalendarScreen() {
     if (!eWeight || isNaN(w) || w <= 0) {
       Alert.alert("입력 오류", "올바른 몸무게를 입력해주세요.");
       return;
+    }
+    const addCustomValues: Record<string, number> = {};
+    for (const [k, v] of Object.entries(eCustomInputs)) {
+      const n = parseFloat(v);
+      if (!isNaN(n)) addCustomValues[k] = n;
     }
     const newRec: WeightRecord = {
       id: addDate,
@@ -266,6 +289,8 @@ export default function CalendarScreen() {
       exercised: eExercised,
       drank: eDrank,
       photoUri: ePhotoUri,
+      customValues:
+        Object.keys(addCustomValues).length > 0 ? addCustomValues : undefined,
     };
     const newRecords = await upsertRecord(newRec);
     setRecords(newRecords);
@@ -522,211 +547,215 @@ export default function CalendarScreen() {
                 </Text>
               </View>
               {/* 골격근량 */}
-              {(() => {
-                const range = summaryData.muscleMassRange;
-                if (!range) return null;
-                const fmtShort = (d: string) => d.slice(2).replace(/-/g, ".");
-                if (!range.last) {
-                  // 데이터 1개만 존재
+              {userSettings.metricDisplayVisibility?.muscleMass !== false &&
+                (() => {
+                  const range = summaryData.muscleMassRange;
+                  if (!range) return null;
+                  const fmtShort = (d: string) => d.slice(2).replace(/-/g, ".");
+                  if (!range.last) {
+                    // 데이터 1개만 존재
+                    return (
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          justifyContent: "space-between",
+                          paddingVertical: 4,
+                        }}
+                      >
+                        <Text style={{ fontSize: 13, color: "#718096" }}>
+                          골격근량
+                        </Text>
+                        <Text
+                          style={{
+                            fontSize: 13,
+                            fontWeight: "600",
+                            color: "#4A5568",
+                          }}
+                        >
+                          {range.first.muscleMass}kg
+                        </Text>
+                      </View>
+                    );
+                  }
+                  const diff = range.last.muscleMass! - range.first.muscleMass!;
+                  const dateLabel = `${fmtShort(range.first.date)}~${fmtShort(range.last.date)}`;
                   return (
                     <View
                       style={{
                         flexDirection: "row",
                         justifyContent: "space-between",
                         paddingVertical: 4,
+                        alignItems: "center",
                       }}
                     >
-                      <Text style={{ fontSize: 13, color: "#718096" }}>
-                        골격근량
-                      </Text>
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 4,
+                        }}
+                      >
+                        <Text style={{ fontSize: 13, color: "#718096" }}>
+                          골격근량
+                        </Text>
+                        <Text style={{ fontSize: 10, color: "#A0AEC0" }}>
+                          {dateLabel}
+                        </Text>
+                      </View>
                       <Text
                         style={{
                           fontSize: 13,
                           fontWeight: "600",
-                          color: "#4A5568",
+                          color: diff >= 0 ? "#38A169" : "#E53E3E",
                         }}
                       >
-                        {range.first.muscleMass}kg
+                        {range.first.muscleMass}→{range.last.muscleMass}kg (
+                        {diff > 0 ? "+" : ""}
+                        {diff.toFixed(1)})
                       </Text>
                     </View>
                   );
-                }
-                const diff = range.last.muscleMass! - range.first.muscleMass!;
-                const dateLabel = `${fmtShort(range.first.date)}~${fmtShort(range.last.date)}`;
-                return (
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      justifyContent: "space-between",
-                      paddingVertical: 4,
-                      alignItems: "center",
-                    }}
-                  >
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        gap: 4,
-                      }}
-                    >
-                      <Text style={{ fontSize: 13, color: "#718096" }}>
-                        골격근량
-                      </Text>
-                      <Text style={{ fontSize: 10, color: "#A0AEC0" }}>
-                        {dateLabel}
-                      </Text>
-                    </View>
-                    <Text
-                      style={{
-                        fontSize: 13,
-                        fontWeight: "600",
-                        color: diff >= 0 ? "#38A169" : "#E53E3E",
-                      }}
-                    >
-                      {range.first.muscleMass}→{range.last.muscleMass}kg (
-                      {diff > 0 ? "+" : ""}
-                      {diff.toFixed(1)})
-                    </Text>
-                  </View>
-                );
-              })()}
+                })()}
               {/* 체지방률 */}
-              {(() => {
-                const range = summaryData.bodyFatPercentRange;
-                if (!range) return null;
-                const fmtShort = (d: string) => d.slice(2).replace(/-/g, ".");
-                if (!range.last) {
+              {userSettings.metricDisplayVisibility?.bodyFatPercent !== false &&
+                (() => {
+                  const range = summaryData.bodyFatPercentRange;
+                  if (!range) return null;
+                  const fmtShort = (d: string) => d.slice(2).replace(/-/g, ".");
+                  if (!range.last) {
+                    return (
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          justifyContent: "space-between",
+                          paddingVertical: 4,
+                        }}
+                      >
+                        <Text style={{ fontSize: 13, color: "#718096" }}>
+                          체지방률
+                        </Text>
+                        <Text
+                          style={{
+                            fontSize: 13,
+                            fontWeight: "600",
+                            color: "#4A5568",
+                          }}
+                        >
+                          {range.first.bodyFatPercent}%
+                        </Text>
+                      </View>
+                    );
+                  }
+                  const diff =
+                    range.last.bodyFatPercent! - range.first.bodyFatPercent!;
+                  const dateLabel = `${fmtShort(range.first.date)}~${fmtShort(range.last.date)}`;
                   return (
                     <View
                       style={{
                         flexDirection: "row",
                         justifyContent: "space-between",
                         paddingVertical: 4,
+                        alignItems: "center",
                       }}
                     >
-                      <Text style={{ fontSize: 13, color: "#718096" }}>
-                        체지방률
-                      </Text>
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 4,
+                        }}
+                      >
+                        <Text style={{ fontSize: 13, color: "#718096" }}>
+                          체지방률
+                        </Text>
+                        <Text style={{ fontSize: 10, color: "#A0AEC0" }}>
+                          {dateLabel}
+                        </Text>
+                      </View>
                       <Text
                         style={{
                           fontSize: 13,
                           fontWeight: "600",
-                          color: "#4A5568",
+                          color: diff <= 0 ? "#38A169" : "#E53E3E",
                         }}
                       >
-                        {range.first.bodyFatPercent}%
+                        {range.first.bodyFatPercent}→{range.last.bodyFatPercent}
+                        % ({diff > 0 ? "+" : ""}
+                        {diff.toFixed(1)})
                       </Text>
                     </View>
                   );
-                }
-                const diff =
-                  range.last.bodyFatPercent! - range.first.bodyFatPercent!;
-                const dateLabel = `${fmtShort(range.first.date)}~${fmtShort(range.last.date)}`;
-                return (
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      justifyContent: "space-between",
-                      paddingVertical: 4,
-                      alignItems: "center",
-                    }}
-                  >
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        gap: 4,
-                      }}
-                    >
-                      <Text style={{ fontSize: 13, color: "#718096" }}>
-                        체지방률
-                      </Text>
-                      <Text style={{ fontSize: 10, color: "#A0AEC0" }}>
-                        {dateLabel}
-                      </Text>
-                    </View>
-                    <Text
-                      style={{
-                        fontSize: 13,
-                        fontWeight: "600",
-                        color: diff <= 0 ? "#38A169" : "#E53E3E",
-                      }}
-                    >
-                      {range.first.bodyFatPercent}→{range.last.bodyFatPercent}%
-                      ({diff > 0 ? "+" : ""}
-                      {diff.toFixed(1)})
-                    </Text>
-                  </View>
-                );
-              })()}
+                })()}
               {/* 체지방량 */}
-              {(() => {
-                const range = summaryData.bodyFatMassRange;
-                if (!range) return null;
-                const fmtShort = (d: string) => d.slice(2).replace(/-/g, ".");
-                if (!range.last) {
+              {userSettings.metricDisplayVisibility?.bodyFatMass !== false &&
+                (() => {
+                  const range = summaryData.bodyFatMassRange;
+                  if (!range) return null;
+                  const fmtShort = (d: string) => d.slice(2).replace(/-/g, ".");
+                  if (!range.last) {
+                    return (
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          justifyContent: "space-between",
+                          paddingVertical: 4,
+                        }}
+                      >
+                        <Text style={{ fontSize: 13, color: "#718096" }}>
+                          체지방량
+                        </Text>
+                        <Text
+                          style={{
+                            fontSize: 13,
+                            fontWeight: "600",
+                            color: "#4A5568",
+                          }}
+                        >
+                          {range.first.bodyFatMass}kg
+                        </Text>
+                      </View>
+                    );
+                  }
+                  const diff =
+                    range.last.bodyFatMass! - range.first.bodyFatMass!;
+                  const dateLabel = `${fmtShort(range.first.date)}~${fmtShort(range.last.date)}`;
                   return (
                     <View
                       style={{
                         flexDirection: "row",
                         justifyContent: "space-between",
                         paddingVertical: 4,
+                        alignItems: "center",
                       }}
                     >
-                      <Text style={{ fontSize: 13, color: "#718096" }}>
-                        체지방량
-                      </Text>
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 4,
+                        }}
+                      >
+                        <Text style={{ fontSize: 13, color: "#718096" }}>
+                          체지방량
+                        </Text>
+                        <Text style={{ fontSize: 10, color: "#A0AEC0" }}>
+                          {dateLabel}
+                        </Text>
+                      </View>
                       <Text
                         style={{
                           fontSize: 13,
                           fontWeight: "600",
-                          color: "#4A5568",
+                          color: diff <= 0 ? "#38A169" : "#E53E3E",
                         }}
                       >
-                        {range.first.bodyFatMass}kg
+                        {range.first.bodyFatMass}→{range.last.bodyFatMass}kg (
+                        {diff > 0 ? "+" : ""}
+                        {diff.toFixed(1)})
                       </Text>
                     </View>
                   );
-                }
-                const diff = range.last.bodyFatMass! - range.first.bodyFatMass!;
-                const dateLabel = `${fmtShort(range.first.date)}~${fmtShort(range.last.date)}`;
-                return (
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      justifyContent: "space-between",
-                      paddingVertical: 4,
-                      alignItems: "center",
-                    }}
-                  >
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        gap: 4,
-                      }}
-                    >
-                      <Text style={{ fontSize: 13, color: "#718096" }}>
-                        체지방량
-                      </Text>
-                      <Text style={{ fontSize: 10, color: "#A0AEC0" }}>
-                        {dateLabel}
-                      </Text>
-                    </View>
-                    <Text
-                      style={{
-                        fontSize: 13,
-                        fontWeight: "600",
-                        color: diff <= 0 ? "#38A169" : "#E53E3E",
-                      }}
-                    >
-                      {range.first.bodyFatMass}→{range.last.bodyFatMass}kg (
-                      {diff > 0 ? "+" : ""}
-                      {diff.toFixed(1)})
-                    </Text>
-                  </View>
-                );
-              })()}
+                })()}
             </View>
           )}
 
@@ -864,38 +893,62 @@ export default function CalendarScreen() {
                     <Text style={s.modalLabel}>몸무게</Text>
                     <Text style={s.modalValue}>{selectedRecord.weight} kg</Text>
                   </View>
-                  {selectedRecord.waist != null && (
-                    <View style={s.modalRow}>
-                      <Text style={s.modalLabel}>허리둘레</Text>
-                      <Text style={s.modalValue}>
-                        {selectedRecord.waist} cm
-                      </Text>
-                    </View>
-                  )}
-                  {selectedRecord.muscleMass != null && (
-                    <View style={s.modalRow}>
-                      <Text style={s.modalLabel}>골격근량</Text>
-                      <Text style={s.modalValue}>
-                        {selectedRecord.muscleMass} kg
-                      </Text>
-                    </View>
-                  )}
-                  {selectedRecord.bodyFatPercent != null && (
-                    <View style={s.modalRow}>
-                      <Text style={s.modalLabel}>체지방률</Text>
-                      <Text style={s.modalValue}>
-                        {selectedRecord.bodyFatPercent} %
-                      </Text>
-                    </View>
-                  )}
-                  {selectedRecord.bodyFatMass != null && (
-                    <View style={s.modalRow}>
-                      <Text style={s.modalLabel}>체지방량</Text>
-                      <Text style={s.modalValue}>
-                        {selectedRecord.bodyFatMass} kg
-                      </Text>
-                    </View>
-                  )}
+                  {userSettings.metricDisplayVisibility?.waist !== false &&
+                    selectedRecord.waist != null && (
+                      <View style={s.modalRow}>
+                        <Text style={s.modalLabel}>허리둘레</Text>
+                        <Text style={s.modalValue}>
+                          {selectedRecord.waist} cm
+                        </Text>
+                      </View>
+                    )}
+                  {userSettings.metricDisplayVisibility?.muscleMass !== false &&
+                    selectedRecord.muscleMass != null && (
+                      <View style={s.modalRow}>
+                        <Text style={s.modalLabel}>골격근량</Text>
+                        <Text style={s.modalValue}>
+                          {selectedRecord.muscleMass} kg
+                        </Text>
+                      </View>
+                    )}
+                  {userSettings.metricDisplayVisibility?.bodyFatPercent !==
+                    false &&
+                    selectedRecord.bodyFatPercent != null && (
+                      <View style={s.modalRow}>
+                        <Text style={s.modalLabel}>체지방률</Text>
+                        <Text style={s.modalValue}>
+                          {selectedRecord.bodyFatPercent} %
+                        </Text>
+                      </View>
+                    )}
+                  {userSettings.metricDisplayVisibility?.bodyFatMass !==
+                    false &&
+                    selectedRecord.bodyFatMass != null && (
+                      <View style={s.modalRow}>
+                        <Text style={s.modalLabel}>체지방량</Text>
+                        <Text style={s.modalValue}>
+                          {selectedRecord.bodyFatMass} kg
+                        </Text>
+                      </View>
+                    )}
+                  {/* 사용자 정의 수치 */}
+                  {(userSettings.customMetrics ?? [])
+                    .filter(
+                      (cm) =>
+                        userSettings.metricDisplayVisibility?.[cm.key] !== false
+                    )
+                    .map((cm) => {
+                      const val = selectedRecord.customValues?.[cm.key];
+                      if (val == null) return null;
+                      return (
+                        <View key={cm.key} style={s.modalRow}>
+                          <Text style={s.modalLabel}>{cm.label}</Text>
+                          <Text style={s.modalValue}>
+                            {val} {cm.unit}
+                          </Text>
+                        </View>
+                      );
+                    })}
                   {userSettings.height &&
                     (() => {
                       const info = getBmiInfo(
@@ -1018,59 +1071,104 @@ export default function CalendarScreen() {
                     placeholderTextColor="#aaa"
                   />
 
-                  <Text style={s.editLabel}>허리둘레 (cm)</Text>
-                  <TextInput
-                    style={s.editInput}
-                    value={eWaist}
-                    onChangeText={setEWaist}
-                    keyboardType="decimal-pad"
-                    placeholder="선택"
-                    placeholderTextColor="#aaa"
-                  />
+                  {userSettings.metricInputVisibility?.waist !== false && (
+                    <>
+                      <Text style={s.editLabel}>허리둘레 (cm)</Text>
+                      <TextInput
+                        style={s.editInput}
+                        value={eWaist}
+                        onChangeText={setEWaist}
+                        keyboardType="decimal-pad"
+                        placeholder="선택"
+                        placeholderTextColor="#aaa"
+                      />
+                    </>
+                  )}
 
-                  <Text style={s.editLabel}>골격근량 (kg)</Text>
-                  <TextInput
-                    style={s.editInput}
-                    value={eMuscleMass}
-                    onChangeText={setEMuscleMass}
-                    keyboardType="decimal-pad"
-                    placeholder="선택"
-                    placeholderTextColor="#aaa"
-                  />
+                  {userSettings.metricInputVisibility?.muscleMass !== false && (
+                    <>
+                      <Text style={s.editLabel}>골격근량 (kg)</Text>
+                      <TextInput
+                        style={s.editInput}
+                        value={eMuscleMass}
+                        onChangeText={setEMuscleMass}
+                        keyboardType="decimal-pad"
+                        placeholder="선택"
+                        placeholderTextColor="#aaa"
+                      />
+                    </>
+                  )}
 
-                  <Text style={s.editLabel}>체지방률 (%)</Text>
-                  <TextInput
-                    style={s.editInput}
-                    value={eBodyFatPercent}
-                    onChangeText={(v) => {
-                      setEBodyFatPercent(v);
-                      const w = parseFloat(eWeight);
-                      const p = parseFloat(v);
-                      if (w > 0 && p >= 0 && !isNaN(p)) {
-                        setEBodyFatMass(((w * p) / 100).toFixed(1));
-                      }
-                    }}
-                    keyboardType="decimal-pad"
-                    placeholder="선택"
-                    placeholderTextColor="#aaa"
-                  />
+                  {userSettings.metricInputVisibility?.bodyFatPercent !==
+                    false && (
+                    <>
+                      <Text style={s.editLabel}>체지방률 (%)</Text>
+                      <TextInput
+                        style={s.editInput}
+                        value={eBodyFatPercent}
+                        onChangeText={(v) => {
+                          setEBodyFatPercent(v);
+                          const w = parseFloat(eWeight);
+                          const p = parseFloat(v);
+                          if (w > 0 && p >= 0 && !isNaN(p)) {
+                            setEBodyFatMass(((w * p) / 100).toFixed(1));
+                          }
+                        }}
+                        keyboardType="decimal-pad"
+                        placeholder="선택"
+                        placeholderTextColor="#aaa"
+                      />
+                    </>
+                  )}
 
-                  <Text style={s.editLabel}>체지방량 (kg)</Text>
-                  <TextInput
-                    style={s.editInput}
-                    value={eBodyFatMass}
-                    onChangeText={(v) => {
-                      setEBodyFatMass(v);
-                      const w = parseFloat(eWeight);
-                      const m = parseFloat(v);
-                      if (w > 0 && m >= 0 && !isNaN(m)) {
-                        setEBodyFatPercent(((m / w) * 100).toFixed(1));
-                      }
-                    }}
-                    keyboardType="decimal-pad"
-                    placeholder="선택"
-                    placeholderTextColor="#aaa"
-                  />
+                  {userSettings.metricInputVisibility?.bodyFatMass !==
+                    false && (
+                    <>
+                      <Text style={s.editLabel}>체지방량 (kg)</Text>
+                      <TextInput
+                        style={s.editInput}
+                        value={eBodyFatMass}
+                        onChangeText={(v) => {
+                          setEBodyFatMass(v);
+                          const w = parseFloat(eWeight);
+                          const m = parseFloat(v);
+                          if (w > 0 && m >= 0 && !isNaN(m)) {
+                            setEBodyFatPercent(((m / w) * 100).toFixed(1));
+                          }
+                        }}
+                        keyboardType="decimal-pad"
+                        placeholder="선택"
+                        placeholderTextColor="#aaa"
+                      />
+                    </>
+                  )}
+
+                  {/* 사용자 정의 수치 */}
+                  {(userSettings.customMetrics ?? [])
+                    .filter(
+                      (cm) =>
+                        userSettings.metricInputVisibility?.[cm.key] !== false
+                    )
+                    .map((cm) => (
+                      <View key={cm.key}>
+                        <Text style={s.editLabel}>
+                          {cm.label} ({cm.unit})
+                        </Text>
+                        <TextInput
+                          style={s.editInput}
+                          value={eCustomInputs[cm.key] ?? ""}
+                          onChangeText={(v) =>
+                            setECustomInputs((prev) => ({
+                              ...prev,
+                              [cm.key]: v,
+                            }))
+                          }
+                          keyboardType="decimal-pad"
+                          placeholder="선택"
+                          placeholderTextColor="#aaa"
+                        />
+                      </View>
+                    ))}
 
                   {/* 눈바디 사진 */}
                   <Text style={s.editLabel}>눈바디 사진</Text>
@@ -1178,59 +1276,100 @@ export default function CalendarScreen() {
                   placeholderTextColor="#aaa"
                 />
 
-                <Text style={s.editLabel}>허리둘레 (cm)</Text>
-                <TextInput
-                  style={s.editInput}
-                  value={eWaist}
-                  onChangeText={setEWaist}
-                  keyboardType="decimal-pad"
-                  placeholder="선택"
-                  placeholderTextColor="#aaa"
-                />
+                {userSettings.metricInputVisibility?.waist !== false && (
+                  <>
+                    <Text style={s.editLabel}>허리둘레 (cm)</Text>
+                    <TextInput
+                      style={s.editInput}
+                      value={eWaist}
+                      onChangeText={setEWaist}
+                      keyboardType="decimal-pad"
+                      placeholder="선택"
+                      placeholderTextColor="#aaa"
+                    />
+                  </>
+                )}
 
-                <Text style={s.editLabel}>골격근량 (kg)</Text>
-                <TextInput
-                  style={s.editInput}
-                  value={eMuscleMass}
-                  onChangeText={setEMuscleMass}
-                  keyboardType="decimal-pad"
-                  placeholder="선택"
-                  placeholderTextColor="#aaa"
-                />
+                {userSettings.metricInputVisibility?.muscleMass !== false && (
+                  <>
+                    <Text style={s.editLabel}>골격근량 (kg)</Text>
+                    <TextInput
+                      style={s.editInput}
+                      value={eMuscleMass}
+                      onChangeText={setEMuscleMass}
+                      keyboardType="decimal-pad"
+                      placeholder="선택"
+                      placeholderTextColor="#aaa"
+                    />
+                  </>
+                )}
 
-                <Text style={s.editLabel}>체지방률 (%)</Text>
-                <TextInput
-                  style={s.editInput}
-                  value={eBodyFatPercent}
-                  onChangeText={(v) => {
-                    setEBodyFatPercent(v);
-                    const w = parseFloat(eWeight);
-                    const p = parseFloat(v);
-                    if (w > 0 && p >= 0 && !isNaN(p)) {
-                      setEBodyFatMass(((w * p) / 100).toFixed(1));
-                    }
-                  }}
-                  keyboardType="decimal-pad"
-                  placeholder="선택"
-                  placeholderTextColor="#aaa"
-                />
+                {userSettings.metricInputVisibility?.bodyFatPercent !==
+                  false && (
+                  <>
+                    <Text style={s.editLabel}>체지방률 (%)</Text>
+                    <TextInput
+                      style={s.editInput}
+                      value={eBodyFatPercent}
+                      onChangeText={(v) => {
+                        setEBodyFatPercent(v);
+                        const w = parseFloat(eWeight);
+                        const p = parseFloat(v);
+                        if (w > 0 && p >= 0 && !isNaN(p)) {
+                          setEBodyFatMass(((w * p) / 100).toFixed(1));
+                        }
+                      }}
+                      keyboardType="decimal-pad"
+                      placeholder="선택"
+                      placeholderTextColor="#aaa"
+                    />
+                  </>
+                )}
 
-                <Text style={s.editLabel}>체지방량 (kg)</Text>
-                <TextInput
-                  style={s.editInput}
-                  value={eBodyFatMass}
-                  onChangeText={(v) => {
-                    setEBodyFatMass(v);
-                    const w = parseFloat(eWeight);
-                    const m = parseFloat(v);
-                    if (w > 0 && m >= 0 && !isNaN(m)) {
-                      setEBodyFatPercent(((m / w) * 100).toFixed(1));
-                    }
-                  }}
-                  keyboardType="decimal-pad"
-                  placeholder="선택"
-                  placeholderTextColor="#aaa"
-                />
+                {userSettings.metricInputVisibility?.bodyFatMass !== false && (
+                  <>
+                    <Text style={s.editLabel}>체지방량 (kg)</Text>
+                    <TextInput
+                      style={s.editInput}
+                      value={eBodyFatMass}
+                      onChangeText={(v) => {
+                        setEBodyFatMass(v);
+                        const w = parseFloat(eWeight);
+                        const m = parseFloat(v);
+                        if (w > 0 && m >= 0 && !isNaN(m)) {
+                          setEBodyFatPercent(((m / w) * 100).toFixed(1));
+                        }
+                      }}
+                      keyboardType="decimal-pad"
+                      placeholder="선택"
+                      placeholderTextColor="#aaa"
+                    />
+                  </>
+                )}
+
+                {/* 사용자 정의 수치 */}
+                {(userSettings.customMetrics ?? [])
+                  .filter(
+                    (cm) =>
+                      userSettings.metricInputVisibility?.[cm.key] !== false
+                  )
+                  .map((cm) => (
+                    <View key={cm.key}>
+                      <Text style={s.editLabel}>
+                        {cm.label} ({cm.unit})
+                      </Text>
+                      <TextInput
+                        style={s.editInput}
+                        value={eCustomInputs[cm.key] ?? ""}
+                        onChangeText={(v) =>
+                          setECustomInputs((prev) => ({ ...prev, [cm.key]: v }))
+                        }
+                        keyboardType="decimal-pad"
+                        placeholder="선택"
+                        placeholderTextColor="#aaa"
+                      />
+                    </View>
+                  ))}
 
                 {/* 눈바디 사진 */}
                 <Text style={s.editLabel}>눈바디 사진</Text>
