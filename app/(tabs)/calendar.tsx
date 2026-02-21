@@ -1005,10 +1005,6 @@ export default function CalendarScreen() {
                 <Text style={s.legendText}>{cbm.label}</Text>
               </View>
             ))}
-            <View style={s.legendItem}>
-              <View style={[s.legendDot, { backgroundColor: "#78909C" }]} />
-              <Text style={s.legendText}>기록</Text>
-            </View>
           </View>
         </View>
 

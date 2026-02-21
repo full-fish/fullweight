@@ -1781,7 +1781,14 @@ export default function SettingsScreen() {
                       Alert.alert("입력 오류", "단위를 입력해주세요.");
                       return;
                     }
-                    const key = `custom_${Date.now()}`;
+                    const key = `custom_${label}`;
+                    if (customMetrics.some((c) => c.key === key)) {
+                      Alert.alert(
+                        "입력 오류",
+                        "같은 이름의 수치가 이미 존재합니다."
+                      );
+                      return;
+                    }
                     const colorIdx =
                       customMetrics.length % CUSTOM_METRIC_COLORS.length;
                     const color = CUSTOM_METRIC_COLORS[colorIdx];
