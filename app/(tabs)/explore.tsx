@@ -982,11 +982,17 @@ export default function ChartScreen() {
                   {statsStart || "전체"}~{statsEnd || "현재"}
                 </Text>
               ) : null}
-              <TouchableOpacity onPress={() => setShowStatsCal(true)}>
-                <Text style={{ fontSize: 14, color: "#4299E1" }}>시작</Text>
+              <TouchableOpacity
+                style={s.startBtn}
+                onPress={() => setShowStatsCal(true)}
+              >
+                <Text style={s.startBtnText}>시작</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => setShowStatsEndCal(true)}>
-                <Text style={{ fontSize: 14, color: "#E53E3E" }}>끝</Text>
+              <TouchableOpacity
+                style={s.endBtn}
+                onPress={() => setShowStatsEndCal(true)}
+              >
+                <Text style={s.endBtnText}>끝</Text>
               </TouchableOpacity>
               {statsStart || statsEnd ? (
                 <TouchableOpacity
@@ -1092,11 +1098,17 @@ export default function ChartScreen() {
                     {activityStart || "전체"}~{activityEnd || "현재"}
                   </Text>
                 ) : null}
-                <TouchableOpacity onPress={() => setShowActivityCal(true)}>
-                  <Text style={{ fontSize: 14, color: "#4299E1" }}>시작</Text>
+                <TouchableOpacity
+                  style={s.startBtn}
+                  onPress={() => setShowActivityCal(true)}
+                >
+                  <Text style={s.startBtnText}>시작</Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => setShowActivityEndCal(true)}>
-                  <Text style={{ fontSize: 14, color: "#E53E3E" }}>끝</Text>
+                <TouchableOpacity
+                  style={s.endBtn}
+                  onPress={() => setShowActivityEndCal(true)}
+                >
+                  <Text style={s.endBtnText}>끝</Text>
                 </TouchableOpacity>
                 {activityStart || activityEnd ? (
                   <TouchableOpacity
@@ -1380,6 +1392,20 @@ const s = StyleSheet.create({
     marginBottom: 12,
   },
   cardTitle: { fontSize: 16, fontWeight: "600", color: "#2D3748" },
+  startBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: "#EBF8FF",
+  },
+  startBtnText: { fontSize: 13, fontWeight: "600", color: "#4299E1" },
+  endBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: "#FFF5F5",
+  },
+  endBtnText: { fontSize: 13, fontWeight: "600", color: "#E53E3E" },
   resetBtn: { fontSize: 13, color: "#E53E3E", fontWeight: "500" },
   statsMetricScroll: { marginBottom: 10 },
   statsMetricBtn: {

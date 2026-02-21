@@ -481,11 +481,17 @@ export default function HomeScreen() {
                 <View style={styles.recordTop}>
                   <Text style={styles.recordDate}>{fmtDate(record.date)}</Text>
                   <View style={styles.recordActions}>
-                    <TouchableOpacity onPress={() => handleEdit(record)}>
+                    <TouchableOpacity
+                      style={styles.editBtnContainer}
+                      onPress={() => handleEdit(record)}
+                    >
                       <Text style={styles.editBtn}>수정</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={() => handleDelete(record.date)}>
-                      <Text style={styles.deleteBtn}>✕</Text>
+                    <TouchableOpacity
+                      style={styles.deleteBtnContainer}
+                      onPress={() => handleDelete(record.date)}
+                    >
+                      <Text style={styles.deleteBtn}>삭제</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -1102,13 +1108,20 @@ const styles = StyleSheet.create({
   },
   recordActions: { flexDirection: "row", gap: 12, alignItems: "center" },
   recordDate: { fontSize: 13, color: "#718096", fontWeight: "500" },
-  editBtn: { fontSize: 16, paddingHorizontal: 4, paddingVertical: 2 },
-  deleteBtn: {
-    fontSize: 15,
-    color: "#CBD5E0",
-    paddingHorizontal: 4,
-    paddingVertical: 2,
+  editBtnContainer: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: "#EBF8FF",
   },
+  editBtn: { fontSize: 13, fontWeight: "600", color: "#3182CE" },
+  deleteBtnContainer: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: "#FFF5F5",
+  },
+  deleteBtn: { fontSize: 13, fontWeight: "600", color: "#E53E3E" },
   recordWeight: {
     fontSize: 26,
     fontWeight: "700",

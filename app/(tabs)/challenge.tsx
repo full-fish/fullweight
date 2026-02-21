@@ -691,11 +691,17 @@ export default function ChallengeScreen() {
               <View style={st.cardHeader}>
                 <Text style={st.cardTitle}>진행 현황</Text>
                 <View style={st.headerActions}>
-                  <TouchableOpacity onPress={() => openForm(challenge)}>
-                    <Text style={st.editLink}>수정</Text>
+                  <TouchableOpacity
+                    style={st.editLinkBtn}
+                    onPress={() => openForm(challenge)}
+                  >
+                    <Text style={st.editLinkText}>수정</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={handleDeleteChallenge}>
-                    <Text style={st.deleteLink}>삭제</Text>
+                  <TouchableOpacity
+                    style={st.deleteLinkBtn}
+                    onPress={handleDeleteChallenge}
+                  >
+                    <Text style={st.deleteLinkText}>삭제</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -1023,8 +1029,20 @@ const st = StyleSheet.create({
     marginBottom: 12,
   },
   headerActions: { flexDirection: "row", gap: 16 },
-  editLink: { fontSize: 13, color: "#3182CE", fontWeight: "600" },
-  deleteLink: { fontSize: 13, color: "#E53E3E", fontWeight: "600" },
+  editLinkBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: "#EBF8FF",
+  },
+  editLinkText: { fontSize: 13, color: "#3182CE", fontWeight: "600" },
+  deleteLinkBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: "#FFF5F5",
+  },
+  deleteLinkText: { fontSize: 13, color: "#E53E3E", fontWeight: "600" },
 
   /* period */
   periodRow: { marginBottom: 12 },
