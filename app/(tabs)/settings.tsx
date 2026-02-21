@@ -638,7 +638,7 @@ export default function SettingsScreen() {
   const handleSeedDummy = () => {
     Alert.alert(
       "더미 데이터 삽입",
-      "약 1년치 랜덤 데이터를 생성합니다.\n기존 데이터는 모두 지워집니다.",
+      "약 3년치 랜덤 데이터 + 챌린지 히스토리 10개를 생성합니다.\n기존 데이터는 모두 지워집니다.",
       [
         { text: "취소", style: "cancel" },
         {
@@ -668,7 +668,12 @@ export default function SettingsScreen() {
           onPress: async () => {
             await clearAllRecords();
             setRecordCount(0);
-            Alert.alert("삭제 완료", "모든 기록이 삭제되었습니다.");
+            setCustomMetrics([]);
+            setCustomBoolMetrics([]);
+            Alert.alert(
+              "삭제 완료",
+              "모든 기록 및 사용자 정의 항목이 삭제되었습니다."
+            );
           },
         },
       ]
@@ -1363,7 +1368,7 @@ export default function SettingsScreen() {
 
         {/* 사용자 정의 수치 관리 */}
         <View style={s.card}>
-          <Text style={s.cardTitle}>사용자 정의 수치</Text>
+          <Text style={s.cardTitle}>사용자 정의 수치항목</Text>
           <Text
             style={{
               fontSize: 12,
