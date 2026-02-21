@@ -3,9 +3,7 @@ import { DatePickerRow } from "@/components/date-picker-row";
 import { SwipeableTab } from "@/components/swipeable-tab";
 import {
   METRIC_COLORS,
-  METRIC_LABELS,
   METRIC_UNITS,
-  MetricKey,
   PeriodMode,
   UserSettings,
   WeightRecord,
@@ -42,13 +40,11 @@ const CHART_WIDTH = width - 48;
 export default function ChartScreen() {
   const [allRecords, setAllRecords] = useState<WeightRecord[]>([]);
   const [userSettings, setUserSettings] = useState<UserSettings>({});
-  const [selectedMetrics, setSelectedMetrics] = useState<MetricKey[]>([
-    "weight",
-  ]);
+  const [selectedMetrics, setSelectedMetrics] = useState<string[]>(["weight"]);
   const [periodMode, setPeriodMode] = useState<PeriodMode>("daily");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
-  const [statsMetric, setStatsMetric] = useState<MetricKey>("weight");
+  const [statsMetric, setStatsMetric] = useState<string>("weight");
   const [statsStart, setStatsStart] = useState("");
   const [statsEnd, setStatsEnd] = useState("");
   const [activityStart, setActivityStart] = useState("");
@@ -308,7 +304,13 @@ export default function ChartScreen() {
         }
         return {
           data: normalized,
-          color: (opacity = 1) => hexToRGBA(METRIC_COLORS[key], opacity),
+          color: (opacity = 1) =>
+            hexToRGBA(
+              (METRIC_COLORS as Record<string, string>)[key] ??
+                userSettings.customMetrics?.find((m) => m.key === key)?.color ??
+                "#CBD5E0",
+              opacity
+            ),
           strokeWidth: 2,
         };
       })
@@ -330,7 +332,7 @@ export default function ChartScreen() {
       })
       .map((key) => filtered.map((r) => getMetricValue(r, key) === null));
     return { filtered, labels, datasets, ranges, nullMasks };
-  }, [slicedData, selectedMetrics, overlayMode, makeLabels]);
+  }, [slicedData, selectedMetrics, overlayMode, makeLabels, userSettings]);
 
   /* ── 개별 차트 데이터 (전체 날짜 기반, 선형보간 + 점은 실제데이터만) ── */
   const separateCharts = useMemo(() => {
@@ -412,9 +414,13 @@ export default function ChartScreen() {
     const min = Math.min(...vals);
     const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
     const diff = vals.length >= 2 ? current - vals[0] : null;
-    const unit = METRIC_UNITS[statsMetric];
+    const builtinUnit = (METRIC_UNITS as Record<string, string>)[statsMetric];
+    const customCm = userSettings.customMetrics?.find(
+      (m) => m.key === statsMetric
+    );
+    const unit = builtinUnit ?? customCm?.unit ?? "";
     return { current, max, min, avg, diff, unit };
-  }, [statsRecords, statsMetric]);
+  }, [statsRecords, statsMetric, userSettings.customMetrics]);
 
   /* ── 활동 요약 ── */
   const activityRecords = useMemo(() => {
@@ -425,7 +431,7 @@ export default function ChartScreen() {
   }, [allRecords, activityStart, activityEnd]);
 
   /* ── 수치 토글 ── */
-  const toggleMetric = (key: MetricKey) => {
+  const toggleMetric = (key: string) => {
     setSelectedMetrics((prev) => {
       if (prev.includes(key)) {
         return prev.length > 1 ? prev.filter((k) => k !== key) : prev;
@@ -487,16 +493,38 @@ export default function ChartScreen() {
     );
   };
 
-  const ALL_METRICS: MetricKey[] = [
-    "weight",
-    "waist",
-    "muscleMass",
-    "bodyFatPercent",
-    "bodyFatMass",
+  // 내장 + 커스텀 수치를 합쳐서 카드/통계에 표시할 메트릭 리스트
+  const ALL_METRICS: {
+    key: string;
+    label: string;
+    unit: string;
+    color: string;
+  }[] = [
+    { key: "weight", label: "몸무게", unit: "kg", color: "#4CAF50" },
+    { key: "waist", label: "허리둘레", unit: "cm", color: "#FF9800" },
+    { key: "muscleMass", label: "골격근량", unit: "kg", color: "#2196F3" },
+    { key: "bodyFatPercent", label: "체지방률", unit: "%", color: "#E91E63" },
+    { key: "bodyFatMass", label: "체지방량", unit: "kg", color: "#9C27B0" },
+    ...(userSettings.customMetrics ?? []).map((cm) => ({
+      key: cm.key,
+      label: cm.label,
+      unit: cm.unit,
+      color: cm.color,
+    })),
   ];
   const METRICS = ALL_METRICS.filter(
-    (m) => m === "weight" || userSettings.metricDisplayVisibility?.[m] !== false
+    (m) =>
+      m.key === "weight" ||
+      userSettings.metricDisplayVisibility?.[m.key] !== false
   );
+  // 키 단독 베니어 타입 호환성
+  const getMetricInfo = (key: string) =>
+    ALL_METRICS.find((m) => m.key === key) ?? {
+      key,
+      label: key,
+      unit: "",
+      color: "#CBD5E0",
+    };
   const isSingle = selectedMetrics.length === 1;
   const isMulti = selectedMetrics.length > 1;
 
@@ -591,37 +619,32 @@ export default function ChartScreen() {
           style={{ marginBottom: 12 }}
         >
           <View style={s.metricRow}>
-            {METRICS.map((key) => {
-              const active = selectedMetrics.includes(key);
+            {METRICS.map((m) => {
+              const active = selectedMetrics.includes(m.key);
               return (
                 <TouchableOpacity
-                  key={key}
+                  key={m.key}
                   style={[
                     s.metricChip,
                     active && {
-                      backgroundColor: METRIC_COLORS[key] + "22",
-                      borderColor: METRIC_COLORS[key],
+                      backgroundColor: m.color + "22",
+                      borderColor: m.color,
                     },
                   ]}
-                  onPress={() => toggleMetric(key)}
+                  onPress={() => toggleMetric(m.key)}
                 >
                   <View
                     style={[
                       s.metricDot,
                       {
-                        backgroundColor: active
-                          ? METRIC_COLORS[key]
-                          : "#CBD5E0",
+                        backgroundColor: active ? m.color : "#CBD5E0",
                       },
                     ]}
                   />
                   <Text
-                    style={[
-                      s.metricChipText,
-                      active && { color: METRIC_COLORS[key] },
-                    ]}
+                    style={[s.metricChipText, active && { color: m.color }]}
                   >
-                    {METRIC_LABELS[key]}
+                    {m.label}
                   </Text>
                 </TouchableOpacity>
               );
@@ -674,7 +697,8 @@ export default function ChartScreen() {
         <GestureDetector gesture={composedGesture}>
           <View style={s.chartCard}>
             <Text style={s.chartTitle}>
-              {selectedMetrics.map((k) => METRIC_LABELS[k]).join(" · ")} 추이
+              {selectedMetrics.map((k) => getMetricInfo(k).label).join(" · ")}{" "}
+              추이
             </Text>
 
             {/* 오버레이 토글 (다중 선택 시) */}
@@ -721,7 +745,7 @@ export default function ChartScreen() {
                         data: singleChartInfo.values,
                         color: (opacity = 1) =>
                           hexToRGBA(
-                            METRIC_COLORS[singleChartInfo.key],
+                            getMetricInfo(singleChartInfo.key).color,
                             opacity
                           ),
                         strokeWidth: 2,
@@ -756,14 +780,17 @@ export default function ChartScreen() {
                     backgroundGradientFrom: "#fff",
                     backgroundGradientTo: "#fff",
                     color: (opacity = 1) =>
-                      hexToRGBA(METRIC_COLORS[singleChartInfo.key], opacity),
+                      hexToRGBA(
+                        getMetricInfo(singleChartInfo.key).color,
+                        opacity
+                      ),
                     labelColor: (opacity = 1) => `rgba(113,128,150,${opacity})`,
                     strokeWidth: 2,
                     propsForDots: {
                       r: "4",
                       strokeWidth: "1.5",
-                      stroke: METRIC_COLORS[singleChartInfo.key],
-                      fill: METRIC_COLORS[singleChartInfo.key],
+                      stroke: getMetricInfo(singleChartInfo.key).color,
+                      fill: getMetricInfo(singleChartInfo.key).color,
                     },
                     propsForBackgroundLines: { stroke: "#F0F4F8" },
                     decimalPlaces: 1,
@@ -781,7 +808,8 @@ export default function ChartScreen() {
                 <View style={s.emptyChart}>
                   <Text style={s.emptyIcon}></Text>
                   <Text style={s.emptyText}>
-                    {METRIC_LABELS[selectedMetrics[0]]} 데이터가 부족합니다.
+                    {getMetricInfo(selectedMetrics[0]).label} 데이터가
+                    부족합니다.
                   </Text>
                 </View>
               )}
@@ -842,18 +870,16 @@ export default function ChartScreen() {
                 <View style={s.overlayLegend}>
                   {selectedMetrics.map((key) => {
                     const range = overlayInfo.ranges[key];
+                    const mi = getMetricInfo(key);
                     return (
                       <View key={key} style={s.overlayLegendItem}>
                         <View
-                          style={[
-                            s.legendDot,
-                            { backgroundColor: METRIC_COLORS[key] },
-                          ]}
+                          style={[s.legendDot, { backgroundColor: mi.color }]}
                         />
                         <Text style={s.legendText}>
-                          {METRIC_LABELS[key]} ({range.min.toFixed(1)}~
+                          {mi.label} ({range.min.toFixed(1)}~
                           {range.max.toFixed(1)}
-                          {METRIC_UNITS[key]})
+                          {mi.unit})
                         </Text>
                       </View>
                     );
@@ -883,11 +909,12 @@ export default function ChartScreen() {
                       <View
                         style={[
                           s.legendDot,
-                          { backgroundColor: METRIC_COLORS[info.key] },
+                          { backgroundColor: getMetricInfo(info.key).color },
                         ]}
                       />
                       <Text style={s.miniChartTitle}>
-                        {METRIC_LABELS[info.key]} ({METRIC_UNITS[info.key]})
+                        {getMetricInfo(info.key).label} (
+                        {getMetricInfo(info.key).unit})
                       </Text>
                     </View>
                     {info.hasData ? (
@@ -898,7 +925,10 @@ export default function ChartScreen() {
                             {
                               data: info.values,
                               color: (opacity = 1) =>
-                                hexToRGBA(METRIC_COLORS[info.key], opacity),
+                                hexToRGBA(
+                                  getMetricInfo(info.key).color,
+                                  opacity
+                                ),
                               strokeWidth: 2,
                             },
                             ...(yPadding > 0
@@ -933,7 +963,7 @@ export default function ChartScreen() {
                             : {
                                 r: "4",
                                 strokeWidth: "0",
-                                fill: METRIC_COLORS[info.key],
+                                fill: getMetricInfo(info.key).color,
                               }
                         }
                         chartConfig={
@@ -941,7 +971,7 @@ export default function ChartScreen() {
                             backgroundGradientFrom: "#fff",
                             backgroundGradientTo: "#fff",
                             color: (opacity = 1) =>
-                              hexToRGBA(METRIC_COLORS[info.key], opacity),
+                              hexToRGBA(getMetricInfo(info.key).color, opacity),
                             labelColor: (opacity = 1) =>
                               `rgba(113,128,150,${opacity})`,
                             strokeWidth: 2,
@@ -960,7 +990,7 @@ export default function ChartScreen() {
                     ) : (
                       <View style={s.emptyMiniChart}>
                         <Text style={s.emptyText}>
-                          {METRIC_LABELS[info.key]} 데이터가 부족합니다.
+                          {getMetricInfo(info.key).label} 데이터가 부족합니다.
                         </Text>
                       </View>
                     )}
@@ -1014,24 +1044,24 @@ export default function ChartScreen() {
             showsHorizontalScrollIndicator={false}
             style={s.statsMetricScroll}
           >
-            {METRICS.map((k) => (
+            {METRICS.map((m) => (
               <TouchableOpacity
-                key={k}
+                key={m.key}
                 style={[
                   s.statsMetricBtn,
-                  statsMetric === k && {
-                    backgroundColor: METRIC_COLORS[k],
+                  statsMetric === m.key && {
+                    backgroundColor: m.color,
                   },
                 ]}
-                onPress={() => setStatsMetric(k)}
+                onPress={() => setStatsMetric(m.key)}
               >
                 <Text
                   style={[
                     s.statsMetricText,
-                    statsMetric === k && s.statsMetricTextActive,
+                    statsMetric === m.key && s.statsMetricTextActive,
                   ]}
                 >
-                  {METRIC_LABELS[k]}
+                  {m.label}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -1124,41 +1154,89 @@ export default function ChartScreen() {
                 ) : null}
               </View>
             </View>
-            <View style={s.summaryRow}>
-              <View style={s.summaryItem}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={s.summaryRow}
+              snapToInterval={(width - 48) / 5}
+              decelerationRate="fast"
+            >
+              <View style={[s.summaryItem, { width: (width - 48) / 5 }]}>
                 <Text style={s.summaryEmoji}>📅</Text>
                 <Text style={s.summaryCount}>{activityRecords.length}</Text>
                 <Text style={s.summaryLabel}>총 기록일</Text>
               </View>
-              <View style={s.summaryItem}>
+              <View style={[s.summaryItem, { width: (width - 48) / 5 }]}>
                 <Text style={s.summaryEmoji}>🏃</Text>
                 <Text style={s.summaryCount}>
                   {activityRecords.filter((r) => r.exercised).length}
+                  <Text style={s.summaryPercent}>
+                    (
+                    {activityRecords.length > 0
+                      ? Math.round(
+                          (activityRecords.filter((r) => r.exercised).length /
+                            activityRecords.length) *
+                            100
+                        )
+                      : 0}
+                    %)
+                  </Text>
                 </Text>
                 <Text style={s.summaryLabel}>운동일</Text>
               </View>
-              <View style={s.summaryItem}>
+              <View style={[s.summaryItem, { width: (width - 48) / 5 }]}>
                 <Text style={s.summaryEmoji}>🍺</Text>
                 <Text style={s.summaryCount}>
                   {activityRecords.filter((r) => r.drank).length}
+                  <Text style={s.summaryPercent}>
+                    (
+                    {activityRecords.length > 0
+                      ? Math.round(
+                          (activityRecords.filter((r) => r.drank).length /
+                            activityRecords.length) *
+                            100
+                        )
+                      : 0}
+                    %)
+                  </Text>
                 </Text>
                 <Text style={s.summaryLabel}>음주일</Text>
               </View>
-              <View style={s.summaryItem}>
-                <Text style={s.summaryEmoji}>💪</Text>
-                <Text style={s.summaryCount}>
-                  {activityRecords.length > 0
-                    ? Math.round(
-                        (activityRecords.filter((r) => r.exercised).length /
-                          activityRecords.length) *
-                          100
-                      )
-                    : 0}
-                  %
-                </Text>
-                <Text style={s.summaryLabel}>운동률</Text>
-              </View>
-            </View>
+              {(userSettings.customBoolMetrics ?? []).map((cbm) => {
+                const count = activityRecords.filter(
+                  (r) => r.customBoolValues?.[cbm.key]
+                ).length;
+                const pct =
+                  activityRecords.length > 0
+                    ? Math.round((count / activityRecords.length) * 100)
+                    : 0;
+                return (
+                  <View
+                    key={cbm.key}
+                    style={[s.summaryItem, { width: (width - 48) / 5 }]}
+                  >
+                    {cbm.emoji ? (
+                      <Text style={s.summaryEmoji}>{cbm.emoji}</Text>
+                    ) : (
+                      <View
+                        style={{
+                          width: 26,
+                          height: 26,
+                          borderRadius: 13,
+                          backgroundColor: cbm.color,
+                          marginBottom: 6,
+                        }}
+                      />
+                    )}
+                    <Text style={s.summaryCount}>
+                      {count}
+                      <Text style={s.summaryPercent}>({pct}%)</Text>
+                    </Text>
+                    <Text style={s.summaryLabel}>{cbm.label}일</Text>
+                  </View>
+                );
+              })}
+            </ScrollView>
           </View>
         )}
 
@@ -1451,12 +1529,12 @@ const s = StyleSheet.create({
   },
   summaryRow: {
     flexDirection: "row",
-    justifyContent: "space-around",
-    marginTop: 8,
+    paddingVertical: 8,
   },
   summaryItem: { alignItems: "center" },
   summaryEmoji: { fontSize: 26, marginBottom: 6 },
   summaryCount: { fontSize: 20, fontWeight: "700", color: "#2D3748" },
+  summaryPercent: { fontSize: 13, fontWeight: "500", color: "#718096" },
   summaryLabel: { fontSize: 12, color: "#A0AEC0", marginTop: 2 },
   tooltip: {
     position: "absolute",

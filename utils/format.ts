@@ -1,4 +1,4 @@
-import { MetricKey, WeightRecord } from "@/types";
+import { WeightRecord } from "@/types";
 
 /**
  * 공통 날짜/숫자 포맷 유틸리티
@@ -104,14 +104,15 @@ export function hexToRGBA(hex: string, opacity: number): string {
   return `rgba(${r},${g},${b},${opacity})`;
 }
 
-/** WeightRecord에서 특정 메트릭 값 추출 */
-export function getMetricValue(r: WeightRecord, key: MetricKey): number | null {
+/** WeightRecord에서 특정 메트릭 값 추출 (커스텀 수치 키도 지원) */
+export function getMetricValue(r: WeightRecord, key: string): number | null {
   if (key === "weight") return r.weight > 0 ? r.weight : null;
   if (key === "waist") return r.waist ?? null;
   if (key === "muscleMass") return r.muscleMass ?? null;
   if (key === "bodyFatPercent") return r.bodyFatPercent ?? null;
   if (key === "bodyFatMass") return r.bodyFatMass ?? null;
-  return null;
+  // 사용자 정의 수치 (customValues)
+  return r.customValues?.[key] ?? null;
 }
 
 /** BMI 계산 + 라벨/색상 반환 */

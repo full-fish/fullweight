@@ -10,6 +10,7 @@ export type WeightRecord = {
   drank: boolean;
   photoUri?: string; // 바디 사진 로컬 URI (선택)
   customValues?: Record<string, number>; // 사용자 정의 수치
+  customBoolValues?: Record<string, boolean>; // 사용자 정의 체크항목
 };
 
 /** 그래프에서 선택 가능한 수치 종류 */
@@ -54,6 +55,26 @@ export type CustomMetric = {
   unit: string;
   color: string;
 };
+
+/** 사용자 정의 체크항목 */
+export type CustomBoolMetric = {
+  key: string;
+  label: string;
+  color: string;
+  emoji?: string;
+};
+
+/** 사용자 정의 체크항목 색상 팔레트 */
+export const CUSTOM_BOOL_COLORS = [
+  "#E91E63",
+  "#9C27B0",
+  "#3F51B5",
+  "#00BCD4",
+  "#009688",
+  "#8BC34A",
+  "#FF5722",
+  "#795548",
+];
 
 /** 기본 제공 선택 수치 목록 */
 export const BUILTIN_OPTIONAL_METRICS: {
@@ -125,4 +146,6 @@ export type UserSettings = {
   metricDisplayVisibility?: Record<string, boolean>;
   /** 사용자 정의 수치 목록 */
   customMetrics?: CustomMetric[];
+  /** 사용자 정의 체크항목 목록 */
+  customBoolMetrics?: CustomBoolMetric[];
 };

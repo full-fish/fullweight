@@ -46,6 +46,9 @@ export default function HomeScreen() {
   const [photoUri, setPhotoUri] = useState<string | undefined>(undefined);
   const scrollRef = useRef<ScrollView>(null);
   const [customInputs, setCustomInputs] = useState<Record<string, string>>({});
+  const [boolCustomInputs, setBoolCustomInputs] = useState<
+    Record<string, boolean>
+  >({});
 
   const [userSettings, setUserSettings] = useState<UserSettings>({});
 
@@ -63,6 +66,9 @@ export default function HomeScreen() {
   const [emCustomInputs, setEmCustomInputs] = useState<Record<string, string>>(
     {}
   );
+  const [emBoolCustomInputs, setEmBoolCustomInputs] = useState<
+    Record<string, boolean>
+  >({});
 
   const loadAndSetRecords = useCallback(async () => {
     const data = await loadRecords();
@@ -92,6 +98,14 @@ export default function HomeScreen() {
           }
         }
         setCustomInputs(ci);
+        // 사용자 정의 체크값
+        const bi: Record<string, boolean> = {};
+        if (existing.customBoolValues) {
+          for (const [k, v] of Object.entries(existing.customBoolValues)) {
+            bi[k] = v;
+          }
+        }
+        setBoolCustomInputs(bi);
       } else {
         // Pre-fill weight with most recent record
         const sorted = [...allRecords].sort((a, b) =>
@@ -108,6 +122,7 @@ export default function HomeScreen() {
         setDrank(false);
         setPhotoUri(undefined);
         setCustomInputs({});
+        setBoolCustomInputs({});
       }
     },
     []
@@ -142,6 +157,13 @@ export default function HomeScreen() {
         }
       }
       setCustomInputs(ci);
+      const bi: Record<string, boolean> = {};
+      if (existing.customBoolValues) {
+        for (const [k, v] of Object.entries(existing.customBoolValues)) {
+          bi[k] = v;
+        }
+      }
+      setBoolCustomInputs(bi);
     } else {
       // Pre-fill weight with most recent record
       const sorted = [...records].sort((a, b) => b.date.localeCompare(a.date));
@@ -155,6 +177,7 @@ export default function HomeScreen() {
       setDrank(false);
       setPhotoUri(undefined);
       setCustomInputs({});
+      setBoolCustomInputs({});
     }
   };
 
@@ -182,6 +205,10 @@ export default function HomeScreen() {
       photoUri,
       customValues:
         Object.keys(customValues).length > 0 ? customValues : undefined,
+      customBoolValues:
+        Object.keys(boolCustomInputs).length > 0
+          ? { ...boolCustomInputs }
+          : undefined,
     };
     const updated = await upsertRecord(record);
     setRecords([...updated].sort((a, b) => b.date.localeCompare(a.date)));
@@ -207,6 +234,7 @@ export default function HomeScreen() {
             setDrank(false);
             setPhotoUri(undefined);
             setCustomInputs({});
+            setBoolCustomInputs({});
           }
         },
       },
@@ -230,6 +258,13 @@ export default function HomeScreen() {
       }
     }
     setEmCustomInputs(ci);
+    const bi: Record<string, boolean> = {};
+    if (record.customBoolValues) {
+      for (const [k, v] of Object.entries(record.customBoolValues)) {
+        bi[k] = v;
+      }
+    }
+    setEmBoolCustomInputs(bi);
     setShowEditModal(true);
   };
 
@@ -260,6 +295,10 @@ export default function HomeScreen() {
       photoUri: emPhotoUri,
       customValues:
         Object.keys(emCustomValues).length > 0 ? emCustomValues : undefined,
+      customBoolValues:
+        Object.keys(emBoolCustomInputs).length > 0
+          ? { ...emBoolCustomInputs }
+          : undefined,
     };
     const newRecords = await upsertRecord(updated);
     setRecords([...newRecords].sort((a, b) => b.date.localeCompare(a.date)));
@@ -527,24 +566,51 @@ export default function HomeScreen() {
             </View>
 
             <View style={styles.switchGroup}>
-              <View style={styles.switchRow}>
-                <Text style={styles.switchLabel}>오늘 운동했나요?</Text>
-                <Switch
-                  value={exercised}
-                  onValueChange={setExercised}
-                  trackColor={{ true: "#4CAF50", false: "#ddd" }}
-                  thumbColor="#fff"
-                />
-              </View>
-              <View style={styles.switchRow}>
-                <Text style={styles.switchLabel}>오늘 음주했나요?</Text>
-                <Switch
-                  value={drank}
-                  onValueChange={setDrank}
-                  trackColor={{ true: "#FF9800", false: "#ddd" }}
-                  thumbColor="#fff"
-                />
-              </View>
+              {userSettings.metricInputVisibility?.["exercised"] !== false && (
+                <View style={styles.switchRow}>
+                  <Text style={styles.switchLabel}>🏃 오늘 운동했나요?</Text>
+                  <Switch
+                    value={exercised}
+                    onValueChange={setExercised}
+                    trackColor={{ true: "#4CAF50", false: "#ddd" }}
+                    thumbColor="#fff"
+                  />
+                </View>
+              )}
+              {userSettings.metricInputVisibility?.["drank"] !== false && (
+                <View style={styles.switchRow}>
+                  <Text style={styles.switchLabel}>🍺 오늘 음주했나요?</Text>
+                  <Switch
+                    value={drank}
+                    onValueChange={setDrank}
+                    trackColor={{ true: "#FF9800", false: "#ddd" }}
+                    thumbColor="#fff"
+                  />
+                </View>
+              )}
+              {(userSettings.customBoolMetrics ?? [])
+                .filter(
+                  (cbm) =>
+                    userSettings.metricInputVisibility?.[cbm.key] !== false
+                )
+                .map((cbm) => (
+                  <View key={cbm.key} style={styles.switchRow}>
+                    <Text style={styles.switchLabel}>
+                      {cbm.emoji ? `${cbm.emoji} ` : ""}오늘 {cbm.label}했나요?
+                    </Text>
+                    <Switch
+                      value={boolCustomInputs[cbm.key] ?? false}
+                      onValueChange={(v) =>
+                        setBoolCustomInputs((prev) => ({
+                          ...prev,
+                          [cbm.key]: v,
+                        }))
+                      }
+                      trackColor={{ true: cbm.color, false: "#ddd" }}
+                      thumbColor="#fff"
+                    />
+                  </View>
+                ))}
             </View>
 
             <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
@@ -926,24 +992,53 @@ export default function HomeScreen() {
                   </View>
                 </View>
 
-                <View style={editModalStyles.switchRow}>
-                  <Text style={editModalStyles.label}>{"운동"}</Text>
-                  <Switch
-                    value={emExercised}
-                    onValueChange={setEmExercised}
-                    trackColor={{ true: "#4CAF50", false: "#ddd" }}
-                    thumbColor="#fff"
-                  />
-                </View>
-                <View style={editModalStyles.switchRow}>
-                  <Text style={editModalStyles.label}>{"음주"}</Text>
-                  <Switch
-                    value={emDrank}
-                    onValueChange={setEmDrank}
-                    trackColor={{ true: "#FF9800", false: "#ddd" }}
-                    thumbColor="#fff"
-                  />
-                </View>
+                {userSettings.metricInputVisibility?.["exercised"] !==
+                  false && (
+                  <View style={editModalStyles.switchRow}>
+                    <Text style={editModalStyles.label}>{"🏃 운동"}</Text>
+                    <Switch
+                      value={emExercised}
+                      onValueChange={setEmExercised}
+                      trackColor={{ true: "#4CAF50", false: "#ddd" }}
+                      thumbColor="#fff"
+                    />
+                  </View>
+                )}
+                {userSettings.metricInputVisibility?.["drank"] !== false && (
+                  <View style={editModalStyles.switchRow}>
+                    <Text style={editModalStyles.label}>{"🍺 음주"}</Text>
+                    <Switch
+                      value={emDrank}
+                      onValueChange={setEmDrank}
+                      trackColor={{ true: "#FF9800", false: "#ddd" }}
+                      thumbColor="#fff"
+                    />
+                  </View>
+                )}
+                {(userSettings.customBoolMetrics ?? [])
+                  .filter(
+                    (cbm) =>
+                      userSettings.metricInputVisibility?.[cbm.key] !== false
+                  )
+                  .map((cbm) => (
+                    <View key={cbm.key} style={editModalStyles.switchRow}>
+                      <Text style={editModalStyles.label}>
+                        {cbm.emoji ? `${cbm.emoji} ` : ""}
+                        {cbm.label}
+                      </Text>
+                      <Switch
+                        value={emBoolCustomInputs[cbm.key] ?? false}
+                        onValueChange={(v) =>
+                          setEmBoolCustomInputs((prev) => ({
+                            ...prev,
+                            [cbm.key]: v,
+                          }))
+                        }
+                        trackColor={{ true: cbm.color, false: "#ddd" }}
+                        thumbColor="#fff"
+                      />
+                    </View>
+                  ))}
 
                 <View style={editModalStyles.btnRow}>
                   <TouchableOpacity

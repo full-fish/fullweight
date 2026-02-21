@@ -1,7 +1,9 @@
 import { SwipeableTab } from "@/components/swipeable-tab";
 import {
   BUILTIN_OPTIONAL_METRICS,
+  CUSTOM_BOOL_COLORS,
   CUSTOM_METRIC_COLORS,
+  CustomBoolMetric,
   CustomMetric,
 } from "@/types";
 import {
@@ -388,7 +390,21 @@ export default function SettingsScreen() {
   const [newMetricLabel, setNewMetricLabel] = useState("");
   const [newMetricUnit, setNewMetricUnit] = useState("");
   const [inputSectionOpen, setInputSectionOpen] = useState(false);
+  const [inputMetricSubOpen, setInputMetricSubOpen] = useState(false);
+  const [inputBoolSubOpen, setInputBoolSubOpen] = useState(false);
   const [displaySectionOpen, setDisplaySectionOpen] = useState(false);
+  const [displayMetricSubOpen, setDisplayMetricSubOpen] = useState(false);
+  const [displayBoolSubOpen, setDisplayBoolSubOpen] = useState(false);
+  const [customBoolMetrics, setCustomBoolMetrics] = useState<
+    CustomBoolMetric[]
+  >([]);
+  const [showAddBoolMetric, setShowAddBoolMetric] = useState(false);
+  const [newBoolLabel, setNewBoolLabel] = useState("");
+  const [newBoolEmoji, setNewBoolEmoji] = useState("");
+  const [editingBoolEmojiKey, setEditingBoolEmojiKey] = useState<string | null>(
+    null
+  );
+  const [editBoolEmoji, setEditBoolEmoji] = useState("");
 
   // ── Google Drive 백업 상태 ──
   const [googleEmail, setGoogleEmail] = useState<string | null>(null);
@@ -418,6 +434,7 @@ export default function SettingsScreen() {
         setMetricInputVisibility(settings.metricInputVisibility ?? {});
         setMetricDisplayVisibility(settings.metricDisplayVisibility ?? {});
         setCustomMetrics(settings.customMetrics ?? []);
+        setCustomBoolMetrics(settings.customBoolMetrics ?? []);
       });
 
       // Google 로그인 상태 & 마지막 백업 시간 불러오기
@@ -945,71 +962,209 @@ export default function SettingsScreen() {
               기록 작성 시 표시할 입력란을 선택합니다
             </Text>
           )}
-          {inputSectionOpen &&
-            BUILTIN_OPTIONAL_METRICS.map((m) => (
-              <View key={m.key} style={s.infoRow}>
-                <Text style={s.infoLabel}>
-                  {m.label} ({m.unit})
-                </Text>
-                <Switch
-                  value={metricInputVisibility[m.key] !== false}
-                  onValueChange={async (v) => {
-                    const next = { ...metricInputVisibility, [m.key]: v };
-                    setMetricInputVisibility(next);
-                    const cur = await loadUserSettings();
-                    await saveUserSettings({
-                      ...cur,
-                      metricInputVisibility: next,
-                    });
-                  }}
-                  trackColor={{ false: "#E2E8F0", true: "#68D391" }}
-                  thumbColor={
-                    metricInputVisibility[m.key] !== false ? "#38A169" : "#fff"
-                  }
-                />
-              </View>
-            ))}
-          {inputSectionOpen &&
-            customMetrics.map((cm) => (
-              <View key={cm.key} style={s.infoRow}>
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: 6,
-                    flex: 1,
-                  }}
+
+          {/* 서브: 기본 수치 + 사용자 정의 수치 */}
+          {inputSectionOpen && (
+            <View style={{ marginBottom: 8 }}>
+              <TouchableOpacity
+                onPress={() => setInputMetricSubOpen((v) => !v)}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  paddingVertical: 8,
+                  borderBottomWidth: inputMetricSubOpen ? 1 : 0,
+                  borderBottomColor: "#EDF2F7",
+                }}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={{ fontSize: 15, fontWeight: "600", color: "#2D3748" }}
                 >
-                  <View
-                    style={{
-                      width: 10,
-                      height: 10,
-                      borderRadius: 5,
-                      backgroundColor: cm.color,
-                    }}
-                  />
-                  <Text style={s.infoLabel}>
-                    {cm.label} ({cm.unit})
-                  </Text>
+                  수치 항목
+                </Text>
+                <Text style={{ fontSize: 14, color: "#A0AEC0" }}>
+                  {inputMetricSubOpen ? "▲" : "▼"}
+                </Text>
+              </TouchableOpacity>
+              {inputMetricSubOpen && (
+                <View style={{ marginTop: 8 }}>
+                  {BUILTIN_OPTIONAL_METRICS.map((m) => (
+                    <View key={m.key} style={s.infoRow}>
+                      <Text style={s.infoLabel}>
+                        {m.label} ({m.unit})
+                      </Text>
+                      <Switch
+                        value={metricInputVisibility[m.key] !== false}
+                        onValueChange={async (v) => {
+                          const next = { ...metricInputVisibility, [m.key]: v };
+                          setMetricInputVisibility(next);
+                          const cur = await loadUserSettings();
+                          await saveUserSettings({
+                            ...cur,
+                            metricInputVisibility: next,
+                          });
+                        }}
+                        trackColor={{ false: "#E2E8F0", true: "#68D391" }}
+                        thumbColor={
+                          metricInputVisibility[m.key] !== false
+                            ? "#38A169"
+                            : "#fff"
+                        }
+                      />
+                    </View>
+                  ))}
+                  {customMetrics.map((cm) => (
+                    <View key={cm.key} style={s.infoRow}>
+                      <Text style={s.infoLabel}>
+                        {cm.label} ({cm.unit})
+                      </Text>
+                      <Switch
+                        value={metricInputVisibility[cm.key] !== false}
+                        onValueChange={async (v) => {
+                          const next = {
+                            ...metricInputVisibility,
+                            [cm.key]: v,
+                          };
+                          setMetricInputVisibility(next);
+                          const cur = await loadUserSettings();
+                          await saveUserSettings({
+                            ...cur,
+                            metricInputVisibility: next,
+                          });
+                        }}
+                        trackColor={{ false: "#E2E8F0", true: "#68D391" }}
+                        thumbColor={
+                          metricInputVisibility[cm.key] !== false
+                            ? "#38A169"
+                            : "#fff"
+                        }
+                      />
+                    </View>
+                  ))}
                 </View>
-                <Switch
-                  value={metricInputVisibility[cm.key] !== false}
-                  onValueChange={async (v) => {
-                    const next = { ...metricInputVisibility, [cm.key]: v };
-                    setMetricInputVisibility(next);
-                    const cur = await loadUserSettings();
-                    await saveUserSettings({
-                      ...cur,
-                      metricInputVisibility: next,
-                    });
-                  }}
-                  trackColor={{ false: "#E2E8F0", true: "#68D391" }}
-                  thumbColor={
-                    metricInputVisibility[cm.key] !== false ? "#38A169" : "#fff"
-                  }
-                />
-              </View>
-            ))}
+              )}
+            </View>
+          )}
+
+          {/* 서브: 체크 항목 */}
+          {inputSectionOpen && (
+            <View>
+              <TouchableOpacity
+                onPress={() => setInputBoolSubOpen((v) => !v)}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  paddingVertical: 8,
+                  borderBottomWidth: inputBoolSubOpen ? 1 : 0,
+                  borderBottomColor: "#EDF2F7",
+                }}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={{ fontSize: 15, fontWeight: "600", color: "#2D3748" }}
+                >
+                  체크 항목
+                </Text>
+                <Text style={{ fontSize: 14, color: "#A0AEC0" }}>
+                  {inputBoolSubOpen ? "▲" : "▼"}
+                </Text>
+              </TouchableOpacity>
+              {inputBoolSubOpen && (
+                <View style={{ marginTop: 8 }}>
+                  <View style={s.infoRow}>
+                    <Text style={s.infoLabel}>🏃 운동</Text>
+                    <Switch
+                      value={metricInputVisibility["exercised"] !== false}
+                      onValueChange={async (v) => {
+                        const next = { ...metricInputVisibility, exercised: v };
+                        setMetricInputVisibility(next);
+                        const cur = await loadUserSettings();
+                        await saveUserSettings({
+                          ...cur,
+                          metricInputVisibility: next,
+                        });
+                      }}
+                      trackColor={{ false: "#E2E8F0", true: "#68D391" }}
+                      thumbColor={
+                        metricInputVisibility["exercised"] !== false
+                          ? "#38A169"
+                          : "#fff"
+                      }
+                    />
+                  </View>
+                  <View style={s.infoRow}>
+                    <Text style={s.infoLabel}>🍺 음주</Text>
+                    <Switch
+                      value={metricInputVisibility["drank"] !== false}
+                      onValueChange={async (v) => {
+                        const next = { ...metricInputVisibility, drank: v };
+                        setMetricInputVisibility(next);
+                        const cur = await loadUserSettings();
+                        await saveUserSettings({
+                          ...cur,
+                          metricInputVisibility: next,
+                        });
+                      }}
+                      trackColor={{ false: "#E2E8F0", true: "#68D391" }}
+                      thumbColor={
+                        metricInputVisibility["drank"] !== false
+                          ? "#38A169"
+                          : "#fff"
+                      }
+                    />
+                  </View>
+                  {customBoolMetrics.map((cbm) => (
+                    <View key={cbm.key} style={s.infoRow}>
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 6,
+                          flex: 1,
+                        }}
+                      >
+                        <View
+                          style={{
+                            width: 10,
+                            height: 10,
+                            borderRadius: 5,
+                            backgroundColor: cbm.color,
+                          }}
+                        />
+                        <Text style={s.infoLabel}>
+                          {cbm.emoji ? `${cbm.emoji} ` : ""}
+                          {cbm.label}
+                        </Text>
+                      </View>
+                      <Switch
+                        value={metricInputVisibility[cbm.key] !== false}
+                        onValueChange={async (v) => {
+                          const next = {
+                            ...metricInputVisibility,
+                            [cbm.key]: v,
+                          };
+                          setMetricInputVisibility(next);
+                          const cur = await loadUserSettings();
+                          await saveUserSettings({
+                            ...cur,
+                            metricInputVisibility: next,
+                          });
+                        }}
+                        trackColor={{ false: "#E2E8F0", true: "#68D391" }}
+                        thumbColor={
+                          metricInputVisibility[cbm.key] !== false
+                            ? "#38A169"
+                            : "#fff"
+                        }
+                      />
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          )}
         </View>
 
         {/* 수치 표시 설정 */}
@@ -1040,75 +1195,170 @@ export default function SettingsScreen() {
               기록 목록, 그래프, 캘린더에서 표시할 수치를 선택합니다
             </Text>
           )}
-          {displaySectionOpen &&
-            BUILTIN_OPTIONAL_METRICS.map((m) => (
-              <View key={m.key} style={s.infoRow}>
-                <Text style={s.infoLabel}>
-                  {m.label} ({m.unit})
-                </Text>
-                <Switch
-                  value={metricDisplayVisibility[m.key] !== false}
-                  onValueChange={async (v) => {
-                    const next = { ...metricDisplayVisibility, [m.key]: v };
-                    setMetricDisplayVisibility(next);
-                    const cur = await loadUserSettings();
-                    await saveUserSettings({
-                      ...cur,
-                      metricDisplayVisibility: next,
-                    });
-                  }}
-                  trackColor={{ false: "#E2E8F0", true: "#68D391" }}
-                  thumbColor={
-                    metricDisplayVisibility[m.key] !== false
-                      ? "#38A169"
-                      : "#fff"
-                  }
-                />
-              </View>
-            ))}
-          {displaySectionOpen &&
-            customMetrics.map((cm) => (
-              <View key={cm.key} style={s.infoRow}>
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: 6,
-                    flex: 1,
-                  }}
+
+          {/* 서브: 수치 항목 */}
+          {displaySectionOpen && (
+            <View style={{ marginBottom: 8 }}>
+              <TouchableOpacity
+                onPress={() => setDisplayMetricSubOpen((v) => !v)}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  paddingVertical: 8,
+                  borderBottomWidth: displayMetricSubOpen ? 1 : 0,
+                  borderBottomColor: "#EDF2F7",
+                }}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={{ fontSize: 15, fontWeight: "600", color: "#2D3748" }}
                 >
-                  <View
-                    style={{
-                      width: 10,
-                      height: 10,
-                      borderRadius: 5,
-                      backgroundColor: cm.color,
-                    }}
-                  />
-                  <Text style={s.infoLabel}>
-                    {cm.label} ({cm.unit})
-                  </Text>
+                  수치 항목
+                </Text>
+                <Text style={{ fontSize: 14, color: "#A0AEC0" }}>
+                  {displayMetricSubOpen ? "▲" : "▼"}
+                </Text>
+              </TouchableOpacity>
+              {displayMetricSubOpen && (
+                <View style={{ marginTop: 8 }}>
+                  {BUILTIN_OPTIONAL_METRICS.map((m) => (
+                    <View key={m.key} style={s.infoRow}>
+                      <Text style={s.infoLabel}>
+                        {m.label} ({m.unit})
+                      </Text>
+                      <Switch
+                        value={metricDisplayVisibility[m.key] !== false}
+                        onValueChange={async (v) => {
+                          const next = {
+                            ...metricDisplayVisibility,
+                            [m.key]: v,
+                          };
+                          setMetricDisplayVisibility(next);
+                          const cur = await loadUserSettings();
+                          await saveUserSettings({
+                            ...cur,
+                            metricDisplayVisibility: next,
+                          });
+                        }}
+                        trackColor={{ false: "#E2E8F0", true: "#68D391" }}
+                        thumbColor={
+                          metricDisplayVisibility[m.key] !== false
+                            ? "#38A169"
+                            : "#fff"
+                        }
+                      />
+                    </View>
+                  ))}
+                  {customMetrics.map((cm) => (
+                    <View key={cm.key} style={s.infoRow}>
+                      <Text style={s.infoLabel}>
+                        {cm.label} ({cm.unit})
+                      </Text>
+                      <Switch
+                        value={metricDisplayVisibility[cm.key] !== false}
+                        onValueChange={async (v) => {
+                          const next = {
+                            ...metricDisplayVisibility,
+                            [cm.key]: v,
+                          };
+                          setMetricDisplayVisibility(next);
+                          const cur = await loadUserSettings();
+                          await saveUserSettings({
+                            ...cur,
+                            metricDisplayVisibility: next,
+                          });
+                        }}
+                        trackColor={{ false: "#E2E8F0", true: "#68D391" }}
+                        thumbColor={
+                          metricDisplayVisibility[cm.key] !== false
+                            ? "#38A169"
+                            : "#fff"
+                        }
+                      />
+                    </View>
+                  ))}
                 </View>
-                <Switch
-                  value={metricDisplayVisibility[cm.key] !== false}
-                  onValueChange={async (v) => {
-                    const next = { ...metricDisplayVisibility, [cm.key]: v };
-                    setMetricDisplayVisibility(next);
-                    const cur = await loadUserSettings();
-                    await saveUserSettings({
-                      ...cur,
-                      metricDisplayVisibility: next,
-                    });
-                  }}
-                  trackColor={{ false: "#E2E8F0", true: "#68D391" }}
-                  thumbColor={
-                    metricDisplayVisibility[cm.key] !== false
-                      ? "#38A169"
-                      : "#fff"
-                  }
-                />
-              </View>
-            ))}
+              )}
+            </View>
+          )}
+
+          {/* 서브: 체크 항목 */}
+          {displaySectionOpen && (
+            <View>
+              <TouchableOpacity
+                onPress={() => setDisplayBoolSubOpen((v) => !v)}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  paddingVertical: 8,
+                  borderBottomWidth: displayBoolSubOpen ? 1 : 0,
+                  borderBottomColor: "#EDF2F7",
+                }}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={{ fontSize: 15, fontWeight: "600", color: "#2D3748" }}
+                >
+                  체크 항목
+                </Text>
+                <Text style={{ fontSize: 14, color: "#A0AEC0" }}>
+                  {displayBoolSubOpen ? "▲" : "▼"}
+                </Text>
+              </TouchableOpacity>
+              {displayBoolSubOpen && (
+                <View style={{ marginTop: 8 }}>
+                  {customBoolMetrics.map((cbm) => (
+                    <View key={cbm.key} style={s.infoRow}>
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 6,
+                          flex: 1,
+                        }}
+                      >
+                        <View
+                          style={{
+                            width: 10,
+                            height: 10,
+                            borderRadius: 5,
+                            backgroundColor: cbm.color,
+                          }}
+                        />
+                        <Text style={s.infoLabel}>
+                          {cbm.emoji ? `${cbm.emoji} ` : ""}
+                          {cbm.label}
+                        </Text>
+                      </View>
+                      <Switch
+                        value={metricDisplayVisibility[cbm.key] !== false}
+                        onValueChange={async (v) => {
+                          const next = {
+                            ...metricDisplayVisibility,
+                            [cbm.key]: v,
+                          };
+                          setMetricDisplayVisibility(next);
+                          const cur = await loadUserSettings();
+                          await saveUserSettings({
+                            ...cur,
+                            metricDisplayVisibility: next,
+                          });
+                        }}
+                        trackColor={{ false: "#E2E8F0", true: "#68D391" }}
+                        thumbColor={
+                          metricDisplayVisibility[cbm.key] !== false
+                            ? "#38A169"
+                            : "#fff"
+                        }
+                      />
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          )}
         </View>
 
         {/* 사용자 정의 수치 관리 */}
@@ -1126,26 +1376,9 @@ export default function SettingsScreen() {
           </Text>
           {customMetrics.map((cm) => (
             <View key={cm.key} style={s.infoRow}>
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 6,
-                  flex: 1,
-                }}
-              >
-                <View
-                  style={{
-                    width: 10,
-                    height: 10,
-                    borderRadius: 5,
-                    backgroundColor: cm.color,
-                  }}
-                />
-                <Text style={s.infoLabel}>
-                  {cm.label} ({cm.unit})
-                </Text>
-              </View>
+              <Text style={[s.infoLabel, { flex: 1 }]}>
+                {cm.label} ({cm.unit})
+              </Text>
               <TouchableOpacity
                 onPress={() => {
                   Alert.alert(
@@ -1199,6 +1432,284 @@ export default function SettingsScreen() {
             </Text>
           </TouchableOpacity>
         </View>
+
+        {/* 사용자 정의 체크항목 관리 */}
+        <View style={s.card}>
+          <Text style={s.cardTitle}>사용자 정의 체크항목</Text>
+          <Text
+            style={{
+              fontSize: 12,
+              color: "#A0AEC0",
+              marginBottom: 12,
+              marginTop: -8,
+            }}
+          >
+            운동·음주처럼 체크(✓/✗)로 기록할 항목을 추가할 수 있습니다
+          </Text>
+          {customBoolMetrics.map((cbm) => (
+            <View key={cbm.key} style={s.infoRow}>
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 6,
+                  flex: 1,
+                }}
+              >
+                <View
+                  style={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: 5,
+                    backgroundColor: cbm.color,
+                  }}
+                />
+                <Text style={s.infoLabel}>
+                  {cbm.emoji ? `${cbm.emoji} ` : ""}
+                  {cbm.label}
+                </Text>
+              </View>
+              <View
+                style={{ flexDirection: "row", alignItems: "center", gap: 12 }}
+              >
+                <TouchableOpacity
+                  onPress={() => {
+                    setEditingBoolEmojiKey(cbm.key);
+                    setEditBoolEmoji(cbm.emoji || "");
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      color: "#3182CE",
+                      fontWeight: "600",
+                    }}
+                  >
+                    {cbm.emoji ? "이모지 변경" : "이모지 추가"}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => {
+                    Alert.alert(
+                      "항목 삭제",
+                      `"${cbm.label}" 항목을 삭제하시겠습니까?\n이미 입력된 데이터는 유지됩니다.`,
+                      [
+                        { text: "취소", style: "cancel" },
+                        {
+                          text: "삭제",
+                          style: "destructive",
+                          onPress: async () => {
+                            const next = customBoolMetrics.filter(
+                              (c) => c.key !== cbm.key
+                            );
+                            setCustomBoolMetrics(next);
+                            const cur = await loadUserSettings();
+                            await saveUserSettings({
+                              ...cur,
+                              customBoolMetrics: next,
+                            });
+                          },
+                        },
+                      ]
+                    );
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      color: "#E53E3E",
+                      fontWeight: "600",
+                    }}
+                  >
+                    삭제
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ))}
+          <TouchableOpacity
+            style={{
+              marginTop: 8,
+              backgroundColor: "#FFF5F5",
+              borderRadius: 10,
+              paddingVertical: 12,
+              alignItems: "center",
+            }}
+            onPress={() => {
+              setNewBoolLabel("");
+              setNewBoolEmoji("");
+              setShowAddBoolMetric(true);
+            }}
+          >
+            <Text style={{ fontSize: 14, fontWeight: "600", color: "#E53E3E" }}>
+              + 체크항목 추가
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* 사용자 정의 체크항목 추가 모달 */}
+        <Modal
+          visible={showAddBoolMetric}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowAddBoolMetric(false)}
+        >
+          <TouchableOpacity
+            style={s.pinModalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowAddBoolMetric(false)}
+          >
+            <View style={s.pinModalCard} onStartShouldSetResponder={() => true}>
+              <Text style={s.pinModalTitle}>체크항목 추가</Text>
+              <Text style={s.pinModalDesc}>
+                체크로 기록할 항목의 이름을 입력하세요
+              </Text>
+              <View style={{ width: "100%", marginBottom: 12 }}>
+                <Text
+                  style={{ fontSize: 13, color: "#4A5568", marginBottom: 4 }}
+                >
+                  이름
+                </Text>
+                <TextInput
+                  style={[s.input, { width: "100%", textAlign: "left" }]}
+                  value={newBoolLabel}
+                  onChangeText={setNewBoolLabel}
+                  placeholder="예: 스트레칭, 명상, 금연"
+                  placeholderTextColor="#A0AEC0"
+                  returnKeyType="next"
+                />
+              </View>
+              <View style={{ width: "100%", marginBottom: 20 }}>
+                <Text
+                  style={{ fontSize: 13, color: "#4A5568", marginBottom: 4 }}
+                >
+                  이모지 (선택)
+                </Text>
+                <TextInput
+                  style={[s.input, { width: "100%", textAlign: "left" }]}
+                  value={newBoolEmoji}
+                  onChangeText={(t) => setNewBoolEmoji(t.slice(0, 2))}
+                  placeholder="예: 🧘 💊 🚭"
+                  placeholderTextColor="#A0AEC0"
+                  returnKeyType="done"
+                />
+              </View>
+              <View style={{ flexDirection: "row", gap: 10, width: "100%" }}>
+                <TouchableOpacity
+                  style={[s.saveBtn, { flex: 1, marginTop: 0 }]}
+                  onPress={async () => {
+                    const label = newBoolLabel.trim();
+                    if (!label) {
+                      Alert.alert("입력 오류", "항목 이름을 입력해주세요.");
+                      return;
+                    }
+                    const key = `bool_${Date.now()}`;
+                    const colorIdx =
+                      customBoolMetrics.length % CUSTOM_BOOL_COLORS.length;
+                    const color = CUSTOM_BOOL_COLORS[colorIdx];
+                    const emoji = newBoolEmoji.trim() || undefined;
+                    const newCbm: CustomBoolMetric = {
+                      key,
+                      label,
+                      color,
+                      emoji,
+                    };
+                    const next = [...customBoolMetrics, newCbm];
+                    setCustomBoolMetrics(next);
+                    const cur = await loadUserSettings();
+                    await saveUserSettings({ ...cur, customBoolMetrics: next });
+                    setShowAddBoolMetric(false);
+                    Alert.alert(
+                      "추가 완료",
+                      `"${label}" 항목이 추가되었습니다.`
+                    );
+                  }}
+                >
+                  <Text style={s.saveBtnText}>추가</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    s.saveBtn,
+                    { flex: 1, marginTop: 0, backgroundColor: "#EDF2F7" },
+                  ]}
+                  onPress={() => setShowAddBoolMetric(false)}
+                >
+                  <Text style={[s.saveBtnText, { color: "#718096" }]}>
+                    취소
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </TouchableOpacity>
+        </Modal>
+
+        {/* 이모지 편집 모달 */}
+        <Modal
+          visible={editingBoolEmojiKey !== null}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setEditingBoolEmojiKey(null)}
+        >
+          <TouchableOpacity
+            style={s.pinModalOverlay}
+            activeOpacity={1}
+            onPress={() => setEditingBoolEmojiKey(null)}
+          >
+            <View style={s.pinModalCard} onStartShouldSetResponder={() => true}>
+              <Text style={s.pinModalTitle}>이모지 변경</Text>
+              <Text style={s.pinModalDesc}>
+                {customBoolMetrics.find((c) => c.key === editingBoolEmojiKey)
+                  ?.label || ""}{" "}
+                항목의 이모지를 변경합니다
+              </Text>
+              <View style={{ width: "100%", marginBottom: 20 }}>
+                <Text
+                  style={{ fontSize: 13, color: "#4A5568", marginBottom: 4 }}
+                >
+                  이모지
+                </Text>
+                <TextInput
+                  style={[s.input, { width: "100%", textAlign: "left" }]}
+                  value={editBoolEmoji}
+                  onChangeText={(t) => setEditBoolEmoji(t.slice(0, 2))}
+                  placeholder="예: 🧘 💊 🚭 (비우면 제거)"
+                  placeholderTextColor="#A0AEC0"
+                  returnKeyType="done"
+                  autoFocus
+                />
+              </View>
+              <View style={{ flexDirection: "row", gap: 10, width: "100%" }}>
+                <TouchableOpacity
+                  style={[s.saveBtn, { flex: 1, marginTop: 0 }]}
+                  onPress={async () => {
+                    if (!editingBoolEmojiKey) return;
+                    const emoji = editBoolEmoji.trim() || undefined;
+                    const next = customBoolMetrics.map((c) =>
+                      c.key === editingBoolEmojiKey ? { ...c, emoji } : c
+                    );
+                    setCustomBoolMetrics(next);
+                    const cur = await loadUserSettings();
+                    await saveUserSettings({ ...cur, customBoolMetrics: next });
+                    setEditingBoolEmojiKey(null);
+                  }}
+                >
+                  <Text style={s.saveBtnText}>저장</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    s.saveBtn,
+                    { flex: 1, marginTop: 0, backgroundColor: "#EDF2F7" },
+                  ]}
+                  onPress={() => setEditingBoolEmojiKey(null)}
+                >
+                  <Text style={[s.saveBtnText, { color: "#718096" }]}>
+                    취소
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </TouchableOpacity>
+        </Modal>
 
         {/* 사용자 정의 수치 추가 모달 */}
         <Modal

@@ -66,6 +66,9 @@ export default function CalendarScreen() {
   const [eCustomInputs, setECustomInputs] = useState<Record<string, string>>(
     {}
   );
+  const [eBoolCustomInputs, setEBoolCustomInputs] = useState<
+    Record<string, boolean>
+  >({});
   const [userSettings, setUserSettings] = useState<UserSettings>({});
 
   useFocusEffect(
@@ -145,6 +148,29 @@ export default function CalendarScreen() {
       return { first: withData[0], last: withData[withData.length - 1] };
     };
 
+    const findCustomRange = (key: string) => {
+      const withData = sorted.filter((r) => r.customValues?.[key] != null);
+      if (withData.length === 0) return null;
+      if (withData.length === 1)
+        return { first: withData[0], last: null as WeightRecord | null };
+      return { first: withData[0], last: withData[withData.length - 1] };
+    };
+
+    const customMetricRanges: Record<
+      string,
+      { first: WeightRecord; last: WeightRecord | null } | null
+    > = {};
+    (userSettings.customMetrics ?? []).forEach((cm) => {
+      customMetricRanges[cm.key] = findCustomRange(cm.key);
+    });
+
+    const customBoolCounts: Record<string, number> = {};
+    (userSettings.customBoolMetrics ?? []).forEach((cbm) => {
+      customBoolCounts[cbm.key] = filtered.filter(
+        (r) => r.customBoolValues?.[cbm.key]
+      ).length;
+    });
+
     return {
       records: filtered,
       periodLabel,
@@ -155,8 +181,10 @@ export default function CalendarScreen() {
       bodyFatMassRange: findMetricRange("bodyFatMass"),
       exerciseCount: filtered.filter((r) => r.exercised).length,
       drinkCount: filtered.filter((r) => r.drank).length,
+      customMetricRanges,
+      customBoolCounts,
     };
-  }, [records, year, month, summaryMode]);
+  }, [records, year, month, summaryMode, userSettings]);
 
   const calendarCells: (number | null)[] = [];
   for (let i = 0; i < firstDay; i++) calendarCells.push(null);
@@ -191,6 +219,13 @@ export default function CalendarScreen() {
       }
     }
     setECustomInputs(ci);
+    const bi: Record<string, boolean> = {};
+    if (selectedRecord.customBoolValues) {
+      for (const [k, v] of Object.entries(selectedRecord.customBoolValues)) {
+        bi[k] = v;
+      }
+    }
+    setEBoolCustomInputs(bi);
     setEditMode(true);
   };
 
@@ -219,6 +254,10 @@ export default function CalendarScreen() {
       photoUri: ePhotoUri,
       customValues:
         Object.keys(customValues).length > 0 ? customValues : undefined,
+      customBoolValues:
+        Object.keys(eBoolCustomInputs).length > 0
+          ? { ...eBoolCustomInputs }
+          : undefined,
     };
     const newRecords = await upsertRecord(updated);
     setRecords(newRecords);
@@ -264,6 +303,7 @@ export default function CalendarScreen() {
     setEDrank(false);
     setEPhotoUri(undefined);
     setECustomInputs({});
+    setEBoolCustomInputs({});
     setAddMode(true);
   };
 
@@ -291,6 +331,10 @@ export default function CalendarScreen() {
       photoUri: ePhotoUri,
       customValues:
         Object.keys(addCustomValues).length > 0 ? addCustomValues : undefined,
+      customBoolValues:
+        Object.keys(eBoolCustomInputs).length > 0
+          ? { ...eBoolCustomInputs }
+          : undefined,
     };
     const newRecords = await upsertRecord(newRec);
     setRecords(newRecords);
@@ -756,6 +800,82 @@ export default function CalendarScreen() {
                     </View>
                   );
                 })()}
+              {/* 사용자 정의 수치 변화 */}
+              {(userSettings.customMetrics ?? []).map((cm) => {
+                if (userSettings.metricDisplayVisibility?.[cm.key] === false)
+                  return null;
+                const range = summaryData.customMetricRanges?.[cm.key];
+                if (!range) return null;
+                const fmtShort = (d: string) => d.slice(2).replace(/-/g, ".");
+                const firstVal = range.first.customValues?.[cm.key];
+                if (firstVal == null) return null;
+                if (!range.last) {
+                  return (
+                    <View
+                      key={cm.key}
+                      style={{
+                        flexDirection: "row",
+                        justifyContent: "space-between",
+                        paddingVertical: 4,
+                      }}
+                    >
+                      <Text style={{ fontSize: 13, color: "#718096" }}>
+                        {cm.label}
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          fontWeight: "600",
+                          color: "#4A5568",
+                        }}
+                      >
+                        {firstVal}
+                        {cm.unit}
+                      </Text>
+                    </View>
+                  );
+                }
+                const lastVal = range.last.customValues?.[cm.key];
+                if (lastVal == null) return null;
+                const diff = lastVal - firstVal;
+                return (
+                  <View
+                    key={cm.key}
+                    style={{
+                      flexDirection: "row",
+                      justifyContent: "space-between",
+                      paddingVertical: 4,
+                      alignItems: "center",
+                    }}
+                  >
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 4,
+                      }}
+                    >
+                      <Text style={{ fontSize: 13, color: "#718096" }}>
+                        {cm.label}
+                      </Text>
+                      <Text style={{ fontSize: 10, color: "#A0AEC0" }}>
+                        {fmtShort(range.first.date)}~{fmtShort(range.last.date)}
+                      </Text>
+                    </View>
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        fontWeight: "600",
+                        color: diff <= 0 ? "#38A169" : "#E53E3E",
+                      }}
+                    >
+                      {firstVal}→{lastVal}
+                      {cm.unit} ({diff > 0 ? "+" : ""}
+                      {diff.toFixed(1)})
+                    </Text>
+                  </View>
+                );
+              })}
             </View>
           )}
 
@@ -838,14 +958,29 @@ export default function CalendarScreen() {
                               ]}
                             />
                           )}
-                          {!rec.exercised && !rec.drank && (
-                            <View
-                              style={[
-                                s.miniDot,
-                                { backgroundColor: "#78909C" },
-                              ]}
-                            />
+                          {(userSettings.customBoolMetrics ?? []).map((cbm) =>
+                            rec.customBoolValues?.[cbm.key] ? (
+                              <View
+                                key={cbm.key}
+                                style={[
+                                  s.miniDot,
+                                  { backgroundColor: cbm.color },
+                                ]}
+                              />
+                            ) : null
                           )}
+                          {!rec.exercised &&
+                            !rec.drank &&
+                            !(userSettings.customBoolMetrics ?? []).some(
+                              (cbm) => rec.customBoolValues?.[cbm.key]
+                            ) && (
+                              <View
+                                style={[
+                                  s.miniDot,
+                                  { backgroundColor: "#78909C" },
+                                ]}
+                              />
+                            )}
                         </View>
                       )}
                     </TouchableOpacity>
@@ -864,6 +999,12 @@ export default function CalendarScreen() {
               <View style={[s.legendDot, { backgroundColor: "#FF9800" }]} />
               <Text style={s.legendText}>음주</Text>
             </View>
+            {(userSettings.customBoolMetrics ?? []).map((cbm) => (
+              <View key={cbm.key} style={s.legendItem}>
+                <View style={[s.legendDot, { backgroundColor: cbm.color }]} />
+                <Text style={s.legendText}>{cbm.label}</Text>
+              </View>
+            ))}
             <View style={s.legendItem}>
               <View style={[s.legendDot, { backgroundColor: "#78909C" }]} />
               <Text style={s.legendText}>기록</Text>
@@ -1029,6 +1170,26 @@ export default function CalendarScreen() {
                       <View style={[s.badge, s.badgeOrange]}>
                         <Text style={s.badgeText}>음주</Text>
                       </View>
+                    )}
+                    {(userSettings.customBoolMetrics ?? []).map((cbm) =>
+                      selectedRecord.customBoolValues?.[cbm.key] ? (
+                        <View
+                          key={cbm.key}
+                          style={[
+                            s.badge,
+                            {
+                              backgroundColor: cbm.color + "22",
+                              borderColor: cbm.color,
+                              borderWidth: 1,
+                            },
+                          ]}
+                        >
+                          <Text style={[s.badgeText, { color: cbm.color }]}>
+                            {cbm.emoji ? `${cbm.emoji} ` : ""}
+                            {cbm.label}
+                          </Text>
+                        </View>
+                      ) : null
                     )}
                   </View>
 
@@ -1205,7 +1366,7 @@ export default function CalendarScreen() {
                   </View>
 
                   <View style={s.editSwitchRow}>
-                    <Text style={s.editLabel}>운동</Text>
+                    <Text style={s.editLabel}>🏃 운동</Text>
                     <Switch
                       value={eExercised}
                       onValueChange={setEExercised}
@@ -1214,7 +1375,7 @@ export default function CalendarScreen() {
                     />
                   </View>
                   <View style={s.editSwitchRow}>
-                    <Text style={s.editLabel}>음주</Text>
+                    <Text style={s.editLabel}>🍺 음주</Text>
                     <Switch
                       value={eDrank}
                       onValueChange={setEDrank}
@@ -1222,6 +1383,42 @@ export default function CalendarScreen() {
                       thumbColor="#fff"
                     />
                   </View>
+                  {(userSettings.customBoolMetrics ?? []).map((cbm) => (
+                    <View key={cbm.key} style={s.editSwitchRow}>
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 6,
+                          flex: 1,
+                        }}
+                      >
+                        <View
+                          style={{
+                            width: 8,
+                            height: 8,
+                            borderRadius: 4,
+                            backgroundColor: cbm.color,
+                          }}
+                        />
+                        <Text style={s.editLabel}>
+                          {cbm.emoji ? `${cbm.emoji} ` : ""}
+                          {cbm.label}
+                        </Text>
+                      </View>
+                      <Switch
+                        value={eBoolCustomInputs[cbm.key] ?? false}
+                        onValueChange={(v) =>
+                          setEBoolCustomInputs((prev) => ({
+                            ...prev,
+                            [cbm.key]: v,
+                          }))
+                        }
+                        trackColor={{ true: cbm.color, false: "#ddd" }}
+                        thumbColor="#fff"
+                      />
+                    </View>
+                  ))}
 
                   <View style={s.modalActionRow}>
                     <TouchableOpacity
@@ -1406,7 +1603,7 @@ export default function CalendarScreen() {
                 </View>
 
                 <View style={s.editSwitchRow}>
-                  <Text style={s.editLabel}>운동</Text>
+                  <Text style={s.editLabel}>🏃 운동</Text>
                   <Switch
                     value={eExercised}
                     onValueChange={setEExercised}
@@ -1415,7 +1612,7 @@ export default function CalendarScreen() {
                   />
                 </View>
                 <View style={s.editSwitchRow}>
-                  <Text style={s.editLabel}>음주</Text>
+                  <Text style={s.editLabel}>🍺 음주</Text>
                   <Switch
                     value={eDrank}
                     onValueChange={setEDrank}
@@ -1423,6 +1620,42 @@ export default function CalendarScreen() {
                     thumbColor="#fff"
                   />
                 </View>
+                {(userSettings.customBoolMetrics ?? []).map((cbm) => (
+                  <View key={cbm.key} style={s.editSwitchRow}>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 6,
+                        flex: 1,
+                      }}
+                    >
+                      <View
+                        style={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: 4,
+                          backgroundColor: cbm.color,
+                        }}
+                      />
+                      <Text style={s.editLabel}>
+                        {cbm.emoji ? `${cbm.emoji} ` : ""}
+                        {cbm.label}
+                      </Text>
+                    </View>
+                    <Switch
+                      value={eBoolCustomInputs[cbm.key] ?? false}
+                      onValueChange={(v) =>
+                        setEBoolCustomInputs((prev) => ({
+                          ...prev,
+                          [cbm.key]: v,
+                        }))
+                      }
+                      trackColor={{ true: cbm.color, false: "#ddd" }}
+                      thumbColor="#fff"
+                    />
+                  </View>
+                ))}
 
                 <View style={s.modalActionRow}>
                   <TouchableOpacity
