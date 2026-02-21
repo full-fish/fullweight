@@ -207,7 +207,7 @@ export default function CalendarScreen() {
     setRecords(newRecords);
     setSelectedRecord(updated);
     setEditMode(false);
-    Alert.alert("저장 완료 ✅", "기록이 수정되었습니다.");
+    Alert.alert("저장 완료", "기록이 수정되었습니다.");
   };
 
   /* 삭제 */
@@ -271,7 +271,7 @@ export default function CalendarScreen() {
     setRecords(newRecords);
     setAddMode(false);
     setAddDate("");
-    Alert.alert("저장 완료 ✅", `${fmtDate(addDate)} 기록이 추가되었습니다.`);
+    Alert.alert("저장 완료", `${fmtDate(addDate)} 기록이 추가되었습니다.`);
   };
 
   return (
@@ -477,7 +477,7 @@ export default function CalendarScreen() {
                   marginBottom: 8,
                 }}
               >
-                📊 {summaryData.periodLabel} 변화
+                {summaryData.periodLabel} 변화
               </Text>
               {/* 몸무게 (항상 표시) */}
               <View
@@ -495,9 +495,7 @@ export default function CalendarScreen() {
                     gap: 4,
                   }}
                 >
-                  <Text style={{ fontSize: 13, color: "#718096" }}>
-                    ⚖️ 몸무게
-                  </Text>
+                  <Text style={{ fontSize: 13, color: "#718096" }}>몸무게</Text>
                   <Text style={{ fontSize: 10, color: "#A0AEC0" }}>
                     {summaryData.first.date.slice(2).replace(/-/g, ".")}~
                     {summaryData.last.date.slice(2).replace(/-/g, ".")}
@@ -539,7 +537,7 @@ export default function CalendarScreen() {
                       }}
                     >
                       <Text style={{ fontSize: 13, color: "#718096" }}>
-                        💪 골격근량
+                        골격근량
                       </Text>
                       <Text
                         style={{
@@ -572,7 +570,7 @@ export default function CalendarScreen() {
                       }}
                     >
                       <Text style={{ fontSize: 13, color: "#718096" }}>
-                        💪 골격근량
+                        골격근량
                       </Text>
                       <Text style={{ fontSize: 10, color: "#A0AEC0" }}>
                         {dateLabel}
@@ -607,7 +605,7 @@ export default function CalendarScreen() {
                       }}
                     >
                       <Text style={{ fontSize: 13, color: "#718096" }}>
-                        🔥 체지방률
+                        체지방률
                       </Text>
                       <Text
                         style={{
@@ -641,7 +639,7 @@ export default function CalendarScreen() {
                       }}
                     >
                       <Text style={{ fontSize: 13, color: "#718096" }}>
-                        🔥 체지방률
+                        체지방률
                       </Text>
                       <Text style={{ fontSize: 10, color: "#A0AEC0" }}>
                         {dateLabel}
@@ -676,7 +674,7 @@ export default function CalendarScreen() {
                       }}
                     >
                       <Text style={{ fontSize: 13, color: "#718096" }}>
-                        🟣 체지방량
+                        체지방량
                       </Text>
                       <Text
                         style={{
@@ -709,7 +707,7 @@ export default function CalendarScreen() {
                       }}
                     >
                       <Text style={{ fontSize: 13, color: "#718096" }}>
-                        🟣 체지방량
+                        체지방량
                       </Text>
                       <Text style={{ fontSize: 10, color: "#A0AEC0" }}>
                         {dateLabel}
@@ -863,12 +861,12 @@ export default function CalendarScreen() {
                     {fmtDate(selectedRecord.date)}
                   </Text>
                   <View style={s.modalRow}>
-                    <Text style={s.modalLabel}>⚖️ 몸무게</Text>
+                    <Text style={s.modalLabel}>몸무게</Text>
                     <Text style={s.modalValue}>{selectedRecord.weight} kg</Text>
                   </View>
                   {selectedRecord.waist != null && (
                     <View style={s.modalRow}>
-                      <Text style={s.modalLabel}>📏 허리둘레</Text>
+                      <Text style={s.modalLabel}>허리둘레</Text>
                       <Text style={s.modalValue}>
                         {selectedRecord.waist} cm
                       </Text>
@@ -876,7 +874,7 @@ export default function CalendarScreen() {
                   )}
                   {selectedRecord.muscleMass != null && (
                     <View style={s.modalRow}>
-                      <Text style={s.modalLabel}>💪 골격근량</Text>
+                      <Text style={s.modalLabel}>골격근량</Text>
                       <Text style={s.modalValue}>
                         {selectedRecord.muscleMass} kg
                       </Text>
@@ -884,7 +882,7 @@ export default function CalendarScreen() {
                   )}
                   {selectedRecord.bodyFatPercent != null && (
                     <View style={s.modalRow}>
-                      <Text style={s.modalLabel}>🔥 체지방률</Text>
+                      <Text style={s.modalLabel}>체지방률</Text>
                       <Text style={s.modalValue}>
                         {selectedRecord.bodyFatPercent} %
                       </Text>
@@ -892,7 +890,7 @@ export default function CalendarScreen() {
                   )}
                   {selectedRecord.bodyFatMass != null && (
                     <View style={s.modalRow}>
-                      <Text style={s.modalLabel}>🟣 체지방량</Text>
+                      <Text style={s.modalLabel}>체지방량</Text>
                       <Text style={s.modalValue}>
                         {selectedRecord.bodyFatMass} kg
                       </Text>
@@ -908,7 +906,7 @@ export default function CalendarScreen() {
                       return (
                         <View style={{ marginTop: 8 }}>
                           <View style={s.modalRow}>
-                            <Text style={s.modalLabel}>📊 BMI</Text>
+                            <Text style={s.modalLabel}>BMI</Text>
                             <Text style={[s.modalValue, { color: info.color }]}>
                               {info.bmi} ({info.label})
                             </Text>
@@ -971,12 +969,12 @@ export default function CalendarScreen() {
                   <View style={s.modalBadges}>
                     {selectedRecord.exercised && (
                       <View style={[s.badge, s.badgeGreen]}>
-                        <Text style={s.badgeText}>🏃 운동</Text>
+                        <Text style={s.badgeText}>운동</Text>
                       </View>
                     )}
                     {selectedRecord.drank && (
                       <View style={[s.badge, s.badgeOrange]}>
-                        <Text style={s.badgeText}>🍺 음주</Text>
+                        <Text style={s.badgeText}>음주</Text>
                       </View>
                     )}
                   </View>
@@ -987,13 +985,13 @@ export default function CalendarScreen() {
                       style={s.modalEditBtn}
                       onPress={startEdit}
                     >
-                      <Text style={s.modalEditBtnText}>✏️ 수정</Text>
+                      <Text style={s.modalEditBtnText}>수정</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={s.modalDeleteBtn}
                       onPress={handleDelete}
                     >
-                      <Text style={s.modalDeleteBtnText}>🗑️ 삭제</Text>
+                      <Text style={s.modalDeleteBtnText}>삭제</Text>
                     </TouchableOpacity>
                   </View>
 
@@ -1074,8 +1072,8 @@ export default function CalendarScreen() {
                     placeholderTextColor="#aaa"
                   />
 
-                  {/* 📸 사진 */}
-                  <Text style={s.editLabel}>📸 눈바디 사진</Text>
+                  {/* 눈바디 사진 */}
+                  <Text style={s.editLabel}>눈바디 사진</Text>
                   {ePhotoUri ? (
                     <View style={{ alignItems: "center", marginVertical: 8 }}>
                       <Image source={{ uri: ePhotoUri }} style={s.editPhoto} />
@@ -1095,7 +1093,7 @@ export default function CalendarScreen() {
                         if (uri) setEPhotoUri(uri);
                       }}
                     >
-                      <Text style={s.photoActionBtnText}>📷 촬영</Text>
+                      <Text style={s.photoActionBtnText}>촬영</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={s.photoActionBtn}
@@ -1104,12 +1102,12 @@ export default function CalendarScreen() {
                         if (uri) setEPhotoUri(uri);
                       }}
                     >
-                      <Text style={s.photoActionBtnText}>🖼️ 갤러리</Text>
+                      <Text style={s.photoActionBtnText}>갤러리</Text>
                     </TouchableOpacity>
                   </View>
 
                   <View style={s.editSwitchRow}>
-                    <Text style={s.editLabel}>🏃 운동</Text>
+                    <Text style={s.editLabel}>운동</Text>
                     <Switch
                       value={eExercised}
                       onValueChange={setEExercised}
@@ -1118,7 +1116,7 @@ export default function CalendarScreen() {
                     />
                   </View>
                   <View style={s.editSwitchRow}>
-                    <Text style={s.editLabel}>🍺 음주</Text>
+                    <Text style={s.editLabel}>음주</Text>
                     <Switch
                       value={eDrank}
                       onValueChange={setEDrank}
@@ -1234,8 +1232,8 @@ export default function CalendarScreen() {
                   placeholderTextColor="#aaa"
                 />
 
-                {/* 📸 사진 */}
-                <Text style={s.editLabel}>📸 눈바디 사진</Text>
+                {/* 눈바디 사진 */}
+                <Text style={s.editLabel}>눈바디 사진</Text>
                 {ePhotoUri ? (
                   <View style={{ alignItems: "center", marginVertical: 8 }}>
                     <Image source={{ uri: ePhotoUri }} style={s.editPhoto} />
@@ -1255,7 +1253,7 @@ export default function CalendarScreen() {
                       if (uri) setEPhotoUri(uri);
                     }}
                   >
-                    <Text style={s.photoActionBtnText}>📷 촬영</Text>
+                    <Text style={s.photoActionBtnText}>촬영</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={s.photoActionBtn}
@@ -1264,12 +1262,12 @@ export default function CalendarScreen() {
                       if (uri) setEPhotoUri(uri);
                     }}
                   >
-                    <Text style={s.photoActionBtnText}>🖼️ 갤러리</Text>
+                    <Text style={s.photoActionBtnText}>갤러리</Text>
                   </TouchableOpacity>
                 </View>
 
                 <View style={s.editSwitchRow}>
-                  <Text style={s.editLabel}>🏃 운동</Text>
+                  <Text style={s.editLabel}>운동</Text>
                   <Switch
                     value={eExercised}
                     onValueChange={setEExercised}
@@ -1278,7 +1276,7 @@ export default function CalendarScreen() {
                   />
                 </View>
                 <View style={s.editSwitchRow}>
-                  <Text style={s.editLabel}>🍺 음주</Text>
+                  <Text style={s.editLabel}>음주</Text>
                   <Switch
                     value={eDrank}
                     onValueChange={setEDrank}

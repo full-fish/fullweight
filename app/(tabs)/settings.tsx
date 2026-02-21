@@ -477,7 +477,7 @@ export default function SettingsScreen() {
     const result = await performBackup();
     setBackupLoading(false);
     if (result.success) {
-      Alert.alert("백업 완료 ✅", "Google Drive에 데이터가 백업되었습니다.");
+      Alert.alert("백업 완료", "Google Drive에 데이터가 백업되었습니다.");
       await refreshGoogleState();
     } else {
       Alert.alert("백업 실패", result.error ?? "알 수 없는 오류");
@@ -521,7 +521,7 @@ export default function SettingsScreen() {
               setBirthDate(settings.birthDate ?? "");
               setGender(settings.gender);
               Alert.alert(
-                "복원 완료 ✅",
+                "복원 완료",
                 "데이터가 성공적으로 복원되었습니다.\n앱을 다시 시작하면 모든 변경사항이 반영됩니다."
               );
             } else {
@@ -606,7 +606,7 @@ export default function SettingsScreen() {
             const updated = await seedDummyData();
             setRecordCount(updated.length);
             Alert.alert(
-              "완료 ✅",
+              "완료",
               `${updated.length}개의 더미 데이터가 생성됐습니다.`
             );
           },
@@ -653,7 +653,7 @@ export default function SettingsScreen() {
                 onPress={() => setIsEditing(true)}
                 style={s.editIconBtn}
               >
-                <Text style={s.editIconText}>✏️ 수정</Text>
+                <Text style={s.editIconText}>수정</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -701,7 +701,7 @@ export default function SettingsScreen() {
                   style={s.calendarIconBtn}
                   onPress={() => setCalendarVisible(true)}
                 >
-                  <Text style={s.calendarIconText}>📅</Text>
+                  <Text style={s.calendarIconText}></Text>
                 </TouchableOpacity>
               </View>
             ) : (
@@ -857,7 +857,7 @@ export default function SettingsScreen() {
             <>
               <View style={s.infoRow}>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.infoLabel}>👆 생체인증 (Face ID/지문)</Text>
+                  <Text style={s.infoLabel}>생체인증 (Face ID/지문)</Text>
                   <Text
                     style={{ fontSize: 11, color: "#A0AEC0", marginTop: 2 }}
                   >
@@ -983,7 +983,7 @@ export default function SettingsScreen() {
                                   });
                                   setShowPinSetup(false);
                                   Alert.alert(
-                                    "설정 완료 🔒",
+                                    "설정 완료",
                                     "앱 잠금이 활성화되었습니다."
                                   );
                                 } else {
@@ -1039,7 +1039,7 @@ export default function SettingsScreen() {
 
         {/* Google 드라이브 백업 */}
         <View style={s.card}>
-          <Text style={s.cardTitle}>☁️ Google 드라이브 백업</Text>
+          <Text style={s.cardTitle}>Google 드라이브 백업</Text>
 
           {!isGoogleSignedIn ? (
             // 로그인 안 된 상태
@@ -1091,7 +1091,7 @@ export default function SettingsScreen() {
                   {backupLoading ? (
                     <ActivityIndicator size="small" color="#fff" />
                   ) : (
-                    <Text style={s.backupActionBtnText}>📤 지금 백업</Text>
+                    <Text style={s.backupActionBtnText}>지금 백업</Text>
                   )}
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -1105,7 +1105,7 @@ export default function SettingsScreen() {
                   {restoreLoading ? (
                     <ActivityIndicator size="small" color="#fff" />
                   ) : (
-                    <Text style={s.backupActionBtnText}>📥 복원</Text>
+                    <Text style={s.backupActionBtnText}>복원</Text>
                   )}
                 </TouchableOpacity>
               </View>
@@ -1200,14 +1200,14 @@ export default function SettingsScreen() {
         <View style={s.card}>
           <Text style={s.cardTitle}>개발자 도구</Text>
           <TouchableOpacity style={s.actionBtn} onPress={handleSeedDummy}>
-            <Text style={s.actionIcon}>🎲</Text>
+            <Text style={s.actionIcon}></Text>
             <View style={s.actionTextWrap}>
               <Text style={s.actionTitle}>더미 데이터 생성</Text>
               <Text style={s.actionDesc}>약 1년치 랜덤 테스트 데이터 삽입</Text>
             </View>
           </TouchableOpacity>
           <TouchableOpacity style={s.actionBtn} onPress={handleClearAll}>
-            <Text style={s.actionIcon}>🗑</Text>
+            <Text style={s.actionIcon}></Text>
             <View style={s.actionTextWrap}>
               <Text style={[s.actionTitle, { color: "#E53E3E" }]}>
                 전체 데이터 삭제

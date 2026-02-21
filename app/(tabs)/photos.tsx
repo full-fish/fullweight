@@ -129,7 +129,7 @@ export default function PhotosScreen() {
 
         {photoRecords.length === 0 ? (
           <View style={s.emptyWrap}>
-            <Text style={s.emptyIcon}>📷</Text>
+            <Text style={s.emptyIcon}></Text>
             <Text style={s.emptyTitle}>아직 사진이 없습니다</Text>
             <Text style={s.emptyDesc}>
               기록 탭에서 바디 사진을 추가해보세요
@@ -307,12 +307,10 @@ export default function PhotosScreen() {
                     <Text style={s.viewerDate}>{fmtDate(item.date)}</Text>
                     <Text style={s.viewerWeight}>{item.weight} kg</Text>
                     {item.muscleMass != null && (
-                      <Text style={s.viewerMeta}>💪 {item.muscleMass}kg</Text>
+                      <Text style={s.viewerMeta}>{item.muscleMass}kg</Text>
                     )}
                     {item.bodyFatPercent != null && (
-                      <Text style={s.viewerMeta}>
-                        🔥 {item.bodyFatPercent}%
-                      </Text>
+                      <Text style={s.viewerMeta}>{item.bodyFatPercent}%</Text>
                     )}
                   </View>
                 </View>
@@ -373,12 +371,10 @@ export default function PhotosScreen() {
                     <Text style={s.viewerDate}>{fmtDate(item.date)}</Text>
                     <Text style={s.viewerWeight}>{item.weight} kg</Text>
                     {item.muscleMass != null && (
-                      <Text style={s.viewerMeta}>💪 {item.muscleMass}kg</Text>
+                      <Text style={s.viewerMeta}>{item.muscleMass}kg</Text>
                     )}
                     {item.bodyFatPercent != null && (
-                      <Text style={s.viewerMeta}>
-                        🔥 {item.bodyFatPercent}%
-                      </Text>
+                      <Text style={s.viewerMeta}>{item.bodyFatPercent}%</Text>
                     )}
                   </View>
                 </View>

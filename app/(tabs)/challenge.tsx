@@ -135,7 +135,7 @@ function DateCalendarPicker({
             Platform.OS === "ios" ? "numbers-and-punctuation" : "default"
           }
         />
-        <Text style={dcpS.icon}>📅</Text>
+        <Text style={dcpS.icon}></Text>
       </TouchableOpacity>
 
       <Modal
@@ -553,7 +553,7 @@ export default function ChallengeScreen() {
     await saveChallenge(newChallenge);
     setChallenge(newChallenge);
     setShowForm(false);
-    Alert.alert("저장 완료 ✅", "챌린지가 설정되었습니다!");
+    Alert.alert("저장 완료", "챌린지가 설정되었습니다!");
   };
 
   const handleDeleteChallenge = () => {
@@ -672,7 +672,7 @@ export default function ChallengeScreen() {
       <ScrollView style={st.container} contentContainerStyle={st.content}>
         {!challenge && (
           <View style={st.emptyCard}>
-            <Text style={st.emptyIcon}>🎯</Text>
+            <Text style={st.emptyIcon}></Text>
             <Text style={st.emptyTitle}>아직 챌린지가 없습니다</Text>
             <Text style={st.emptyDesc}>
               목표 몸무게, 골격근량, 체지방 등을 설정하고{"\n"}달성도를
@@ -689,7 +689,7 @@ export default function ChallengeScreen() {
             {/* 기간 & 전체 달성도 */}
             <View style={st.card}>
               <View style={st.cardHeader}>
-                <Text style={st.cardTitle}>📊 진행 현황</Text>
+                <Text style={st.cardTitle}>진행 현황</Text>
                 <View style={st.headerActions}>
                   <TouchableOpacity onPress={() => openForm(challenge)}>
                     <Text style={st.editLink}>수정</Text>
@@ -757,10 +757,10 @@ export default function ChallengeScreen() {
 
             {/* 개별 수치 프로그레스 */}
             <View style={st.card}>
-              <Text style={st.cardTitle}>📈 수치별 진행도</Text>
+              <Text style={st.cardTitle}>수치별 진행도</Text>
 
               <ProgressBar
-                label="⚖️ 몸무게"
+                label="몸무게"
                 start={challenge.startWeight ?? startValues?.weight}
                 current={currentValues?.weight}
                 target={challenge.targetWeight}
@@ -768,7 +768,7 @@ export default function ChallengeScreen() {
                 color={METRIC_COLORS.weight}
               />
               <ProgressBar
-                label="💪 골격근량"
+                label="골격근량"
                 start={challenge.startMuscleMass ?? startValues?.muscleMass}
                 current={currentValues?.muscleMass}
                 target={challenge.targetMuscleMass}
@@ -776,7 +776,7 @@ export default function ChallengeScreen() {
                 color={METRIC_COLORS.muscleMass}
               />
               <ProgressBar
-                label="🟣 체지방량"
+                label="체지방량"
                 start={challenge.startBodyFatMass ?? startValues?.bodyFatMass}
                 current={currentValues?.bodyFatMass}
                 target={challenge.targetBodyFatMass}
@@ -784,7 +784,7 @@ export default function ChallengeScreen() {
                 color={METRIC_COLORS.bodyFatMass}
               />
               <ProgressBar
-                label="🔥 체지방률"
+                label="체지방률"
                 start={
                   challenge.startBodyFatPercent ?? startValues?.bodyFatPercent
                 }
@@ -885,7 +885,7 @@ export default function ChallengeScreen() {
         {/* 이전 챌린지 기록 */}
         {history.length > 0 && (
           <View style={st.card}>
-            <Text style={st.cardTitle}>📜 이전 챌린지</Text>
+            <Text style={st.cardTitle}>이전 챌린지</Text>
             {history.map((h, idx) => {
               const c = h.challenge;
               return (
@@ -908,13 +908,13 @@ export default function ChallengeScreen() {
                   <View style={st.historyDetails}>
                     {c.targetWeight != null && (
                       <Text style={st.historyDetail}>
-                        ⚖️ 목표: {c.targetWeight}kg
+                        몸무게 목표: {c.targetWeight}kg
                         {h.endWeight != null ? ` → 결과: ${h.endWeight}kg` : ""}
                       </Text>
                     )}
                     {c.targetMuscleMass != null && (
                       <Text style={st.historyDetail}>
-                        💪 목표: {c.targetMuscleMass}kg
+                        골격근 목표: {c.targetMuscleMass}kg
                         {h.endMuscleMass != null
                           ? ` → 결과: ${h.endMuscleMass}kg`
                           : ""}
@@ -922,7 +922,7 @@ export default function ChallengeScreen() {
                     )}
                     {c.targetBodyFatPercent != null && (
                       <Text style={st.historyDetail}>
-                        🔥 목표: {c.targetBodyFatPercent}%
+                        체지방 목표: {c.targetBodyFatPercent}%
                         {h.endBodyFatPercent != null
                           ? ` → 결과: ${h.endBodyFatPercent}%`
                           : ""}
@@ -930,7 +930,7 @@ export default function ChallengeScreen() {
                     )}
                     {c.targetBodyFatMass != null && (
                       <Text style={st.historyDetail}>
-                        🟣 목표: {c.targetBodyFatMass}kg
+                        체지방량 목표: {c.targetBodyFatMass}kg
                         {h.endBodyFatMass != null
                           ? ` → 결과: ${h.endBodyFatMass}kg`
                           : ""}

@@ -157,10 +157,7 @@ export default function HomeScreen() {
     };
     const updated = await upsertRecord(record);
     setRecords([...updated].sort((a, b) => b.date.localeCompare(a.date)));
-    Alert.alert(
-      "저장 완료 ✅",
-      `${fmtDate(selectedDate)} 기록이 저장되었습니다.`
-    );
+    Alert.alert("저장 완료", `${fmtDate(selectedDate)} 기록이 저장되었습니다.`);
   };
 
   const handleDelete = (date: string) => {
@@ -237,7 +234,7 @@ export default function HomeScreen() {
       setPhotoUri(emPhotoUri);
     }
     Alert.alert(
-      "저장 완료 ✅",
+      "저장 완료",
       `${fmtDate(editRecord.date)} 기록이 수정되었습니다.`
     );
   };
@@ -287,7 +284,6 @@ export default function HomeScreen() {
                   <Text style={styles.cardDateText}>
                     {fmtDate(selectedDate)}
                   </Text>
-                  <Text style={{ fontSize: 14 }}>📅</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => {
@@ -433,7 +429,7 @@ export default function HomeScreen() {
                     if (uri) setPhotoUri(uri);
                   }}
                 >
-                  <Text style={styles.photoBtnText}>📸 촬영</Text>
+                  <Text style={styles.photoBtnText}>촬영</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.photoBtn}
@@ -442,14 +438,14 @@ export default function HomeScreen() {
                     if (uri) setPhotoUri(uri);
                   }}
                 >
-                  <Text style={styles.photoBtnText}>🖼 갤러리</Text>
+                  <Text style={styles.photoBtnText}>갤러리</Text>
                 </TouchableOpacity>
               </View>
             </View>
 
             <View style={styles.switchGroup}>
               <View style={styles.switchRow}>
-                <Text style={styles.switchLabel}>🏃 오늘 운동했나요?</Text>
+                <Text style={styles.switchLabel}>오늘 운동했나요?</Text>
                 <Switch
                   value={exercised}
                   onValueChange={setExercised}
@@ -458,7 +454,7 @@ export default function HomeScreen() {
                 />
               </View>
               <View style={styles.switchRow}>
-                <Text style={styles.switchLabel}>🍺 오늘 음주했나요?</Text>
+                <Text style={styles.switchLabel}>오늘 음주했나요?</Text>
                 <Switch
                   value={drank}
                   onValueChange={setDrank}
@@ -477,7 +473,7 @@ export default function HomeScreen() {
           <Text style={styles.sectionTitle}>기록 목록</Text>
           {records.length === 0 ? (
             <Text style={styles.emptyText}>
-              아직 기록이 없습니다.{"\n"}첫 번째 기록을 추가해보세요! 🎯
+              아직 기록이 없습니다.{"\n"}첫 번째 기록을 추가해보세요!
             </Text>
           ) : (
             records.map((record) => (
@@ -486,7 +482,7 @@ export default function HomeScreen() {
                   <Text style={styles.recordDate}>{fmtDate(record.date)}</Text>
                   <View style={styles.recordActions}>
                     <TouchableOpacity onPress={() => handleEdit(record)}>
-                      <Text style={styles.editBtn}>✏️</Text>
+                      <Text style={styles.editBtn}>수정</Text>
                     </TouchableOpacity>
                     <TouchableOpacity onPress={() => handleDelete(record.date)}>
                       <Text style={styles.deleteBtn}>✕</Text>
@@ -500,7 +496,7 @@ export default function HomeScreen() {
                     if (!info) return null;
                     return (
                       <View style={styles.bmiRow}>
-                        <Text style={styles.recordSub}>📊 BMI: {info.bmi}</Text>
+                        <Text style={styles.recordSub}>BMI: {info.bmi}</Text>
                         <View style={styles.bmiBadge}>
                           <Text
                             style={[styles.bmiBadgeText, { color: info.color }]}
@@ -548,23 +544,21 @@ export default function HomeScreen() {
                     );
                   })()}
                 {record.waist != null && (
-                  <Text style={styles.recordSub}>
-                    📏 허리: {record.waist} cm
-                  </Text>
+                  <Text style={styles.recordSub}>허리: {record.waist} cm</Text>
                 )}
                 {record.muscleMass != null && (
                   <Text style={styles.recordSub}>
-                    💪 골격근: {record.muscleMass} kg
+                    골격근: {record.muscleMass} kg
                   </Text>
                 )}
                 {record.bodyFatPercent != null && (
                   <Text style={styles.recordSub}>
-                    🔥 체지방률: {record.bodyFatPercent} %
+                    체지방률: {record.bodyFatPercent} %
                   </Text>
                 )}
                 {record.bodyFatMass != null && (
                   <Text style={styles.recordSub}>
-                    🟣 체지방량: {record.bodyFatMass} kg
+                    체지방량: {record.bodyFatMass} kg
                   </Text>
                 )}
                 {record.photoUri && (
@@ -576,12 +570,12 @@ export default function HomeScreen() {
                 <View style={styles.badgeRow}>
                   {record.exercised && (
                     <View style={[styles.badge, styles.badgeExercise]}>
-                      <Text style={styles.badgeText}>🏃 운동</Text>
+                      <Text style={styles.badgeText}>운동</Text>
                     </View>
                   )}
                   {record.drank && (
                     <View style={[styles.badge, styles.badgeDrank]}>
-                      <Text style={styles.badgeText}>🍺 음주</Text>
+                      <Text style={styles.badgeText}>음주</Text>
                     </View>
                   )}
                 </View>
@@ -748,7 +742,7 @@ export default function HomeScreen() {
                           color: "#4A5568",
                         }}
                       >
-                        {"📸 촬영"}
+                        {"촬영"}
                       </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
@@ -771,14 +765,14 @@ export default function HomeScreen() {
                           color: "#4A5568",
                         }}
                       >
-                        {"🖼 갤러리"}
+                        {"갤러리"}
                       </Text>
                     </TouchableOpacity>
                   </View>
                 </View>
 
                 <View style={editModalStyles.switchRow}>
-                  <Text style={editModalStyles.label}>{"🏃 운동"}</Text>
+                  <Text style={editModalStyles.label}>{"운동"}</Text>
                   <Switch
                     value={emExercised}
                     onValueChange={setEmExercised}
@@ -787,7 +781,7 @@ export default function HomeScreen() {
                   />
                 </View>
                 <View style={editModalStyles.switchRow}>
-                  <Text style={editModalStyles.label}>{"🍺 음주"}</Text>
+                  <Text style={editModalStyles.label}>{"음주"}</Text>
                   <Switch
                     value={emDrank}
                     onValueChange={setEmDrank}

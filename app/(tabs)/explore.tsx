@@ -447,15 +447,15 @@ export default function ChartScreen() {
     );
 
     const metrics: { icon: string; val: string }[] = [];
-    metrics.push({ icon: "⚖️", val: `${record.weight} kg` });
+    metrics.push({ icon: "", val: `${record.weight} kg` });
     if (record.waist != null)
-      metrics.push({ icon: "📏", val: `${record.waist} cm` });
+      metrics.push({ icon: "허리", val: `${record.waist} cm` });
     if (record.muscleMass != null)
-      metrics.push({ icon: "💪", val: `${record.muscleMass} kg` });
+      metrics.push({ icon: "골격근", val: `${record.muscleMass} kg` });
     if (record.bodyFatPercent != null)
-      metrics.push({ icon: "🔥", val: `${record.bodyFatPercent} %` });
+      metrics.push({ icon: "체지방", val: `${record.bodyFatPercent} %` });
     if (record.bodyFatMass != null)
-      metrics.push({ icon: "🟣", val: `${record.bodyFatMass} kg` });
+      metrics.push({ icon: "체지방량", val: `${record.bodyFatMass} kg` });
 
     // y는 탭 좌표(chartCard 기준) — 툴팁을 탭 위치 위에 표시
     const tooltipH = 24 + metrics.length * 18;
@@ -672,7 +672,7 @@ export default function ChartScreen() {
             </Text>
 
             <Text style={s.pinchHint}>
-              🔍 가로핀치: X축 · 세로핀치: Y축 · 드래그: 이동
+              가로핀치: X축 · 세로핀치: Y축 · 드래그: 이동
             </Text>
 
             {/* 오버레이 토글 (다중 선택 시) */}
@@ -777,7 +777,7 @@ export default function ChartScreen() {
             {isSingle &&
               (!singleChartInfo || singleChartInfo.filtered.length < 2) && (
                 <View style={s.emptyChart}>
-                  <Text style={s.emptyIcon}>📈</Text>
+                  <Text style={s.emptyIcon}></Text>
                   <Text style={s.emptyText}>
                     {METRIC_LABELS[selectedMetrics[0]]} 데이터가 부족합니다.
                   </Text>
@@ -788,7 +788,7 @@ export default function ChartScreen() {
             {isMulti && overlayMode && overlayInfo && (
               <>
                 <Text style={s.multiAxisNote}>
-                  📐 정규화된 비교 (각 수치 0~100% 스케일)
+                  정규화된 비교 (각 수치 0~100% 스케일)
                 </Text>
                 {(() => {
                   let dotCallIdx = 0;
@@ -862,7 +862,7 @@ export default function ChartScreen() {
 
             {isMulti && overlayMode && !overlayInfo && (
               <View style={s.emptyChart}>
-                <Text style={s.emptyIcon}>📈</Text>
+                <Text style={s.emptyIcon}></Text>
                 <Text style={s.emptyText}>
                   선택한 수치들의 기록이 부족합니다.
                 </Text>
@@ -873,7 +873,7 @@ export default function ChartScreen() {
             {isMulti && !overlayMode && separateCharts && (
               <>
                 <Text style={s.multiAxisNote}>
-                  📐 각 수치별 독립 차트 (동일 X축)
+                  각 수치별 독립 차트 (동일 X축)
                 </Text>
                 {separateCharts.map((info) => (
                   <View key={info.key} style={s.miniChartWrap}>
@@ -983,10 +983,10 @@ export default function ChartScreen() {
                 </Text>
               ) : null}
               <TouchableOpacity onPress={() => setShowStatsCal(true)}>
-                <Text style={{ fontSize: 14, color: "#4299E1" }}>시작📅</Text>
+                <Text style={{ fontSize: 14, color: "#4299E1" }}>시작</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={() => setShowStatsEndCal(true)}>
-                <Text style={{ fontSize: 14, color: "#E53E3E" }}>끝📅</Text>
+                <Text style={{ fontSize: 14, color: "#E53E3E" }}>끝</Text>
               </TouchableOpacity>
               {statsStart || statsEnd ? (
                 <TouchableOpacity
@@ -1093,10 +1093,10 @@ export default function ChartScreen() {
                   </Text>
                 ) : null}
                 <TouchableOpacity onPress={() => setShowActivityCal(true)}>
-                  <Text style={{ fontSize: 14, color: "#4299E1" }}>시작📅</Text>
+                  <Text style={{ fontSize: 14, color: "#4299E1" }}>시작</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => setShowActivityEndCal(true)}>
-                  <Text style={{ fontSize: 14, color: "#E53E3E" }}>끝📅</Text>
+                  <Text style={{ fontSize: 14, color: "#E53E3E" }}>끝</Text>
                 </TouchableOpacity>
                 {activityStart || activityEnd ? (
                   <TouchableOpacity
