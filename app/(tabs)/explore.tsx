@@ -578,8 +578,6 @@ export default function ChartScreen() {
         contentContainerStyle={s.content}
         scrollEnabled={scrollEnabled}
       >
-        <Text style={s.title}>{"\u{1F4CA}"} 기록 그래프</Text>
-
         {/* 수치 선택 칩 */}
         <ScrollView
           horizontal

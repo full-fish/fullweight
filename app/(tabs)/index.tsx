@@ -255,8 +255,6 @@ export default function HomeScreen() {
           style={styles.container}
           contentContainerStyle={styles.content}
         >
-          <Text style={styles.title}>💪 몸무게 트래커</Text>
-
           {/* 입력 카드 */}
           <View style={styles.card}>
             <View style={styles.cardTitleRow}>

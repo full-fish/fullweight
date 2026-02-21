@@ -277,8 +277,6 @@ export default function CalendarScreen() {
   return (
     <SwipeableTab currentIndex={2}>
       <ScrollView style={s.container} contentContainerStyle={s.content}>
-        <Text style={s.title}>📅 캘린더</Text>
-
         {/* 월 네비게이션 */}
         <View style={s.navRow}>
           <TouchableOpacity onPress={prevMonth} style={s.navBtn}>

@@ -670,8 +670,6 @@ export default function ChallengeScreen() {
   return (
     <SwipeableTab currentIndex={3}>
       <ScrollView style={st.container} contentContainerStyle={st.content}>
-        <Text style={st.title}>🏆 챌린지</Text>
-
         {!challenge && (
           <View style={st.emptyCard}>
             <Text style={st.emptyIcon}>🎯</Text>

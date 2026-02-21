@@ -637,8 +637,6 @@ export default function SettingsScreen() {
   return (
     <SwipeableTab currentIndex={5} enabled={swipeEnabled}>
       <ScrollView style={s.container} contentContainerStyle={s.content}>
-        <Text style={s.title}>⚙️ 설정</Text>
-
         {/* 프로필 정보 */}
         <View style={s.card}>
           <View

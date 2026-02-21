@@ -108,7 +108,6 @@ export default function PhotosScreen() {
     <SwipeableTab currentIndex={4}>
       <View style={s.container}>
         <View style={s.header}>
-          <Text style={s.title}>📸 눈바디</Text>
           {photoRecords.length > 0 && (
             <TouchableOpacity
               onPress={() =>
