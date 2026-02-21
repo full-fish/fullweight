@@ -26,7 +26,13 @@ import {
   seedDummyData,
 } from "@/utils/storage";
 import { useFocusEffect } from "@react-navigation/native";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -511,9 +517,7 @@ export default function SettingsScreen() {
               const data = await loadRecords();
               setRecordCount(data.length);
               const settings = await loadUserSettings();
-              setHeight(
-                settings.height != null ? String(settings.height) : ""
-              );
+              setHeight(settings.height != null ? String(settings.height) : "");
               setBirthDate(settings.birthDate ?? "");
               setGender(settings.gender);
               Alert.alert(
@@ -1043,8 +1047,8 @@ export default function SettingsScreen() {
             // 로그인 안 된 상태
             <View>
               <Text style={s.backupDesc}>
-                Google 계정에 로그인하면 데이터와 사진이{"\n"}자동으로 백업됩니다
-                (매일 1회).
+                Google 계정에 로그인하면 데이터와 사진이{"\n"}자동으로
+                백업됩니다 (매일 1회).
               </Text>
               <TouchableOpacity
                 style={s.googleSignInBtn}
@@ -1065,18 +1069,13 @@ export default function SettingsScreen() {
             <View>
               <View style={s.infoRow}>
                 <Text style={s.infoLabel}>계정</Text>
-                <Text
-                  style={[s.infoValue, { fontSize: 13 }]}
-                  numberOfLines={1}
-                >
+                <Text style={[s.infoValue, { fontSize: 13 }]} numberOfLines={1}>
                   {googleEmail ?? "알 수 없음"}
                 </Text>
               </View>
               <View style={s.infoRow}>
                 <Text style={s.infoLabel}>마지막 백업</Text>
-                <Text style={s.infoValue}>
-                  {lastBackupStr ?? "없음"}
-                </Text>
+                <Text style={s.infoValue}>{lastBackupStr ?? "없음"}</Text>
               </View>
               <View style={s.infoRow}>
                 <Text style={s.infoLabel}>자동 백업</Text>

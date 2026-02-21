@@ -12,7 +12,8 @@ WebBrowser.maybeCompleteAuthSession();
 // Google Cloud Console에서 발급받은 OAuth 2.0 클라이언트 ID (Web type)
 // TODO: 실제 앱 출시 시 본인의 Client ID로 교체
 const GOOGLE_CLIENT_ID =
-  "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com";
+  "400889107494-tvv0hbt10o2s7dgn4kb8r1nj6nsfjvh8.apps.googleusercontent.com";
+const GOOGLE_CLIENT_SECRET = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_SECRET ?? "";
 
 const SCOPES = [
   "https://www.googleapis.com/auth/drive.file", // 앱이 만든 파일만 접근
@@ -42,7 +43,12 @@ const discovery: AuthSession.DiscoveryDocument = {
    ──────────────────────────────────────────── */
 
 export function useGoogleAuth() {
-  const redirectUri = AuthSession.makeRedirectUri({ scheme: "fullweight" });
+  // expo-auth-session v7에서 useProxy가 무시되므로 명시적으로 설정
+  // Expo Go 개발 시: auth.expo.io 프록시 URL (Google 콘솔에 등록된 URI)
+  // 빌드된 앱: fullweight:// 커스텀 스킴
+  const redirectUri = __DEV__
+    ? "https://auth.expo.io/@choimanseon/full-weight"
+    : AuthSession.makeRedirectUri({ scheme: "fullweight" });
 
   const [request, response, promptAsync] = AuthSession.useAuthRequest(
     {
@@ -68,14 +74,35 @@ export async function exchangeCodeForToken(
   codeVerifier: string,
   redirectUri: string
 ): Promise<{ accessToken: string; email: string }> {
-  const tokenResult = await AuthSession.exchangeCodeAsync(
-    {
-      clientId: GOOGLE_CLIENT_ID,
-      code,
-      redirectUri,
-      extraParams: { code_verifier: codeVerifier },
-    },
-    discovery
+  console.log("[backup] exchangeCodeForToken 시작", {
+    redirectUri,
+    codeVerifier: codeVerifier?.slice(0, 10) + "...",
+  });
+
+  let tokenResult: AuthSession.TokenResponse;
+  try {
+    tokenResult = await AuthSession.exchangeCodeAsync(
+      {
+        clientId: GOOGLE_CLIENT_ID,
+        clientSecret: GOOGLE_CLIENT_SECRET,
+        code,
+        redirectUri,
+        extraParams: { code_verifier: codeVerifier },
+      },
+      discovery
+    );
+  } catch (e: any) {
+    console.error(
+      "[backup] exchangeCodeAsync 실패:",
+      e?.message,
+      JSON.stringify(e)
+    );
+    throw e;
+  }
+
+  console.log(
+    "[backup] 토큰 교환 성공, accessToken 앞:",
+    tokenResult.accessToken?.slice(0, 20)
   );
 
   await AsyncStorage.setItem(KEY_ACCESS_TOKEN, tokenResult.accessToken);
@@ -113,7 +140,11 @@ export async function getValidAccessToken(): Promise<string | null> {
 
   try {
     const tokenResult = await AuthSession.refreshAsync(
-      { clientId: GOOGLE_CLIENT_ID, refreshToken },
+      {
+        clientId: GOOGLE_CLIENT_ID,
+        clientSecret: GOOGLE_CLIENT_SECRET,
+        refreshToken,
+      },
       discovery
     );
     await AsyncStorage.setItem(KEY_ACCESS_TOKEN, tokenResult.accessToken);
@@ -205,10 +236,7 @@ async function listBackups(
 }
 
 /** 파일 삭제 */
-async function deleteDriveFile(
-  token: string,
-  fileId: string
-): Promise<void> {
+async function deleteDriveFile(token: string, fileId: string): Promise<void> {
   await fetch(`${DRIVE_API}/files/${fileId}`, {
     method: "DELETE",
     headers: { Authorization: `Bearer ${token}` },
@@ -254,10 +282,7 @@ async function uploadFile(
 }
 
 /** 파일 다운로드 (base64) */
-async function downloadFile(
-  token: string,
-  fileId: string
-): Promise<string> {
+async function downloadFile(token: string, fileId: string): Promise<string> {
   const res = await fetch(`${DRIVE_API}/files/${fileId}?alt=media`, {
     headers: { Authorization: `Bearer ${token}` },
   });
@@ -290,7 +315,10 @@ type BackupPayload = {
 };
 
 /** 모든 로컬 데이터를 백업 파일 하나로 Google Drive에 업로드 */
-export async function performBackup(): Promise<{ success: boolean; error?: string }> {
+export async function performBackup(): Promise<{
+  success: boolean;
+  error?: string;
+}> {
   try {
     const token = await getValidAccessToken();
     if (!token) return { success: false, error: "로그인이 필요합니다" };
@@ -346,7 +374,13 @@ export async function performBackup(): Promise<{ success: boolean; error?: strin
     const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}_${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}`;
     const fileName = `fullweight_backup_${dateStr}.json`;
 
-    await uploadFile(token, folderId, fileName, base64Content, "application/json");
+    await uploadFile(
+      token,
+      folderId,
+      fileName,
+      base64Content,
+      "application/json"
+    );
 
     // 5. 오래된 백업 삭제 (5개 초과)
     const backups = await listBackups(token, folderId);
