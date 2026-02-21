@@ -1019,14 +1019,19 @@ export default function CalendarScreen() {
           animationType="fade"
           onRequestClose={closeModal}
         >
-          <TouchableOpacity
-            style={s.modalOverlay}
-            activeOpacity={1}
-            onPress={closeModal}
-          >
-            <View style={s.modalCard} onStartShouldSetResponder={() => true}>
+          <View style={s.modalOverlay}>
+            <TouchableOpacity
+              style={StyleSheet.absoluteFill}
+              activeOpacity={1}
+              onPress={closeModal}
+            />
+            <View style={s.modalCard}>
               {selectedRecord && !editMode && (
-                <ScrollView showsVerticalScrollIndicator={false}>
+                <ScrollView
+                  showsVerticalScrollIndicator={false}
+                  bounces={false}
+                  nestedScrollEnabled
+                >
                   <Text style={s.modalDate}>
                     {fmtDate(selectedRecord.date)}
                   </Text>
@@ -1212,7 +1217,11 @@ export default function CalendarScreen() {
 
               {/* 편집 모드 */}
               {selectedRecord && editMode && (
-                <ScrollView showsVerticalScrollIndicator={false}>
+                <ScrollView
+                  showsVerticalScrollIndicator={false}
+                  bounces={false}
+                  nestedScrollEnabled
+                >
                   <Text style={s.modalDate}>
                     {fmtDate(selectedRecord.date)} 수정
                   </Text>
@@ -1432,7 +1441,7 @@ export default function CalendarScreen() {
                 </ScrollView>
               )}
             </View>
-          </TouchableOpacity>
+          </View>
         </Modal>
         {/* 새 기록 추가 모달 */}
         <Modal
@@ -1444,16 +1453,17 @@ export default function CalendarScreen() {
             setAddDate("");
           }}
         >
-          <TouchableOpacity
-            style={s.modalOverlay}
-            activeOpacity={1}
-            onPress={() => {
-              setAddMode(false);
-              setAddDate("");
-            }}
-          >
-            <View style={s.modalCard} onStartShouldSetResponder={() => true}>
-              <ScrollView showsVerticalScrollIndicator={false}>
+          <View style={s.modalOverlay}>
+            <TouchableOpacity
+              style={StyleSheet.absoluteFill}
+              activeOpacity={1}
+              onPress={() => {
+                setAddMode(false);
+                setAddDate("");
+              }}
+            />
+            <View style={s.modalCard}>
+              <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
                 <Text style={s.modalDate}>
                   {addDate ? fmtDate(addDate) : ""} 새 기록
                 </Text>
@@ -1671,7 +1681,7 @@ export default function CalendarScreen() {
                 </View>
               </ScrollView>
             </View>
-          </TouchableOpacity>
+          </View>
         </Modal>
       </ScrollView>
     </SwipeableTab>
@@ -1818,6 +1828,7 @@ const s = StyleSheet.create({
   },
   modalBadges: {
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: 8,
     marginTop: 14,
     justifyContent: "center",
