@@ -1603,7 +1603,14 @@ export default function SettingsScreen() {
                       Alert.alert("입력 오류", "항목 이름을 입력해주세요.");
                       return;
                     }
-                    const key = `bool_${Date.now()}`;
+                    const key = `bool_${label}`;
+                    if (customBoolMetrics.some((c) => c.key === key)) {
+                      Alert.alert(
+                        "입력 오류",
+                        "같은 이름의 항목이 이미 존재합니다."
+                      );
+                      return;
+                    }
                     const colorIdx =
                       customBoolMetrics.length % CUSTOM_BOOL_COLORS.length;
                     const color = CUSTOM_BOOL_COLORS[colorIdx];

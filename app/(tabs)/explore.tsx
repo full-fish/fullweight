@@ -1215,19 +1215,27 @@ export default function ChartScreen() {
                     key={cbm.key}
                     style={[s.summaryItem, { width: (width - 48) / 5 }]}
                   >
-                    {cbm.emoji ? (
-                      <Text style={s.summaryEmoji}>{cbm.emoji}</Text>
-                    ) : (
-                      <View
-                        style={{
-                          width: 26,
-                          height: 26,
-                          borderRadius: 13,
-                          backgroundColor: cbm.color,
-                          marginBottom: 6,
-                        }}
-                      />
-                    )}
+                    <View
+                      style={{
+                        height: 36,
+                        justifyContent: "center",
+                        alignItems: "center",
+                        marginBottom: 6,
+                      }}
+                    >
+                      {cbm.emoji ? (
+                        <Text style={{ fontSize: 26 }}>{cbm.emoji}</Text>
+                      ) : (
+                        <View
+                          style={{
+                            width: 26,
+                            height: 26,
+                            borderRadius: 13,
+                            backgroundColor: cbm.color,
+                          }}
+                        />
+                      )}
+                    </View>
                     <Text style={s.summaryCount}>
                       {count}
                       <Text style={s.summaryPercent}>({pct}%)</Text>

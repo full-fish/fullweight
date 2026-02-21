@@ -1026,7 +1026,7 @@ export default function CalendarScreen() {
           >
             <View style={s.modalCard} onStartShouldSetResponder={() => true}>
               {selectedRecord && !editMode && (
-                <>
+                <ScrollView showsVerticalScrollIndicator={false}>
                   <Text style={s.modalDate}>
                     {fmtDate(selectedRecord.date)}
                   </Text>
@@ -1177,15 +1177,10 @@ export default function CalendarScreen() {
                           key={cbm.key}
                           style={[
                             s.badge,
-                            {
-                              backgroundColor: cbm.color + "22",
-                              borderColor: cbm.color,
-                              borderWidth: 1,
-                            },
+                            { backgroundColor: cbm.color + "22" },
                           ]}
                         >
                           <Text style={[s.badgeText, { color: cbm.color }]}>
-                            {cbm.emoji ? `${cbm.emoji} ` : ""}
                             {cbm.label}
                           </Text>
                         </View>
@@ -1212,7 +1207,7 @@ export default function CalendarScreen() {
                   <TouchableOpacity style={s.modalClose} onPress={closeModal}>
                     <Text style={s.modalCloseText}>닫기</Text>
                   </TouchableOpacity>
-                </>
+                </ScrollView>
               )}
 
               {/* 편집 모드 */}
