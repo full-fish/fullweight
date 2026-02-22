@@ -46,3 +46,5 @@ app-example
 # generated native folders
 /ios
 /android
+eas.json
+google-service-account.json
