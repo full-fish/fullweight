@@ -502,15 +502,33 @@ export default function SettingsScreen() {
 
   /** 수동 백업 */
   const handleManualBackup = async () => {
-    setBackupLoading(true);
-    const result = await performBackup();
-    setBackupLoading(false);
-    if (result.success) {
-      Alert.alert("백업 완료", "Google Drive에 데이터가 백업되었습니다.");
-      await refreshGoogleState();
-    } else {
-      Alert.alert("백업 실패", result.error ?? "알 수 없는 오류");
-    }
+    Alert.alert(
+      "백업 확인",
+      "Google Drive에 데이터를 백업합니다.\n\n" +
+        "• 최대 5개까지 저장되며, 초과 시 가장 오래된 파일부터 자동 삭제됩니다.\n" +
+        "• Google Drive에 남은 저장 공간이 필요합니다.\n\n" +
+        "백업을 진행할까요?",
+      [
+        { text: "취소", style: "cancel" },
+        {
+          text: "백업",
+          onPress: async () => {
+            setBackupLoading(true);
+            const result = await performBackup();
+            setBackupLoading(false);
+            if (result.success) {
+              Alert.alert(
+                "백업 완료",
+                "Google Drive에 데이터가 백업되었습니다."
+              );
+              await refreshGoogleState();
+            } else {
+              Alert.alert("백업 실패", result.error ?? "알 수 없는 오류");
+            }
+          },
+        },
+      ]
+    );
   };
 
   /** 백업 목록 조회 & 표시 */
@@ -2213,20 +2231,54 @@ export default function SettingsScreen() {
                 </Text>
               ) : (
                 <View style={{ maxHeight: 300, width: "100%" }}>
-                  {backupList.map((item) => {
+                  {backupList.map((item, idx) => {
                     const d = new Date(item.createdTime);
                     const dateLabel = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
                     const sizeKB = item.size
                       ? `${(parseInt(item.size, 10) / 1024).toFixed(1)}KB`
                       : "";
+                    const isNewest = idx === 0;
                     return (
                       <TouchableOpacity
                         key={item.id}
-                        style={s.backupListItem}
+                        style={[
+                          s.backupListItem,
+                          isNewest && {
+                            backgroundColor: "#EBF8FF",
+                          },
+                        ]}
                         onPress={() => handleRestore(item.id, item.name)}
                       >
                         <View style={{ flex: 1 }}>
-                          <Text style={s.backupListDate}>{dateLabel}</Text>
+                          <View
+                            style={{
+                              flexDirection: "row",
+                              alignItems: "center",
+                              gap: 6,
+                            }}
+                          >
+                            <Text style={s.backupListDate}>{dateLabel}</Text>
+                            {isNewest && (
+                              <View
+                                style={{
+                                  backgroundColor: "#4299E1",
+                                  borderRadius: 4,
+                                  paddingHorizontal: 6,
+                                  paddingVertical: 1,
+                                }}
+                              >
+                                <Text
+                                  style={{
+                                    fontSize: 10,
+                                    fontWeight: "700",
+                                    color: "#fff",
+                                  }}
+                                >
+                                  최신
+                                </Text>
+                              </View>
+                            )}
+                          </View>
                           {sizeKB ? (
                             <Text style={s.backupListSize}>{sizeKB}</Text>
                           ) : null}
@@ -2615,6 +2667,7 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 12,
+    paddingLeft: 12,
     borderBottomWidth: 1,
     borderBottomColor: "#F0F4F8",
   },

@@ -60,9 +60,10 @@ export async function deleteRecord(date: string): Promise<WeightRecord[]> {
   return filtered;
 }
 
-/** 전체 기록 삭제 (사용자 정의 항목 포함) */
+/** 전체 기록 삭제 (사용자 정의 항목 + 식사 기록 포함) */
 export async function clearAllRecords(): Promise<void> {
   await AsyncStorage.removeItem(STORAGE_KEY);
+  await AsyncStorage.removeItem(MEAL_STORAGE_KEY);
   // 사용자 정의 항목들도 삭제
   const settings = await loadUserSettings();
   const {

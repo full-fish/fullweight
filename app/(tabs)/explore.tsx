@@ -54,6 +54,7 @@ export default function ChartScreen() {
     record: WeightRecord;
     x: number;
     y: number;
+    index: number;
   } | null>(null);
   const tooltipPointRef = useRef(tooltipPoint);
   tooltipPointRef.current = tooltipPoint;
@@ -441,14 +442,13 @@ export default function ChartScreen() {
     });
   };
 
-  /* ── 인라인 툴팁 + 세로 점선 렌더링 (chartCard 레벨) ── */
+  /* ── 인라인 툴팁 렌더링 (chartCard 레벨) ── */
   const renderCardTooltip = () => {
     if (!tooltipPoint) return null;
     const { record, x } = tooltipPoint;
     const tooltipW = 160;
     // x: dot SVG x + chartCard→SVG 오프셋 기준으로 left 계산
     const svgToCard = 16 + -10; // chartCard padding + chart marginLeft
-    const lineLeft = svgToCard + x;
     const left = Math.max(
       4,
       Math.min(
@@ -468,58 +468,57 @@ export default function ChartScreen() {
     if (record.bodyFatMass != null)
       metrics.push({ icon: "체지방량", val: `${record.bodyFatMass} kg` });
 
-    // 툴팁은 chartTitle + overlayToggle 바로 아래 고정 (약 top:0)
-    // isMulti면 오버레이 토글이 있어서 약간 더 아래
     const fixedTop = 0;
 
     return (
-      <>
-        {/* 세로 점선 */}
-        <View
-          style={{
-            position: "absolute",
-            left: lineLeft,
-            top: isMulti ? 80 : 44,
-            bottom: 16,
-            width: 1,
-            zIndex: 998,
-          }}
-          pointerEvents="none"
-        >
-          <Svg width={1} height="100%">
-            <SvgLine
-              x1={0}
-              y1={0}
-              x2={0}
-              y2="100%"
-              stroke="#718096"
-              strokeWidth={1}
-              strokeDasharray="4,4"
-            />
-          </Svg>
-        </View>
+      <TouchableOpacity
+        activeOpacity={1}
+        onPress={() => setTooltipPoint(null)}
+        style={[
+          s.tooltip,
+          {
+            left,
+            width: tooltipW,
+            top: fixedTop,
+          },
+        ]}
+      >
+        <Text style={s.tooltipDate}>{fmtDate(record.date)}</Text>
+        {metrics.map((m, i) => (
+          <Text key={i} style={s.tooltipMetric}>
+            {m.icon} {m.val}
+          </Text>
+        ))}
+      </TouchableOpacity>
+    );
+  };
 
-        {/* 툴팁 카드 */}
-        <TouchableOpacity
-          activeOpacity={1}
-          onPress={() => setTooltipPoint(null)}
-          style={[
-            s.tooltip,
-            {
-              left,
-              width: tooltipW,
-              top: fixedTop,
-            },
-          ]}
-        >
-          <Text style={s.tooltipDate}>{fmtDate(record.date)}</Text>
-          {metrics.map((m, i) => (
-            <Text key={i} style={s.tooltipMetric}>
-              {m.icon} {m.val}
-            </Text>
-          ))}
-        </TouchableOpacity>
-      </>
+  /* ── 차트 데코레이터: 세로 점선 (SVG 내부 플롯 영역만) ── */
+  const makeDecorator = (chartHeight: number, dataLen: number) => {
+    if (!tooltipPoint || dataLen < 2) return undefined;
+    const CHART_LEFT_PAD = 64;
+    const plotTop = 16; // 차트 내부 상단 패딩
+    const plotBottom = chartHeight - 32; // 하단 X축 라벨 영역 제외
+    const dotX =
+      CHART_LEFT_PAD +
+      (tooltipPoint.index * (CHART_WIDTH - CHART_LEFT_PAD)) / dataLen;
+    return () => (
+      <Svg
+        width={CHART_WIDTH}
+        height={chartHeight}
+        style={{ position: "absolute", left: 0, top: 0 }}
+        pointerEvents="none"
+      >
+        <SvgLine
+          x1={dotX}
+          y1={plotTop}
+          x2={dotX}
+          y2={plotBottom}
+          stroke="#718096"
+          strokeWidth={1}
+          strokeDasharray="4,4"
+        />
+      </Svg>
     );
   };
 
@@ -614,7 +613,7 @@ export default function ChartScreen() {
         const dotX =
           CHART_LEFT_PAD + (index * (CHART_WIDTH - CHART_LEFT_PAD)) / dataLen;
 
-        setTooltipPoint({ record: rec, x: dotX, y: e.y });
+        setTooltipPoint({ record: rec, x: dotX, y: e.y, index });
       });
   }, [
     isSingle,
@@ -830,6 +829,7 @@ export default function ChartScreen() {
                   withVerticalLines={false}
                   withShadow={false}
                   formatYLabel={(v) => parseFloat(v).toFixed(1)}
+                  decorator={makeDecorator(220, singleChartInfo.values.length)}
                 />
               )}
 
@@ -847,9 +847,6 @@ export default function ChartScreen() {
             {/* 다중 수치 - 오버레이 모드 */}
             {isMulti && overlayMode && overlayInfo && (
               <>
-                <Text style={s.multiAxisNote}>
-                  정규화된 비교 (각 수치 0~100% 스케일)
-                </Text>
                 {(() => {
                   let dotCallIdx = 0;
                   const N = overlayInfo.filtered.length;
@@ -894,6 +891,10 @@ export default function ChartScreen() {
                       withVerticalLines={false}
                       withShadow={false}
                       formatYLabel={(v) => `${parseFloat(v).toFixed(0)}%`}
+                      decorator={makeDecorator(
+                        240,
+                        overlayInfo.filtered.length
+                      )}
                     />
                   );
                 })()}
@@ -930,9 +931,6 @@ export default function ChartScreen() {
             {/* 다중 수치 - 개별 차트 모드 */}
             {isMulti && !overlayMode && separateCharts && (
               <>
-                <Text style={s.multiAxisNote}>
-                  각 수치별 독립 차트 (동일 X축)
-                </Text>
                 {separateCharts.map((info) => (
                   <View key={info.key} style={s.miniChartWrap}>
                     <View style={s.miniChartHeader}>
@@ -1016,6 +1014,7 @@ export default function ChartScreen() {
                         withVerticalLines={false}
                         withShadow={false}
                         formatYLabel={(v) => parseFloat(v).toFixed(1)}
+                        decorator={makeDecorator(160, info.values.length)}
                       />
                     ) : (
                       <View style={s.emptyMiniChart}>
