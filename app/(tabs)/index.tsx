@@ -1201,29 +1201,23 @@ export default function HomeScreen() {
                         {
                           label: "탄수화물(g)",
                           value: mealCarb,
-                          setter: setMealCarb,
+                          key: "carb",
                           color: "#E53E3E",
                         },
                         {
                           label: "단백질(g)",
                           value: mealProtein,
-                          setter: setMealProtein,
+                          key: "protein",
                           color: "#3182CE",
                         },
                         {
                           label: "지방(g)",
                           value: mealFat,
-                          setter: setMealFat,
+                          key: "fat",
                           color: "#D69E2E",
                         },
-                        {
-                          label: "칼로리(kcal)",
-                          value: mealKcal,
-                          setter: setMealKcal,
-                          color: "#718096",
-                        },
                       ] as const
-                    ).map(({ label, value, setter, color }) => (
+                    ).map(({ label, value, key, color }) => (
                       <View key={label} style={mealModalStyles.macroField}>
                         <Text style={[mealModalStyles.macroLabel, { color }]}>
                           {label}
@@ -1231,16 +1225,49 @@ export default function HomeScreen() {
                         <TextInput
                           style={mealModalStyles.macroInput}
                           value={value}
-                          onChangeText={(v) => setter(v)}
+                          onChangeText={(v) => {
+                            const c = key === "carb" ? v : mealCarb;
+                            const p = key === "protein" ? v : mealProtein;
+                            const f = key === "fat" ? v : mealFat;
+                            if (key === "carb") setMealCarb(v);
+                            if (key === "protein") setMealProtein(v);
+                            if (key === "fat") setMealFat(v);
+                            const auto = Math.round(
+                              (parseFloat(c) || 0) * 4 +
+                                (parseFloat(p) || 0) * 4 +
+                                (parseFloat(f) || 0) * 9
+                            );
+                            setMealKcal(auto > 0 ? String(auto) : "");
+                          }}
                           keyboardType="numeric"
                           placeholder="0"
                           placeholderTextColor="#CBD5E0"
                         />
                       </View>
                     ))}
+                    <View style={mealModalStyles.macroField}>
+                      <Text
+                        style={[
+                          mealModalStyles.macroLabel,
+                          { color: "#718096" },
+                        ]}
+                      >
+                        칼로리(kcal)
+                      </Text>
+                      <TextInput
+                        style={[
+                          mealModalStyles.macroInput,
+                          { backgroundColor: "#F0F4F8" },
+                        ]}
+                        value={mealKcal}
+                        editable={false}
+                        placeholder="자동 계산"
+                        placeholderTextColor="#CBD5E0"
+                      />
+                    </View>
                   </View>
                   <Text style={mealModalStyles.kcalHint}>
-                    * 칼로리 비워두면 탄단지로 자동 계산됩니다
+                    * 칼로리는 탄단지 입력 시 자동 계산됩니다
                   </Text>
 
                   <TouchableOpacity

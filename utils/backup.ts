@@ -314,6 +314,7 @@ type BackupMetadata = {
   challenge: string | null;
   challengeHistory: string | null;
   userSettings: string | null;
+  meals: string | null; // 식사 기록
   imageFiles: string[]; // zip 내 이미지 파일명 목록
 };
 
@@ -333,6 +334,7 @@ export async function performBackup(): Promise<{
       "weight_challenge_history_v1"
     );
     const userSettings = await AsyncStorage.getItem("user_settings_v1");
+    const meals = await AsyncStorage.getItem("meal_entries_v1");
 
     // 2. ZIP 생성
     const zip = new JSZip();
@@ -364,6 +366,7 @@ export async function performBackup(): Promise<{
       challenge,
       challengeHistory,
       userSettings,
+      meals,
       imageFiles,
     };
     zip.file("metadata.json", JSON.stringify(metadata));
@@ -461,6 +464,11 @@ export async function performRestore(
     }
     if (metadata.userSettings) {
       await AsyncStorage.setItem("user_settings_v1", metadata.userSettings);
+    }
+    if (metadata.meals) {
+      await AsyncStorage.setItem("meal_entries_v1", metadata.meals);
+    } else {
+      await AsyncStorage.removeItem("meal_entries_v1");
     }
 
     // 5. 이미지 복원

@@ -10,9 +10,10 @@ import "react-native-reanimated";
 
 import LockScreen from "@/components/lock-screen";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { performBackup, shouldAutoBackup } from "@/utils/backup";
 import { loadUserSettings } from "@/utils/storage";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { AppState, View } from "react-native";
+import { AppState, InteractionManager, View } from "react-native";
 
 const LOCK_GRACE_MS = 30_000; // 30초 이내 복귀 시 잠금 안 걸림 (카메라/크롭 등)
 
@@ -37,6 +38,27 @@ export default function RootLayout() {
   useEffect(() => {
     checkLock();
   }, [checkLock]);
+
+  /* ── 앱 시작 시 자동 백업 (UI 렌더 완료 후, 백그라운드 실행) ── */
+  const backupDone = useRef(false);
+  useEffect(() => {
+    if (backupDone.current) return;
+    // InteractionManager: 애니메이션·렌더 완료 후 실행 → 렉 방지
+    const handle = InteractionManager.runAfterInteractions(() => {
+      (async () => {
+        try {
+          const need = await shouldAutoBackup();
+          if (need) {
+            backupDone.current = true;
+            await performBackup();
+          }
+        } catch {
+          // 백업 실패해도 앱 동작에 영향 없음
+        }
+      })();
+    });
+    return () => handle.cancel();
+  }, []);
 
   useEffect(() => {
     const sub = AppState.addEventListener("change", async (state) => {
