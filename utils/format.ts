@@ -226,8 +226,11 @@ export function calcDailyNutrition({
       ? 10 * weight + 6.25 * height - 5 * age + 5
       : 10 * weight + 6.25 * height - 5 * age - 161;
 
-  // NEAT(비운동 활동 열생산) = BMR × 0.2
-  const neat = bmr * 0.2;
+  // NEAT(비운동 활동 열생산) = BMR × 0.15
+  const neat = bmr * 0.15;
+
+  // TEF(식사 열효과, Thermic Effect of Food) = BMR × 0.1
+  const tef = bmr * 0.1;
 
   // 일일 운동 칼로리 소비
   const exerciseCal = calcDailyExerciseCal(
@@ -237,8 +240,8 @@ export function calcDailyNutrition({
     weight
   );
 
-  // TDEE = BMR + NEAT + 운동 칼로리
-  const tdee = bmr + neat + exerciseCal;
+  // TDEE = BMR + NEAT + TEF + 운동 칼로리
+  const tdee = bmr + neat + tef + exerciseCal;
 
   // 목표 증감 칼로리 (1kg = 7700kcal)
   const totalDelta = (targetWeight - weight) * 7700;

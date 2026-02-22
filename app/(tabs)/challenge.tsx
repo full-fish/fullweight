@@ -126,7 +126,7 @@ function DateCalendarPicker({
   return (
     <>
       <Text style={st.formLabel}>{label}</Text>
-      <TouchableOpacity style={dcpS.inputWrap} onPress={openCal}>
+      <View style={dcpS.inputWrap}>
         <TextInput
           style={dcpS.input}
           value={value}
@@ -138,8 +138,10 @@ function DateCalendarPicker({
             Platform.OS === "ios" ? "numbers-and-punctuation" : "default"
           }
         />
-        <Text style={dcpS.icon}></Text>
-      </TouchableOpacity>
+        <TouchableOpacity style={dcpS.calBtn} onPress={openCal}>
+          <Text style={dcpS.icon}>📅</Text>
+        </TouchableOpacity>
+      </View>
 
       <Modal
         visible={showCal}
@@ -389,6 +391,12 @@ const dcpS = StyleSheet.create({
     color: "#2D3748",
   },
   icon: { fontSize: 18 },
+  calBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    justifyContent: "center" as const,
+    alignItems: "center" as const,
+  },
   overlay: {
     flex: 1,
     justifyContent: "center",
