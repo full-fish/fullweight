@@ -7,16 +7,15 @@ import {
   CustomMetric,
 } from "@/types";
 import {
-  exchangeCodeForToken,
   getBackupList,
   getLastBackupTime,
   getSignedInEmail,
+  googleSignIn,
   isSignedIn,
   performBackup,
   performRestore,
   shouldAutoBackup,
   signOut,
-  useGoogleAuth,
 } from "@/utils/backup";
 import {
   calcAge,
@@ -33,13 +32,7 @@ import {
   seedDummyData,
 } from "@/utils/storage";
 import { useFocusEffect } from "@react-navigation/native";
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -419,8 +412,6 @@ export default function SettingsScreen() {
   const [devTapCount, setDevTapCount] = useState(0);
   const [showDevTools, setShowDevTools] = useState(false);
 
-  const { request, response, promptAsync, redirectUri } = useGoogleAuth();
-
   useFocusEffect(
     useCallback(() => {
       loadRecords().then((data) => setRecordCount(data.length));
@@ -464,34 +455,22 @@ export default function SettingsScreen() {
     }
   };
 
-  // Google OAuth 응답 처리
-  useEffect(() => {
-    if (response?.type === "success" && response.params?.code) {
-      const code = response.params.code;
-      const codeVerifier = request?.codeVerifier;
-      if (codeVerifier) {
-        (async () => {
-          try {
-            setBackupLoading(true);
-            const { email } = await exchangeCodeForToken(
-              code,
-              codeVerifier,
-              redirectUri
-            );
-            setIsGoogleSignedIn(true);
-            setGoogleEmail(email);
-            Alert.alert("로그인 성공", `${email}로 로그인했습니다.`);
-            await refreshGoogleState();
-          } catch (e: any) {
-            Alert.alert("로그인 실패", e?.message ?? "알 수 없는 오류");
-          } finally {
-            setBackupLoading(false);
-          }
-        })();
-      }
+  // Google 로그인 핸들러 (네이티브 Google Sign-In)
+  const handleGoogleLogin = async () => {
+    try {
+      setBackupLoading(true);
+      const { email } = await googleSignIn();
+      setIsGoogleSignedIn(true);
+      setGoogleEmail(email);
+      Alert.alert("로그인 성공", `${email}로 로그인했습니다.`);
+      await refreshGoogleState();
+    } catch (e: any) {
+      console.error("[settings] Google 로그인 실패:", e);
+      Alert.alert("로그인 실패", e?.message ?? "알 수 없는 오류");
+    } finally {
+      setBackupLoading(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [response]);
+  };
 
   // 자동 백업 (24시간 간격, 탭 포커스 시 1회)
   useFocusEffect(
@@ -1982,8 +1961,8 @@ export default function SettingsScreen() {
               </Text>
               <TouchableOpacity
                 style={s.googleSignInBtn}
-                onPress={() => promptAsync()}
-                disabled={!request || backupLoading}
+                onPress={handleGoogleLogin}
+                disabled={backupLoading}
               >
                 {backupLoading ? (
                   <ActivityIndicator size="small" color="#fff" />

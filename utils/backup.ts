@@ -1,17 +1,13 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as AuthSession from "expo-auth-session";
+import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import * as LegacyFileSystem from "expo-file-system/legacy";
-import * as WebBrowser from "expo-web-browser";
-
-WebBrowser.maybeCompleteAuthSession();
 
 /* ────────────────────────────────────────────
    상수
    ──────────────────────────────────────────── */
 
-// Google Cloud Console에서 발급받은 OAuth 2.0 클라이언트 ID (Web type)
-// TODO: 실제 앱 출시 시 본인의 Client ID로 교체
-const GOOGLE_CLIENT_ID =
+// Google Cloud Console — Web 클라이언트 ID (토큰 교환용)
+const GOOGLE_WEB_CLIENT_ID =
   "400889107494-tvv0hbt10o2s7dgn4kb8r1nj6nsfjvh8.apps.googleusercontent.com";
 const GOOGLE_CLIENT_SECRET = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_SECRET ?? "";
 
@@ -32,96 +28,65 @@ const KEY_TOKEN_EXPIRY = "google_token_expiry";
 const KEY_USER_EMAIL = "google_user_email";
 const KEY_LAST_BACKUP = "last_backup_timestamp";
 
-const discovery: AuthSession.DiscoveryDocument = {
-  authorizationEndpoint: "https://accounts.google.com/o/oauth2/v2/auth",
-  tokenEndpoint: "https://oauth2.googleapis.com/token",
-  revocationEndpoint: "https://oauth2.googleapis.com/revoke",
-};
+// Google Sign-In 초기 설정
+GoogleSignin.configure({
+  webClientId: GOOGLE_WEB_CLIENT_ID, // serverAuthCode 발급을 위해 Web ID 사용
+  offlineAccess: true, // refresh token 획득 가능
+  scopes: SCOPES,
+});
 
 /* ────────────────────────────────────────────
-   인증
+   인증 (네이티브 Google Sign-In)
    ──────────────────────────────────────────── */
 
-export function useGoogleAuth() {
-  // expo-auth-session v7에서 useProxy가 무시되므로 명시적으로 설정
-  // Expo Go 개발 시: auth.expo.io 프록시 URL (Google 콘솔에 등록된 URI)
-  // 빌드된 앱: fullweight:// 커스텀 스킴
-  const redirectUri = __DEV__
-    ? "https://auth.expo.io/@choimanseon/full-weight"
-    : AuthSession.makeRedirectUri({ scheme: "fullweight" });
+/** 네이티브 Google 로그인 → 토큰 획득 */
+export async function googleSignIn(): Promise<{
+  accessToken: string;
+  email: string;
+}> {
+  await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+  const signInResult = await GoogleSignin.signIn();
 
-  const [request, response, promptAsync] = AuthSession.useAuthRequest(
-    {
-      clientId: GOOGLE_CLIENT_ID,
-      scopes: SCOPES,
-      redirectUri,
-      responseType: AuthSession.ResponseType.Code,
-      usePKCE: true,
-      extraParams: {
-        access_type: "offline",
-        prompt: "consent",
-      },
-    },
-    discovery
-  );
+  const serverAuthCode = signInResult.data?.serverAuthCode;
+  const email = signInResult.data?.user?.email ?? "";
 
-  return { request, response, promptAsync, redirectUri };
-}
+  if (!serverAuthCode) {
+    throw new Error("서버 인증 코드를 받지 못했습니다. 다시 시도해주세요.");
+  }
 
-/** 코드 → 토큰 교환 */
-export async function exchangeCodeForToken(
-  code: string,
-  codeVerifier: string,
-  redirectUri: string
-): Promise<{ accessToken: string; email: string }> {
-  console.log("[backup] exchangeCodeForToken 시작", {
-    redirectUri,
-    codeVerifier: codeVerifier?.slice(0, 10) + "...",
+  console.log("[backup] serverAuthCode 획득, 토큰 교환 시작");
+
+  // serverAuthCode → access_token + refresh_token 교환
+  const body = [
+    `code=${encodeURIComponent(serverAuthCode)}`,
+    `client_id=${encodeURIComponent(GOOGLE_WEB_CLIENT_ID)}`,
+    `client_secret=${encodeURIComponent(GOOGLE_CLIENT_SECRET)}`,
+    `grant_type=authorization_code`,
+  ].join("&");
+
+  const res = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body,
   });
 
-  let tokenResult: AuthSession.TokenResponse;
-  try {
-    tokenResult = await AuthSession.exchangeCodeAsync(
-      {
-        clientId: GOOGLE_CLIENT_ID,
-        clientSecret: GOOGLE_CLIENT_SECRET,
-        code,
-        redirectUri,
-        extraParams: { code_verifier: codeVerifier },
-      },
-      discovery
-    );
-  } catch (e: any) {
-    console.error(
-      "[backup] exchangeCodeAsync 실패:",
-      e?.message,
-      JSON.stringify(e)
-    );
-    throw e;
+  const data = await res.json();
+  if (!res.ok) {
+    console.error("[backup] 토큰 교환 실패:", data);
+    throw new Error(data.error_description || "토큰 교환 실패");
   }
 
-  console.log(
-    "[backup] 토큰 교환 성공, accessToken 앞:",
-    tokenResult.accessToken?.slice(0, 20)
-  );
+  console.log("[backup] 토큰 교환 성공");
 
-  await AsyncStorage.setItem(KEY_ACCESS_TOKEN, tokenResult.accessToken);
-  if (tokenResult.refreshToken) {
-    await AsyncStorage.setItem(KEY_REFRESH_TOKEN, tokenResult.refreshToken);
+  await AsyncStorage.setItem(KEY_ACCESS_TOKEN, data.access_token);
+  if (data.refresh_token) {
+    await AsyncStorage.setItem(KEY_REFRESH_TOKEN, data.refresh_token);
   }
-  const expiry = Date.now() + (tokenResult.expiresIn ?? 3600) * 1000;
+  const expiry = Date.now() + (data.expires_in ?? 3600) * 1000;
   await AsyncStorage.setItem(KEY_TOKEN_EXPIRY, String(expiry));
-
-  // 유저 이메일 가져오기
-  const userInfo = await fetch(
-    "https://www.googleapis.com/oauth2/v2/userinfo",
-    { headers: { Authorization: `Bearer ${tokenResult.accessToken}` } }
-  );
-  const user = await userInfo.json();
-  const email = user.email ?? "";
   await AsyncStorage.setItem(KEY_USER_EMAIL, email);
 
-  return { accessToken: tokenResult.accessToken, email };
+  return { accessToken: data.access_token, email };
 }
 
 /** 유효한 Access Token 획득 (만료 시 자동 리프레시) */
@@ -139,18 +104,26 @@ export async function getValidAccessToken(): Promise<string | null> {
   if (!refreshToken) return null;
 
   try {
-    const tokenResult = await AuthSession.refreshAsync(
-      {
-        clientId: GOOGLE_CLIENT_ID,
-        clientSecret: GOOGLE_CLIENT_SECRET,
-        refreshToken,
-      },
-      discovery
-    );
-    await AsyncStorage.setItem(KEY_ACCESS_TOKEN, tokenResult.accessToken);
-    const newExpiry = Date.now() + (tokenResult.expiresIn ?? 3600) * 1000;
+    const body = [
+      `client_id=${encodeURIComponent(GOOGLE_WEB_CLIENT_ID)}`,
+      `client_secret=${encodeURIComponent(GOOGLE_CLIENT_SECRET)}`,
+      `refresh_token=${encodeURIComponent(refreshToken)}`,
+      `grant_type=refresh_token`,
+    ].join("&");
+
+    const res = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body,
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error_description || "리프레시 실패");
+
+    await AsyncStorage.setItem(KEY_ACCESS_TOKEN, data.access_token);
+    const newExpiry = Date.now() + (data.expires_in ?? 3600) * 1000;
     await AsyncStorage.setItem(KEY_TOKEN_EXPIRY, String(newExpiry));
-    return tokenResult.accessToken;
+    return data.access_token;
   } catch {
     // 리프레시 실패 → 로그아웃 처리
     await signOut();
@@ -160,6 +133,11 @@ export async function getValidAccessToken(): Promise<string | null> {
 
 /** 로그아웃 */
 export async function signOut(): Promise<void> {
+  try {
+    await GoogleSignin.signOut();
+  } catch {
+    // 무시
+  }
   await AsyncStorage.multiRemove([
     KEY_ACCESS_TOKEN,
     KEY_REFRESH_TOKEN,
