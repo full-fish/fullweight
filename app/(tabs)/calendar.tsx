@@ -942,24 +942,29 @@ export default function CalendarScreen() {
                       </Text>
                       {rec && (
                         <View style={s.dotRow}>
-                          {rec.exercised && (
-                            <View
-                              style={[
-                                s.miniDot,
-                                { backgroundColor: "#4CAF50" },
-                              ]}
-                            />
-                          )}
-                          {rec.drank && (
-                            <View
-                              style={[
-                                s.miniDot,
-                                { backgroundColor: "#FF9800" },
-                              ]}
-                            />
-                          )}
+                          {userSettings.metricDisplayVisibility?.exercised !==
+                            false &&
+                            rec.exercised && (
+                              <View
+                                style={[
+                                  s.miniDot,
+                                  { backgroundColor: "#4CAF50" },
+                                ]}
+                              />
+                            )}
+                          {userSettings.metricDisplayVisibility?.drank !==
+                            false &&
+                            rec.drank && (
+                              <View
+                                style={[
+                                  s.miniDot,
+                                  { backgroundColor: "#FF9800" },
+                                ]}
+                              />
+                            )}
                           {(userSettings.customBoolMetrics ?? []).map((cbm) =>
-                            rec.customBoolValues?.[cbm.key] ? (
+                            userSettings.metricDisplayVisibility?.[cbm.key] !==
+                              false && rec.customBoolValues?.[cbm.key] ? (
                               <View
                                 key={cbm.key}
                                 style={[
@@ -969,18 +974,6 @@ export default function CalendarScreen() {
                               />
                             ) : null
                           )}
-                          {!rec.exercised &&
-                            !rec.drank &&
-                            !(userSettings.customBoolMetrics ?? []).some(
-                              (cbm) => rec.customBoolValues?.[cbm.key]
-                            ) && (
-                              <View
-                                style={[
-                                  s.miniDot,
-                                  { backgroundColor: "#78909C" },
-                                ]}
-                              />
-                            )}
                         </View>
                       )}
                     </TouchableOpacity>
@@ -991,20 +984,26 @@ export default function CalendarScreen() {
 
           {/* 범례 */}
           <View style={s.legendRow}>
-            <View style={s.legendItem}>
-              <View style={[s.legendDot, { backgroundColor: "#4CAF50" }]} />
-              <Text style={s.legendText}>운동</Text>
-            </View>
-            <View style={s.legendItem}>
-              <View style={[s.legendDot, { backgroundColor: "#FF9800" }]} />
-              <Text style={s.legendText}>음주</Text>
-            </View>
-            {(userSettings.customBoolMetrics ?? []).map((cbm) => (
-              <View key={cbm.key} style={s.legendItem}>
-                <View style={[s.legendDot, { backgroundColor: cbm.color }]} />
-                <Text style={s.legendText}>{cbm.label}</Text>
+            {userSettings.metricDisplayVisibility?.exercised !== false && (
+              <View style={s.legendItem}>
+                <View style={[s.legendDot, { backgroundColor: "#4CAF50" }]} />
+                <Text style={s.legendText}>운동</Text>
               </View>
-            ))}
+            )}
+            {userSettings.metricDisplayVisibility?.drank !== false && (
+              <View style={s.legendItem}>
+                <View style={[s.legendDot, { backgroundColor: "#FF9800" }]} />
+                <Text style={s.legendText}>음주</Text>
+              </View>
+            )}
+            {(userSettings.customBoolMetrics ?? []).map((cbm) =>
+              userSettings.metricDisplayVisibility?.[cbm.key] !== false ? (
+                <View key={cbm.key} style={s.legendItem}>
+                  <View style={[s.legendDot, { backgroundColor: cbm.color }]} />
+                  <Text style={s.legendText}>{cbm.label}</Text>
+                </View>
+              ) : null
+            )}
           </View>
         </View>
 

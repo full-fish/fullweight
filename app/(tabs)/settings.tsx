@@ -7,6 +7,7 @@ import {
   CustomMetric,
 } from "@/types";
 import {
+  getBackupIntervalDays,
   getBackupList,
   getLastBackupTime,
   getSignedInEmail,
@@ -14,6 +15,7 @@ import {
   isSignedIn,
   performBackup,
   performRestore,
+  setBackupIntervalDays,
   shouldAutoBackup,
   signOut,
 } from "@/utils/backup";
@@ -409,6 +411,8 @@ export default function SettingsScreen() {
   >([]);
   const [showBackupList, setShowBackupList] = useState(false);
   const autoBackupTriggered = useRef(false);
+  const intervalRef = useRef<number | null>(null);
+  const [backupIntervalDays, setBackupIntervalDaysState] = useState(1);
   const [devTapCount, setDevTapCount] = useState(0);
   const [showDevTools, setShowDevTools] = useState(false);
 
@@ -453,6 +457,9 @@ export default function SettingsScreen() {
       setGoogleEmail(null);
       setLastBackupStr(null);
     }
+    // 백업 주기 로드
+    const interval = await getBackupIntervalDays();
+    setBackupIntervalDaysState(interval);
   };
 
   // Google 로그인 핸들러 (네이티브 Google Sign-In)
@@ -1292,6 +1299,51 @@ export default function SettingsScreen() {
               </TouchableOpacity>
               {displayBoolSubOpen && (
                 <View style={{ marginTop: 8 }}>
+                  <View style={s.infoRow}>
+                    <Text style={s.infoLabel}>🏃 운동</Text>
+                    <Switch
+                      value={metricDisplayVisibility["exercised"] !== false}
+                      onValueChange={async (v) => {
+                        const next = {
+                          ...metricDisplayVisibility,
+                          exercised: v,
+                        };
+                        setMetricDisplayVisibility(next);
+                        const cur = await loadUserSettings();
+                        await saveUserSettings({
+                          ...cur,
+                          metricDisplayVisibility: next,
+                        });
+                      }}
+                      trackColor={{ false: "#E2E8F0", true: "#68D391" }}
+                      thumbColor={
+                        metricDisplayVisibility["exercised"] !== false
+                          ? "#38A169"
+                          : "#fff"
+                      }
+                    />
+                  </View>
+                  <View style={s.infoRow}>
+                    <Text style={s.infoLabel}>🍺 음주</Text>
+                    <Switch
+                      value={metricDisplayVisibility["drank"] !== false}
+                      onValueChange={async (v) => {
+                        const next = { ...metricDisplayVisibility, drank: v };
+                        setMetricDisplayVisibility(next);
+                        const cur = await loadUserSettings();
+                        await saveUserSettings({
+                          ...cur,
+                          metricDisplayVisibility: next,
+                        });
+                      }}
+                      trackColor={{ false: "#E2E8F0", true: "#68D391" }}
+                      thumbColor={
+                        metricDisplayVisibility["drank"] !== false
+                          ? "#38A169"
+                          : "#fff"
+                      }
+                    />
+                  </View>
                   {customBoolMetrics.map((cbm) => (
                     <View key={cbm.key} style={s.infoRow}>
                       <View
@@ -1987,10 +2039,103 @@ export default function SettingsScreen() {
                 <Text style={s.infoValue}>{lastBackupStr ?? "없음"}</Text>
               </View>
               <View style={s.infoRow}>
-                <Text style={s.infoLabel}>자동 백업</Text>
-                <Text style={[s.infoValue, { color: "#38A169" }]}>
-                  매일 1회
-                </Text>
+                <Text style={s.infoLabel}>백업 주기</Text>
+                <View
+                  style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
+                >
+                  <TouchableOpacity
+                    onPress={async () => {
+                      const next = Math.max(1, backupIntervalDays - 1);
+                      setBackupIntervalDaysState(next);
+                      await setBackupIntervalDays(next);
+                    }}
+                    onPressIn={() => {
+                      const id = setInterval(async () => {
+                        setBackupIntervalDaysState((prev) => {
+                          const next = Math.max(1, prev - 1);
+                          setBackupIntervalDays(next);
+                          return next;
+                        });
+                      }, 120);
+                      intervalRef.current = id as unknown as number;
+                    }}
+                    onPressOut={() => {
+                      if (intervalRef.current) {
+                        clearInterval(intervalRef.current);
+                        intervalRef.current = null;
+                      }
+                    }}
+                    style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: 14,
+                      backgroundColor: "#EDF2F7",
+                      justifyContent: "center",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: "#2D3748",
+                        fontSize: 16,
+                        fontWeight: "bold",
+                      }}
+                    >
+                      −
+                    </Text>
+                  </TouchableOpacity>
+                  <Text
+                    style={[
+                      s.infoValue,
+                      { color: "#38A169", minWidth: 60, textAlign: "center" },
+                    ]}
+                  >
+                    {backupIntervalDays === 1
+                      ? "매일"
+                      : `${backupIntervalDays}일마다`}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={async () => {
+                      const next = Math.min(30, backupIntervalDays + 1);
+                      setBackupIntervalDaysState(next);
+                      await setBackupIntervalDays(next);
+                    }}
+                    onPressIn={() => {
+                      const id = setInterval(async () => {
+                        setBackupIntervalDaysState((prev) => {
+                          const next = Math.min(30, prev + 1);
+                          setBackupIntervalDays(next);
+                          return next;
+                        });
+                      }, 120);
+                      intervalRef.current = id as unknown as number;
+                    }}
+                    onPressOut={() => {
+                      if (intervalRef.current) {
+                        clearInterval(intervalRef.current);
+                        intervalRef.current = null;
+                      }
+                    }}
+                    style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: 14,
+                      backgroundColor: "#EDF2F7",
+                      justifyContent: "center",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: "#2D3748",
+                        fontSize: 16,
+                        fontWeight: "bold",
+                      }}
+                    >
+                      +
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
 
               <View style={s.backupBtnRow}>
@@ -2063,10 +2208,10 @@ export default function SettingsScreen() {
                   백업 파일이 없습니다
                 </Text>
               ) : (
-                <View style={{ maxHeight: 300 }}>
+                <View style={{ maxHeight: 300, width: "100%" }}>
                   {backupList.map((item) => {
                     const d = new Date(item.createdTime);
-                    const dateLabel = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+                    const dateLabel = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
                     const sizeKB = item.size
                       ? `${(parseInt(item.size, 10) / 1024).toFixed(1)}KB`
                       : "";
@@ -2130,7 +2275,28 @@ export default function SettingsScreen() {
         {/* 개발자 도구 (숨김 - 개발자 10회 탭 후 표시) */}
         {showDevTools && (
           <View style={s.card}>
-            <Text style={s.cardTitle}>개발자 도구</Text>
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <Text style={s.cardTitle}>개발자 도구</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowDevTools(false);
+                  setDevTapCount(0);
+                }}
+                style={{ paddingHorizontal: 8, paddingVertical: 4 }}
+              >
+                <Text
+                  style={{ fontSize: 13, color: "#A0AEC0", fontWeight: "600" }}
+                >
+                  닫기 ✕
+                </Text>
+              </TouchableOpacity>
+            </View>
             <TouchableOpacity style={s.actionBtn} onPress={handleSeedDummy}>
               <Text style={s.actionIcon}></Text>
               <View style={s.actionTextWrap}>

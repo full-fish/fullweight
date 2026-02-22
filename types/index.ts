@@ -148,4 +148,6 @@ export type UserSettings = {
   customMetrics?: CustomMetric[];
   /** 사용자 정의 체크항목 목록 */
   customBoolMetrics?: CustomBoolMetric[];
+  /** 자동 백업 주기 (일 단위, 기본 1) */
+  backupIntervalDays?: number;
 };
