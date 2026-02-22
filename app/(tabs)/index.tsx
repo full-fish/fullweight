@@ -790,7 +790,7 @@ export default function HomeScreen() {
 
           {/* ───── 오늘의 식사 섹션 ───── */}
           <View style={mealStyles.section}>
-            <Text style={styles.sectionTitle}>🍽️ 오늘의 식사</Text>
+            <Text style={styles.sectionTitle}>오늘의 식사</Text>
 
             {/* 식사 타입별 카드 */}
             {(["breakfast", "lunch", "dinner", "snack"] as MealType[]).map(
@@ -878,7 +878,7 @@ export default function HomeScreen() {
             {dailyNutrition && meals.length > 0 && (
               <View style={mealStyles.compCard}>
                 <Text style={mealStyles.compTitle}>
-                  📊 오늘 섭취 현황
+                  오늘 섭취 현황
                   {challenge?.targetWeight ? " (챌린지)" : " (유지)"}
                 </Text>
                 <View style={mealStyles.compTotalRow}>
@@ -1165,16 +1165,14 @@ export default function HomeScreen() {
                           style={mealModalStyles.photoBtn}
                           onPress={() => handleMealPhotoSelect("camera")}
                         >
-                          <Text style={mealModalStyles.photoBtnText}>
-                            📷 촬영
-                          </Text>
+                          <Text style={mealModalStyles.photoBtnText}>촬영</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                           style={mealModalStyles.photoBtn}
                           onPress={() => handleMealPhotoSelect("gallery")}
                         >
                           <Text style={mealModalStyles.photoBtnText}>
-                            🖼️ 갤러리
+                            갤러리
                           </Text>
                         </TouchableOpacity>
                       </>

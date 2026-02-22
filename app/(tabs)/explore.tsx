@@ -31,6 +31,7 @@ import {
 } from "react-native";
 import { LineChart } from "react-native-chart-kit";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import Svg, { Line as SvgLine } from "react-native-svg";
 
 const { width } = Dimensions.get("window");
 const CHART_WIDTH = width - 48;
@@ -440,13 +441,14 @@ export default function ChartScreen() {
     });
   };
 
-  /* ── 인라인 툴팁 렌더링 (chartCard 레벨) ── */
+  /* ── 인라인 툴팁 + 세로 점선 렌더링 (chartCard 레벨) ── */
   const renderCardTooltip = () => {
     if (!tooltipPoint) return null;
-    const { record, x, y } = tooltipPoint;
+    const { record, x } = tooltipPoint;
     const tooltipW = 160;
-    // x: dot SVG x + chartCard→SVG 오프셋(6) 기준으로 left 계산
+    // x: dot SVG x + chartCard→SVG 오프셋 기준으로 left 계산
     const svgToCard = 16 + -10; // chartCard padding + chart marginLeft
+    const lineLeft = svgToCard + x;
     const left = Math.max(
       4,
       Math.min(
@@ -466,30 +468,58 @@ export default function ChartScreen() {
     if (record.bodyFatMass != null)
       metrics.push({ icon: "체지방량", val: `${record.bodyFatMass} kg` });
 
-    // y는 탭 좌표(chartCard 기준) — 툴팁을 탭 위치 위에 표시
-    const tooltipH = 24 + metrics.length * 18;
-    const showAbove = y > tooltipH + 20;
+    // 툴팁은 chartTitle + overlayToggle 바로 아래 고정 (약 top:0)
+    // isMulti면 오버레이 토글이 있어서 약간 더 아래
+    const fixedTop = 0;
 
     return (
-      <TouchableOpacity
-        activeOpacity={1}
-        onPress={() => setTooltipPoint(null)}
-        style={[
-          s.tooltip,
-          {
-            left,
-            width: tooltipW,
-            top: showAbove ? y - tooltipH - 8 : y + 12,
-          },
-        ]}
-      >
-        <Text style={s.tooltipDate}>{fmtDate(record.date)}</Text>
-        {metrics.map((m, i) => (
-          <Text key={i} style={s.tooltipMetric}>
-            {m.icon} {m.val}
-          </Text>
-        ))}
-      </TouchableOpacity>
+      <>
+        {/* 세로 점선 */}
+        <View
+          style={{
+            position: "absolute",
+            left: lineLeft,
+            top: isMulti ? 80 : 44,
+            bottom: 16,
+            width: 1,
+            zIndex: 998,
+          }}
+          pointerEvents="none"
+        >
+          <Svg width={1} height="100%">
+            <SvgLine
+              x1={0}
+              y1={0}
+              x2={0}
+              y2="100%"
+              stroke="#718096"
+              strokeWidth={1}
+              strokeDasharray="4,4"
+            />
+          </Svg>
+        </View>
+
+        {/* 툴팁 카드 */}
+        <TouchableOpacity
+          activeOpacity={1}
+          onPress={() => setTooltipPoint(null)}
+          style={[
+            s.tooltip,
+            {
+              left,
+              width: tooltipW,
+              top: fixedTop,
+            },
+          ]}
+        >
+          <Text style={s.tooltipDate}>{fmtDate(record.date)}</Text>
+          {metrics.map((m, i) => (
+            <Text key={i} style={s.tooltipMetric}>
+              {m.icon} {m.val}
+            </Text>
+          ))}
+        </TouchableOpacity>
+      </>
     );
   };
 
