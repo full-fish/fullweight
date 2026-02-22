@@ -1,18 +1,30 @@
 import { MiniCalendar } from "@/components/mini-calendar";
 import { SwipeableTab } from "@/components/swipeable-tab";
-import { UserSettings, WeightRecord } from "@/types";
-import { fmtDate, getBmiInfo } from "@/utils/format";
+import {
+  MEAL_EMOJI,
+  MEAL_LABELS,
+  MealEntry,
+  MealType,
+  UserSettings,
+  WeightRecord,
+} from "@/types";
+import { FoodSearchItem, analyzeFood, searchFood } from "@/utils/food-ai";
+import { calcDailyNutrition, fmtDate, getBmiInfo } from "@/utils/format";
 import { deletePhoto, pickPhoto, takePhoto } from "@/utils/photo";
 import {
+  addMeal,
+  deleteMeal,
   deleteRecord,
   getLocalDateString,
+  loadMeals,
   loadRecords,
   loadUserSettings,
   upsertRecord,
 } from "@/utils/storage";
 import { useFocusEffect } from "@react-navigation/native";
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Dimensions,
   Image,
@@ -51,6 +63,27 @@ export default function HomeScreen() {
   >({});
 
   const [userSettings, setUserSettings] = useState<UserSettings>({});
+
+  /* 식사 추적 상태 */
+  const [meals, setMeals] = useState<MealEntry[]>([]);
+
+  /* 식사 입력 모달 */
+  const [showMealModal, setShowMealModal] = useState(false);
+  const [mealModalType, setMealModalType] = useState<MealType>("breakfast");
+  const [mealPhotoUri, setMealPhotoUri] = useState<string | undefined>(
+    undefined
+  );
+  const [mealDesc, setMealDesc] = useState("");
+  const [mealCarb, setMealCarb] = useState("");
+  const [mealProtein, setMealProtein] = useState("");
+  const [mealFat, setMealFat] = useState("");
+  const [mealKcal, setMealKcal] = useState("");
+  const [foodSearchQuery, setFoodSearchQuery] = useState("");
+  const [foodSearchResults, setFoodSearchResults] = useState<FoodSearchItem[]>(
+    []
+  );
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [aiAnalyzing, setAiAnalyzing] = useState(false);
 
   /* 편집 모달 상태 */
   const [showEditModal, setShowEditModal] = useState(false);
@@ -134,6 +167,7 @@ export default function HomeScreen() {
         populateForm(selectedDate, data);
       });
       loadUserSettings().then(setUserSettings);
+      loadMeals(selectedDate).then(setMeals);
     }, [selectedDate, loadAndSetRecords, populateForm])
   );
 
@@ -180,6 +214,144 @@ export default function HomeScreen() {
       setBoolCustomInputs({});
     }
   };
+
+  /* ───── 식사 관련 핸들러 ───── */
+  const openMealModal = (mealType: MealType) => {
+    setMealModalType(mealType);
+    setMealPhotoUri(undefined);
+    setMealDesc("");
+    setMealCarb("");
+    setMealProtein("");
+    setMealFat("");
+    setMealKcal("");
+    setFoodSearchQuery("");
+    setFoodSearchResults([]);
+    setShowMealModal(true);
+  };
+
+  const handleMealPhotoSelect = async (source: "camera" | "gallery") => {
+    const uri = source === "camera" ? await takePhoto() : await pickPhoto();
+    if (!uri) return;
+    setMealPhotoUri(uri);
+    // AI 자동 분석 시도
+    setAiAnalyzing(true);
+    try {
+      const result = await analyzeFood(uri);
+      setMealDesc(result.description);
+      setMealCarb(String(result.carb));
+      setMealProtein(String(result.protein));
+      setMealFat(String(result.fat));
+      setMealKcal(String(result.kcal));
+    } catch {
+      // 서버 연결 실패 시 조용히 무시 (수동 입력으로 폴뼱)
+    } finally {
+      setAiAnalyzing(false);
+    }
+  };
+
+  const handleFoodSearch = async () => {
+    if (!foodSearchQuery.trim()) return;
+    setSearchLoading(true);
+    try {
+      const results = await searchFood(foodSearchQuery);
+      setFoodSearchResults(results);
+      if (results.length === 0)
+        Alert.alert("검색 결과 없음", "다른 이름으로 검색해보세요.");
+    } catch {
+      Alert.alert("검색 오류", "네트워크를 확인해주세요.");
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  const applyFoodResult = (item: FoodSearchItem) => {
+    setMealDesc(item.description + (item.brand ? ` (${item.brand})` : ""));
+    setMealCarb(String(item.carb));
+    setMealProtein(String(item.protein));
+    setMealFat(String(item.fat));
+    setMealKcal(String(item.kcal));
+    setFoodSearchResults([]);
+    setFoodSearchQuery("");
+  };
+
+  const handleSaveMealEntry = async () => {
+    if (!mealDesc.trim()) {
+      Alert.alert("입력 오류", "음식 이름을 입력해주세요.");
+      return;
+    }
+    const carb = parseFloat(mealCarb) || 0;
+    const protein = parseFloat(mealProtein) || 0;
+    const fat = parseFloat(mealFat) || 0;
+    const kcal =
+      parseFloat(mealKcal) || Math.round(carb * 4 + protein * 4 + fat * 9);
+
+    const entry: MealEntry = {
+      id: `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      date: selectedDate,
+      mealType: mealModalType,
+      photoUri: mealPhotoUri,
+      description: mealDesc.trim(),
+      carb,
+      protein,
+      fat,
+      kcal,
+      createdAt: new Date().toISOString(),
+    };
+    const updated = await addMeal(entry);
+    setMeals(updated.filter((m) => m.date === selectedDate));
+    setShowMealModal(false);
+  };
+
+  const handleDeleteMeal = (meal: MealEntry) => {
+    Alert.alert(
+      "삭제",
+      `${MEAL_LABELS[meal.mealType]} - ${meal.description ?? "기록"}을 삭제할까요?`,
+      [
+        { text: "취소", style: "cancel" },
+        {
+          text: "삭제",
+          style: "destructive",
+          onPress: async () => {
+            if (meal.photoUri) await deletePhoto(meal.photoUri);
+            const updated = await deleteMeal(meal.id);
+            setMeals(updated.filter((m) => m.date === selectedDate));
+          },
+        },
+      ]
+    );
+  };
+
+  /** 오늘 총 섭취 영양소 */
+  const dailyIntake = useMemo(() => {
+    const total = { kcal: 0, carb: 0, protein: 0, fat: 0 };
+    meals.forEach((m) => {
+      total.kcal += m.kcal;
+      total.carb += m.carb;
+      total.protein += m.protein;
+      total.fat += m.fat;
+    });
+    return total;
+  }, [meals]);
+
+  /** 하루 권장 영양소 (챌린지 탭과 동일 계산) */
+  const dailyNutrition = useMemo(() => {
+    const s = userSettings;
+    const w = parseFloat(weight);
+    if (!s.height || !s.gender || !s.birthDate || isNaN(w) || w <= 0)
+      return null;
+    // targetWeight가 없으면 현재 체중 유지 가정
+    return calcDailyNutrition({
+      weight: w,
+      targetWeight: w, // 기록 탭에선 유지 기준
+      height: s.height,
+      gender: s.gender,
+      birthDate: s.birthDate,
+      periodDays: 30,
+      exerciseFreq: s.exerciseFreq ?? 0,
+      exerciseMins: s.exerciseMins ?? 60,
+      exerciseIntensity: s.exerciseIntensity ?? 1,
+    });
+  }, [userSettings, weight]);
 
   const handleSave = async () => {
     const w = parseFloat(weight);
@@ -618,6 +790,165 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
 
+          {/* ───── 오늘의 식사 섹션 ───── */}
+          <View style={mealStyles.section}>
+            <Text style={styles.sectionTitle}>🍽️ 오늘의 식사</Text>
+
+            {/* 식사 타입별 카드 */}
+            {(["breakfast", "lunch", "dinner", "snack"] as MealType[]).map(
+              (mealType) => {
+                const mealItems = meals.filter((m) => m.mealType === mealType);
+
+                return (
+                  <View key={mealType} style={mealStyles.mealCard}>
+                    <View style={mealStyles.mealHeader}>
+                      <Text style={mealStyles.mealTitle}>
+                        {MEAL_EMOJI[mealType]} {MEAL_LABELS[mealType]}
+                      </Text>
+                      {mealItems.length > 0 && (
+                        <Text style={mealStyles.mealKcalBadge}>
+                          {mealItems.reduce((sum, m) => sum + m.kcal, 0)} kcal
+                        </Text>
+                      )}
+                    </View>
+
+                    {/* 기록된 음식들 */}
+                    {mealItems.map((meal) => (
+                      <View key={meal.id} style={mealStyles.mealItem}>
+                        {meal.photoUri && (
+                          <Image
+                            source={{ uri: meal.photoUri }}
+                            style={mealStyles.mealPhoto}
+                          />
+                        )}
+                        <View style={mealStyles.mealInfo}>
+                          <Text style={mealStyles.mealDesc} numberOfLines={1}>
+                            {meal.description || "음식"}
+                          </Text>
+                          <View style={mealStyles.macroRow}>
+                            <Text
+                              style={[
+                                mealStyles.macroText,
+                                { color: "#E53E3E" },
+                              ]}
+                            >
+                              탄 {meal.carb}g
+                            </Text>
+                            <Text
+                              style={[
+                                mealStyles.macroText,
+                                { color: "#3182CE" },
+                              ]}
+                            >
+                              단 {meal.protein}g
+                            </Text>
+                            <Text
+                              style={[
+                                mealStyles.macroText,
+                                { color: "#D69E2E" },
+                              ]}
+                            >
+                              지 {meal.fat}g
+                            </Text>
+                            <Text style={mealStyles.macroKcal}>
+                              {meal.kcal}kcal
+                            </Text>
+                          </View>
+                        </View>
+                        <TouchableOpacity
+                          style={mealStyles.mealDeleteBtn}
+                          onPress={() => handleDeleteMeal(meal)}
+                        >
+                          <Text style={mealStyles.mealDeleteText}>✕</Text>
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+
+                    {/* 추가 버튼 */}
+                    <TouchableOpacity
+                      style={mealStyles.addBtn}
+                      onPress={() => openMealModal(mealType)}
+                    >
+                      <Text style={mealStyles.addBtnText}>+ 음식 추가</Text>
+                    </TouchableOpacity>
+                  </View>
+                );
+              }
+            )}
+
+            {/* ───── 섭취량 vs 권장량 비교 ───── */}
+            {dailyNutrition && meals.length > 0 && (
+              <View style={mealStyles.compCard}>
+                <Text style={mealStyles.compTitle}>📊 오늘 섭취 현황</Text>
+                <View style={mealStyles.compTotalRow}>
+                  <Text style={mealStyles.compTotalKcal}>
+                    {dailyIntake.kcal}
+                  </Text>
+                  <Text style={mealStyles.compTotalUnit}>
+                    {" "}
+                    / {dailyNutrition.kcal} kcal
+                  </Text>
+                </View>
+                {/* 칼로리 진행 바 */}
+                <View style={mealStyles.barTrack}>
+                  <View
+                    style={[
+                      mealStyles.barFill,
+                      {
+                        width: `${Math.min(100, (dailyIntake.kcal / dailyNutrition.kcal) * 100)}%`,
+                        backgroundColor:
+                          dailyIntake.kcal > dailyNutrition.kcal
+                            ? "#E53E3E"
+                            : "#4CAF50",
+                      },
+                    ]}
+                  />
+                </View>
+
+                {/* 탄단지 각각 비교 */}
+                {(
+                  [
+                    { key: "carb", label: "탄수화물", color: "#E53E3E" },
+                    { key: "protein", label: "단백질", color: "#3182CE" },
+                    { key: "fat", label: "지방", color: "#D69E2E" },
+                  ] as const
+                ).map(({ key, label, color }) => {
+                  const intake = dailyIntake[key];
+                  const target = dailyNutrition[key];
+                  const pct =
+                    target > 0 ? Math.min(100, (intake / target) * 100) : 0;
+                  return (
+                    <View key={key} style={mealStyles.macroCompRow}>
+                      <View style={mealStyles.macroCompLabel}>
+                        <View
+                          style={[
+                            mealStyles.macroDot,
+                            { backgroundColor: color },
+                          ]}
+                        />
+                        <Text style={mealStyles.macroCompText}>{label}</Text>
+                      </View>
+                      <View style={mealStyles.macroBarTrack}>
+                        <View
+                          style={[
+                            mealStyles.macroBarFill,
+                            {
+                              width: `${pct}%`,
+                              backgroundColor: color,
+                            },
+                          ]}
+                        />
+                      </View>
+                      <Text style={mealStyles.macroCompValue}>
+                        {intake} / {target}g
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+          </View>
+
           {/* 기록 목록 */}
           <Text style={styles.sectionTitle}>기록 목록</Text>
           {records.length === 0 ? (
@@ -768,6 +1099,216 @@ export default function HomeScreen() {
           onSelect={handleDateSelect}
           onClose={() => setShowDatePicker(false)}
         />
+
+        {/* 식사 입력 모달 */}
+        <Modal
+          visible={showMealModal}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowMealModal(false)}
+        >
+          <View style={mealModalStyles.overlay}>
+            <KeyboardAvoidingView
+              behavior={Platform.OS === "ios" ? "padding" : undefined}
+              style={{ width: "100%" }}
+            >
+              <View style={mealModalStyles.sheet}>
+                {/* 헤더 */}
+                <View style={mealModalStyles.header}>
+                  <Text style={mealModalStyles.title}>
+                    {MEAL_EMOJI[mealModalType]} {MEAL_LABELS[mealModalType]}{" "}
+                    추가
+                  </Text>
+                  <TouchableOpacity onPress={() => setShowMealModal(false)}>
+                    <Text style={mealModalStyles.closeBtn}>✕</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <ScrollView
+                  showsVerticalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
+                >
+                  {/* 사진 선택 */}
+                  <View style={mealModalStyles.photoRow}>
+                    {mealPhotoUri ? (
+                      <View style={{ position: "relative" }}>
+                        <Image
+                          source={{ uri: mealPhotoUri }}
+                          style={mealModalStyles.photoPreview}
+                        />
+                        {aiAnalyzing && (
+                          <View style={mealModalStyles.photoAnalyzingOverlay}>
+                            <ActivityIndicator size="large" color="#fff" />
+                            <Text style={mealModalStyles.photoAnalyzingText}>
+                              AI 분석 중...
+                            </Text>
+                          </View>
+                        )}
+                        <TouchableOpacity
+                          style={mealModalStyles.photoRemove}
+                          onPress={() => setMealPhotoUri(undefined)}
+                        >
+                          <Text
+                            style={{
+                              color: "#fff",
+                              fontSize: 12,
+                              fontWeight: "700",
+                            }}
+                          >
+                            ✕
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    ) : (
+                      <>
+                        <TouchableOpacity
+                          style={mealModalStyles.photoBtn}
+                          onPress={() => handleMealPhotoSelect("camera")}
+                        >
+                          <Text style={mealModalStyles.photoBtnText}>
+                            📷 촬영
+                          </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={mealModalStyles.photoBtn}
+                          onPress={() => handleMealPhotoSelect("gallery")}
+                        >
+                          <Text style={mealModalStyles.photoBtnText}>
+                            🖼️ 갤러리
+                          </Text>
+                        </TouchableOpacity>
+                      </>
+                    )}
+                  </View>
+
+                  {/* 음식 검색 (Open Food Facts) */}
+                  <Text style={mealModalStyles.label}>음식 검색</Text>
+                  <View style={mealModalStyles.searchRow}>
+                    <TextInput
+                      style={[mealModalStyles.input, { flex: 1 }]}
+                      value={foodSearchQuery}
+                      onChangeText={setFoodSearchQuery}
+                      placeholder="예: 닭가슴살, banana, kimchi"
+                      placeholderTextColor="#CBD5E0"
+                      onSubmitEditing={handleFoodSearch}
+                      returnKeyType="search"
+                    />
+                    <TouchableOpacity
+                      style={mealModalStyles.searchBtn}
+                      onPress={handleFoodSearch}
+                      disabled={searchLoading}
+                    >
+                      {searchLoading ? (
+                        <ActivityIndicator size="small" color="#fff" />
+                      ) : (
+                        <Text style={mealModalStyles.searchBtnText}>검색</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* 검색 결과 */}
+                  {foodSearchResults.length > 0 && (
+                    <View style={mealModalStyles.resultList}>
+                      {foodSearchResults.map((item, i) => (
+                        <TouchableOpacity
+                          key={i}
+                          style={mealModalStyles.resultItem}
+                          onPress={() => applyFoodResult(item)}
+                        >
+                          <Text
+                            style={mealModalStyles.resultName}
+                            numberOfLines={1}
+                          >
+                            {item.description}
+                            {item.brand ? (
+                              <Text style={mealModalStyles.resultBrand}>
+                                {" "}
+                                · {item.brand}
+                              </Text>
+                            ) : null}
+                          </Text>
+                          <Text style={mealModalStyles.resultMacro}>
+                            탄 {item.carb}g · 단 {item.protein}g · 지 {item.fat}
+                            g · {item.kcal}kcal
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
+
+                  {/* 음식 이름 */}
+                  <Text style={mealModalStyles.label}>음식 이름 *</Text>
+                  <TextInput
+                    style={mealModalStyles.input}
+                    value={mealDesc}
+                    onChangeText={setMealDesc}
+                    placeholder="예: 닭가슴살 볶음밥"
+                    placeholderTextColor="#CBD5E0"
+                  />
+
+                  {/* 영양소 입력 */}
+                  <Text style={mealModalStyles.label}>
+                    영양소 (100g 기준 또는 먹은 양 전체)
+                  </Text>
+                  <View style={mealModalStyles.macroGrid}>
+                    {(
+                      [
+                        {
+                          label: "탄수화물(g)",
+                          value: mealCarb,
+                          setter: setMealCarb,
+                          color: "#E53E3E",
+                        },
+                        {
+                          label: "단백질(g)",
+                          value: mealProtein,
+                          setter: setMealProtein,
+                          color: "#3182CE",
+                        },
+                        {
+                          label: "지방(g)",
+                          value: mealFat,
+                          setter: setMealFat,
+                          color: "#D69E2E",
+                        },
+                        {
+                          label: "칼로리(kcal)",
+                          value: mealKcal,
+                          setter: setMealKcal,
+                          color: "#718096",
+                        },
+                      ] as const
+                    ).map(({ label, value, setter, color }) => (
+                      <View key={label} style={mealModalStyles.macroField}>
+                        <Text style={[mealModalStyles.macroLabel, { color }]}>
+                          {label}
+                        </Text>
+                        <TextInput
+                          style={mealModalStyles.macroInput}
+                          value={value}
+                          onChangeText={(v) => setter(v)}
+                          keyboardType="numeric"
+                          placeholder="0"
+                          placeholderTextColor="#CBD5E0"
+                        />
+                      </View>
+                    ))}
+                  </View>
+                  <Text style={mealModalStyles.kcalHint}>
+                    * 칼로리 비워두면 탄단지로 자동 계산됩니다
+                  </Text>
+
+                  <TouchableOpacity
+                    style={mealModalStyles.saveBtn}
+                    onPress={handleSaveMealEntry}
+                  >
+                    <Text style={mealModalStyles.saveBtnText}>저장</Text>
+                  </TouchableOpacity>
+                </ScrollView>
+              </View>
+            </KeyboardAvoidingView>
+          </View>
+        </Modal>
 
         {/* 편집 팝업 모달 */}
         <Modal
@@ -1135,6 +1676,269 @@ const editModalStyles = StyleSheet.create({
     alignItems: "center",
   },
   cancelBtnText: { fontSize: 14, fontWeight: "600", color: "#718096" },
+});
+
+/* ───── 식사 추적 스타일 ───── */
+const mealStyles = StyleSheet.create({
+  section: { marginBottom: 24 },
+  mealCard: {
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  mealHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  mealTitle: { fontSize: 16, fontWeight: "600", color: "#2D3748" },
+  mealKcalBadge: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#4CAF50",
+    backgroundColor: "#E8F5E9",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  mealItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F7FAFC",
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 8,
+  },
+  mealPhoto: {
+    width: 52,
+    height: 52,
+    borderRadius: 8,
+    marginRight: 10,
+  },
+  mealInfo: { flex: 1 },
+  mealDesc: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#2D3748",
+    marginBottom: 4,
+  },
+  macroRow: { flexDirection: "row", gap: 8, alignItems: "center" },
+  macroText: { fontSize: 12, fontWeight: "500" },
+  macroKcal: { fontSize: 12, color: "#718096", fontWeight: "500" },
+  mealDeleteBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#FED7D7",
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 6,
+  },
+  mealDeleteText: { fontSize: 12, color: "#E53E3E", fontWeight: "700" },
+  addBtn: {
+    backgroundColor: "#EDF2F7",
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: "center",
+    marginTop: 4,
+  },
+  addBtnText: { fontSize: 13, fontWeight: "600", color: "#4A5568" },
+
+  /* 섭취 vs 권장 비교 */
+  compCard: {
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    padding: 16,
+    marginTop: 6,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  compTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#2D3748",
+    marginBottom: 10,
+  },
+  compTotalRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    marginBottom: 6,
+  },
+  compTotalKcal: { fontSize: 28, fontWeight: "700", color: "#2D3748" },
+  compTotalUnit: { fontSize: 14, color: "#718096" },
+  barTrack: {
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "#EDF2F7",
+    marginBottom: 16,
+    overflow: "hidden",
+  },
+  barFill: { height: "100%", borderRadius: 5 },
+  macroCompRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  macroCompLabel: {
+    flexDirection: "row",
+    alignItems: "center",
+    width: 70,
+  },
+  macroDot: { width: 8, height: 8, borderRadius: 4, marginRight: 6 },
+  macroCompText: { fontSize: 12, color: "#4A5568", fontWeight: "500" },
+  macroBarTrack: {
+    flex: 1,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#EDF2F7",
+    marginHorizontal: 8,
+    overflow: "hidden",
+  },
+  macroBarFill: { height: "100%", borderRadius: 4 },
+  macroCompValue: {
+    fontSize: 12,
+    color: "#718096",
+    width: 80,
+    textAlign: "right",
+  },
+});
+
+const mealModalStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "flex-end",
+  },
+  sheet: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    maxHeight: "90%",
+  },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  title: { fontSize: 18, fontWeight: "700", color: "#2D3748" },
+  closeBtn: { fontSize: 18, color: "#718096", padding: 4 },
+  photoRow: { flexDirection: "row", gap: 10, marginBottom: 16 },
+  photoPreview: { width: 120, height: 90, borderRadius: 10 },
+  photoAnalyzingOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 10,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+  photoAnalyzingText: { color: "#fff", fontSize: 12, fontWeight: "600" },
+  photoRemove: {
+    position: "absolute",
+    top: 4,
+    right: 4,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  photoBtn: {
+    flex: 1,
+    backgroundColor: "#EDF2F7",
+    borderRadius: 10,
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+  photoBtnText: { fontSize: 14, fontWeight: "600", color: "#4A5568" },
+  label: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#4A5568",
+    marginBottom: 6,
+    marginTop: 12,
+  },
+  searchRow: { flexDirection: "row", gap: 8, alignItems: "center" },
+  input: {
+    height: 44,
+    borderWidth: 1.5,
+    borderColor: "#E2E8F0",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    fontSize: 15,
+    color: "#2D3748",
+    backgroundColor: "#F7FAFC",
+    marginBottom: 4,
+  },
+  searchBtn: {
+    backgroundColor: "#4CAF50",
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    height: 44,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  searchBtnText: { color: "#fff", fontWeight: "600", fontSize: 14 },
+  resultList: {
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    borderRadius: 10,
+    overflow: "hidden",
+    marginBottom: 4,
+  },
+  resultItem: {
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F7FAFC",
+    backgroundColor: "#fff",
+  },
+  resultName: { fontSize: 14, fontWeight: "600", color: "#2D3748" },
+  resultBrand: { fontSize: 13, color: "#718096", fontWeight: "400" },
+  resultMacro: { fontSize: 12, color: "#718096", marginTop: 2 },
+  macroGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    marginBottom: 4,
+  },
+  macroField: { width: "47%" },
+  macroLabel: { fontSize: 12, fontWeight: "600", marginBottom: 4 },
+  macroInput: {
+    height: 40,
+    borderWidth: 1.5,
+    borderColor: "#E2E8F0",
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    fontSize: 15,
+    color: "#2D3748",
+    backgroundColor: "#F7FAFC",
+  },
+  kcalHint: { fontSize: 11, color: "#A0AEC0", marginBottom: 16 },
+  saveBtn: {
+    backgroundColor: "#4CAF50",
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  saveBtnText: { color: "#fff", fontSize: 16, fontWeight: "600" },
 });
 
 const styles = StyleSheet.create({

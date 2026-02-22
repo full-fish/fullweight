@@ -130,6 +130,37 @@ export type ChallengeHistory = {
   completedAt: string;
 };
 
+/** 식사 종류 */
+export type MealType = "breakfast" | "lunch" | "dinner" | "snack";
+
+export const MEAL_LABELS: Record<MealType, string> = {
+  breakfast: "아침",
+  lunch: "점심",
+  dinner: "저녁",
+  snack: "간식",
+};
+
+export const MEAL_EMOJI: Record<MealType, string> = {
+  breakfast: "🌅",
+  lunch: "☀️",
+  dinner: "🌙",
+  snack: "🍪",
+};
+
+/** 식사 기록 항목 */
+export type MealEntry = {
+  id: string;
+  date: string; // YYYY-MM-DD
+  mealType: MealType;
+  photoUri?: string;
+  description?: string; // 음식 설명 (AI 분석 결과 또는 수동 입력)
+  carb: number; // 탄수화물 (g)
+  protein: number; // 단백질 (g)
+  fat: number; // 지방 (g)
+  kcal: number; // 칼로리
+  createdAt: string;
+};
+
 /** 사용자 설정 (키, 생년월일, 성별 등) */
 export type UserSettings = {
   height?: number; // cm
@@ -154,4 +185,6 @@ export type UserSettings = {
   customBoolMetrics?: CustomBoolMetric[];
   /** 자동 백업 주기 (일 단위, 기본 1) */
   backupIntervalDays?: number;
+  /** OpenAI API 키 (음식 사진 분석용) */
+  openaiApiKey?: string;
 };

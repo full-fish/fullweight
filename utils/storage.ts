@@ -1,6 +1,7 @@
 import {
   Challenge,
   ChallengeHistory,
+  MealEntry,
   UserSettings,
   WeightRecord,
 } from "@/types";
@@ -10,6 +11,7 @@ const STORAGE_KEY = "weight_records_v1";
 const CHALLENGE_KEY = "weight_challenge_v1";
 const CHALLENGE_HISTORY_KEY = "weight_challenge_history_v1";
 const USER_SETTINGS_KEY = "user_settings_v1";
+const MEAL_STORAGE_KEY = "meal_entries_v1";
 
 /** 로컬 날짜를 YYYY-MM-DD 형식으로 반환 */
 export function getLocalDateString(date: Date = new Date()): string {
@@ -328,4 +330,44 @@ export async function loadUserSettings(): Promise<UserSettings> {
 
 export async function saveUserSettings(settings: UserSettings): Promise<void> {
   await AsyncStorage.setItem(USER_SETTINGS_KEY, JSON.stringify(settings));
+}
+
+/* ───── 식사 기록 ───── */
+
+export async function loadMeals(date?: string): Promise<MealEntry[]> {
+  try {
+    const data = await AsyncStorage.getItem(MEAL_STORAGE_KEY);
+    if (!data) return [];
+    const all = JSON.parse(data) as MealEntry[];
+    if (date) return all.filter((m) => m.date === date);
+    return all;
+  } catch {
+    return [];
+  }
+}
+
+export async function saveMeals(meals: MealEntry[]): Promise<void> {
+  await AsyncStorage.setItem(MEAL_STORAGE_KEY, JSON.stringify(meals));
+}
+
+export async function addMeal(entry: MealEntry): Promise<MealEntry[]> {
+  const all = await loadMeals();
+  all.push(entry);
+  await saveMeals(all);
+  return all;
+}
+
+export async function updateMeal(entry: MealEntry): Promise<MealEntry[]> {
+  const all = await loadMeals();
+  const idx = all.findIndex((m) => m.id === entry.id);
+  if (idx >= 0) all[idx] = entry;
+  await saveMeals(all);
+  return all;
+}
+
+export async function deleteMeal(id: string): Promise<MealEntry[]> {
+  const all = await loadMeals();
+  const filtered = all.filter((m) => m.id !== id);
+  await saveMeals(filtered);
+  return filtered;
 }
