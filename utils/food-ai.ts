@@ -16,7 +16,7 @@ export type FoodSearchItem = FoodAnalysisResult & {
  * ⚠️ Vercel 배포 후 본인 URL로 교체하세요
  * e.g. "https://fullweight.vercel.app/api/analyze-food"
  */
-const ANALYZE_API_URL = "fullweight.vercel.app";
+const ANALYZE_API_URL = "https://fullweight.vercel.app/api/analyze-food";
 
 /**
  * 음식 사진을 백엔드 프록시를 통해 AI 분석

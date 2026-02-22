@@ -1,21 +1,27 @@
 import { MiniCalendar } from "@/components/mini-calendar";
 import { SwipeableTab } from "@/components/swipeable-tab";
 import {
-  MEAL_EMOJI,
+  Challenge,
   MEAL_LABELS,
   MealEntry,
   MealType,
   UserSettings,
   WeightRecord,
 } from "@/types";
-import { FoodSearchItem, analyzeFood, searchFood } from "@/utils/food-ai";
-import { calcDailyNutrition, fmtDate, getBmiInfo } from "@/utils/format";
+import { analyzeFood } from "@/utils/food-ai";
+import {
+  calcDailyNutrition,
+  daysBetween,
+  fmtDate,
+  getBmiInfo,
+} from "@/utils/format";
 import { deletePhoto, pickPhoto, takePhoto } from "@/utils/photo";
 import {
   addMeal,
   deleteMeal,
   deleteRecord,
   getLocalDateString,
+  loadChallenge,
   loadMeals,
   loadRecords,
   loadUserSettings,
@@ -63,6 +69,7 @@ export default function HomeScreen() {
   >({});
 
   const [userSettings, setUserSettings] = useState<UserSettings>({});
+  const [challenge, setChallenge] = useState<Challenge | null>(null);
 
   /* 식사 추적 상태 */
   const [meals, setMeals] = useState<MealEntry[]>([]);
@@ -78,11 +85,6 @@ export default function HomeScreen() {
   const [mealProtein, setMealProtein] = useState("");
   const [mealFat, setMealFat] = useState("");
   const [mealKcal, setMealKcal] = useState("");
-  const [foodSearchQuery, setFoodSearchQuery] = useState("");
-  const [foodSearchResults, setFoodSearchResults] = useState<FoodSearchItem[]>(
-    []
-  );
-  const [searchLoading, setSearchLoading] = useState(false);
   const [aiAnalyzing, setAiAnalyzing] = useState(false);
 
   /* 편집 모달 상태 */
@@ -167,6 +169,7 @@ export default function HomeScreen() {
         populateForm(selectedDate, data);
       });
       loadUserSettings().then(setUserSettings);
+      loadChallenge().then(setChallenge);
       loadMeals(selectedDate).then(setMeals);
     }, [selectedDate, loadAndSetRecords, populateForm])
   );
@@ -224,8 +227,6 @@ export default function HomeScreen() {
     setMealProtein("");
     setMealFat("");
     setMealKcal("");
-    setFoodSearchQuery("");
-    setFoodSearchResults([]);
     setShowMealModal(true);
   };
 
@@ -242,36 +243,15 @@ export default function HomeScreen() {
       setMealProtein(String(result.protein));
       setMealFat(String(result.fat));
       setMealKcal(String(result.kcal));
-    } catch {
-      // 서버 연결 실패 시 조용히 무시 (수동 입력으로 폴뼱)
+    } catch (err: any) {
+      Alert.alert(
+        "AI 분석 실패",
+        (err.message || "서버 연결에 실패했습니다.") +
+          "\n\n음식 이름과 영양소를 직접 입력해주세요."
+      );
     } finally {
       setAiAnalyzing(false);
     }
-  };
-
-  const handleFoodSearch = async () => {
-    if (!foodSearchQuery.trim()) return;
-    setSearchLoading(true);
-    try {
-      const results = await searchFood(foodSearchQuery);
-      setFoodSearchResults(results);
-      if (results.length === 0)
-        Alert.alert("검색 결과 없음", "다른 이름으로 검색해보세요.");
-    } catch {
-      Alert.alert("검색 오류", "네트워크를 확인해주세요.");
-    } finally {
-      setSearchLoading(false);
-    }
-  };
-
-  const applyFoodResult = (item: FoodSearchItem) => {
-    setMealDesc(item.description + (item.brand ? ` (${item.brand})` : ""));
-    setMealCarb(String(item.carb));
-    setMealProtein(String(item.protein));
-    setMealFat(String(item.fat));
-    setMealKcal(String(item.kcal));
-    setFoodSearchResults([]);
-    setFoodSearchQuery("");
   };
 
   const handleSaveMealEntry = async () => {
@@ -333,16 +313,34 @@ export default function HomeScreen() {
     return total;
   }, [meals]);
 
-  /** 하루 권장 영양소 (챌린지 탭과 동일 계산) */
+  /** 하루 권장 영양소 (챌린지가 있으면 챌린지 기준, 없으면 유지 기준) */
   const dailyNutrition = useMemo(() => {
     const s = userSettings;
     const w = parseFloat(weight);
     if (!s.height || !s.gender || !s.birthDate || isNaN(w) || w <= 0)
       return null;
-    // targetWeight가 없으면 현재 체중 유지 가정
+
+    // 챌린지가 있고 targetWeight이 설정되어 있으면 챌린지 기준으로 계산
+    if (challenge && challenge.targetWeight) {
+      const today = getLocalDateString();
+      const daysLeft = daysBetween(today, challenge.endDate);
+      return calcDailyNutrition({
+        weight: w,
+        targetWeight: challenge.targetWeight,
+        height: s.height,
+        gender: s.gender,
+        birthDate: s.birthDate,
+        periodDays: daysLeft > 0 ? daysLeft : 1,
+        exerciseFreq: s.exerciseFreq ?? 0,
+        exerciseMins: s.exerciseMins ?? 60,
+        exerciseIntensity: s.exerciseIntensity ?? 1,
+      });
+    }
+
+    // 챌린지가 없으면 현재 체중 유지 가정
     return calcDailyNutrition({
       weight: w,
-      targetWeight: w, // 기록 탭에선 유지 기준
+      targetWeight: w,
       height: s.height,
       gender: s.gender,
       birthDate: s.birthDate,
@@ -351,7 +349,7 @@ export default function HomeScreen() {
       exerciseMins: s.exerciseMins ?? 60,
       exerciseIntensity: s.exerciseIntensity ?? 1,
     });
-  }, [userSettings, weight]);
+  }, [userSettings, weight, challenge]);
 
   const handleSave = async () => {
     const w = parseFloat(weight);
@@ -803,7 +801,7 @@ export default function HomeScreen() {
                   <View key={mealType} style={mealStyles.mealCard}>
                     <View style={mealStyles.mealHeader}>
                       <Text style={mealStyles.mealTitle}>
-                        {MEAL_EMOJI[mealType]} {MEAL_LABELS[mealType]}
+                        {MEAL_LABELS[mealType]}
                       </Text>
                       {mealItems.length > 0 && (
                         <Text style={mealStyles.mealKcalBadge}>
@@ -879,7 +877,10 @@ export default function HomeScreen() {
             {/* ───── 섭취량 vs 권장량 비교 ───── */}
             {dailyNutrition && meals.length > 0 && (
               <View style={mealStyles.compCard}>
-                <Text style={mealStyles.compTitle}>📊 오늘 섭취 현황</Text>
+                <Text style={mealStyles.compTitle}>
+                  📊 오늘 섭취 현황
+                  {challenge?.targetWeight ? " (챌린지)" : " (유지)"}
+                </Text>
                 <View style={mealStyles.compTotalRow}>
                   <Text style={mealStyles.compTotalKcal}>
                     {dailyIntake.kcal}
@@ -1116,8 +1117,7 @@ export default function HomeScreen() {
                 {/* 헤더 */}
                 <View style={mealModalStyles.header}>
                   <Text style={mealModalStyles.title}>
-                    {MEAL_EMOJI[mealModalType]} {MEAL_LABELS[mealModalType]}{" "}
-                    추가
+                    {MEAL_LABELS[mealModalType]} 추가
                   </Text>
                   <TouchableOpacity onPress={() => setShowMealModal(false)}>
                     <Text style={mealModalStyles.closeBtn}>✕</Text>
@@ -1181,61 +1181,6 @@ export default function HomeScreen() {
                     )}
                   </View>
 
-                  {/* 음식 검색 (Open Food Facts) */}
-                  <Text style={mealModalStyles.label}>음식 검색</Text>
-                  <View style={mealModalStyles.searchRow}>
-                    <TextInput
-                      style={[mealModalStyles.input, { flex: 1 }]}
-                      value={foodSearchQuery}
-                      onChangeText={setFoodSearchQuery}
-                      placeholder="예: 닭가슴살, banana, kimchi"
-                      placeholderTextColor="#CBD5E0"
-                      onSubmitEditing={handleFoodSearch}
-                      returnKeyType="search"
-                    />
-                    <TouchableOpacity
-                      style={mealModalStyles.searchBtn}
-                      onPress={handleFoodSearch}
-                      disabled={searchLoading}
-                    >
-                      {searchLoading ? (
-                        <ActivityIndicator size="small" color="#fff" />
-                      ) : (
-                        <Text style={mealModalStyles.searchBtnText}>검색</Text>
-                      )}
-                    </TouchableOpacity>
-                  </View>
-
-                  {/* 검색 결과 */}
-                  {foodSearchResults.length > 0 && (
-                    <View style={mealModalStyles.resultList}>
-                      {foodSearchResults.map((item, i) => (
-                        <TouchableOpacity
-                          key={i}
-                          style={mealModalStyles.resultItem}
-                          onPress={() => applyFoodResult(item)}
-                        >
-                          <Text
-                            style={mealModalStyles.resultName}
-                            numberOfLines={1}
-                          >
-                            {item.description}
-                            {item.brand ? (
-                              <Text style={mealModalStyles.resultBrand}>
-                                {" "}
-                                · {item.brand}
-                              </Text>
-                            ) : null}
-                          </Text>
-                          <Text style={mealModalStyles.resultMacro}>
-                            탄 {item.carb}g · 단 {item.protein}g · 지 {item.fat}
-                            g · {item.kcal}kcal
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  )}
-
                   {/* 음식 이름 */}
                   <Text style={mealModalStyles.label}>음식 이름 *</Text>
                   <TextInput
@@ -1248,7 +1193,7 @@ export default function HomeScreen() {
 
                   {/* 영양소 입력 */}
                   <Text style={mealModalStyles.label}>
-                    영양소 (100g 기준 또는 먹은 양 전체)
+                    영양소 (먹은 양 전체)
                   </Text>
                   <View style={mealModalStyles.macroGrid}>
                     {(
