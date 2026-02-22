@@ -71,16 +71,26 @@ export function daysBetween(a: string, b: string): number {
   return Math.round((db.getTime() - da.getTime()) / 86400000);
 }
 
-/** YYYY-MM-DD 형식의 날짜 문자열 검증 */
+/** YYYY-MM-DD 또는 YYYYMMDD 형식의 날짜 문자열 검증 */
 export function isValidDateString(s: string): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
-  const [y, m, d] = s.split("-").map(Number);
+  const normalized = normalizeDateString(s);
+  if (!normalized) return false;
+  const [y, m, d] = normalized.split("-").map(Number);
   const date = new Date(y, m - 1, d);
   return (
     date.getFullYear() === y &&
     date.getMonth() === m - 1 &&
     date.getDate() === d
   );
+}
+
+/** YYYYMMDD → YYYY-MM-DD 변환, 이미 YYYY-MM-DD면 그대로 반환, 잘못된 형식이면 null */
+export function normalizeDateString(s: string): string | null {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  if (/^\d{8}$/.test(s)) {
+    return `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`;
+  }
+  return null;
 }
 
 /** 생년월일로 만 나이 계산 */
@@ -142,3 +152,173 @@ export function getBmiInfo(
 
 /** 요일 라벨 */
 export const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
+
+/**
+ * 운동 빈도·시간·강도 기반 일일 운동 칼로리 소비 산출
+ * 공식: 칼로리 = MET × 체중(kg) × 시간(h)
+ * @param freq  주당 운동 횟수 (0~7)
+ * @param mins  1회 운동 시간(분)
+ * @param intensity 강도 1(가벼움) / 2(보통) / 3(고강도)
+ * @param weight 체중(kg)
+ * @returns 하루 평균 운동 칼로리 소비량
+ */
+export function calcDailyExerciseCal(
+  freq: number,
+  mins: number,
+  intensity: number,
+  weight: number
+): number {
+  // MET 값: 가벼움(걷기·요가) 3.5, 보통(조깅·근력) 5.5, 고강도(HIIT·고중량) 8.0
+  const met = intensity === 3 ? 8.0 : intensity === 2 ? 5.5 : 3.5;
+  // 1회 운동 칼로리 = MET × 체중 × 시간(h)
+  const calPerSession = met * weight * (mins / 60);
+  // 주당 총 → 하루 평균
+  return (calPerSession * freq) / 7;
+}
+
+/**
+ * 하루 권장 칼로리 및 PFC(탄수/단백질/지방) 계산
+ *
+ * BMR(Mifflin-St Jeor) + NEAT(비운동활동) + 운동 칼로리로 정확한 TDEE 산출.
+ * 운동량(주당 총 시간)에 따라 단백질 g/kg 연동.
+ * 목표(감량/증량/유지)에 따라 매크로 비율 동적 조절.
+ *
+ * @returns { kcal, protein, fat, carb, tdee, exerciseCal }
+ */
+export function calcDailyNutrition({
+  weight,
+  targetWeight,
+  height,
+  gender,
+  birthDate,
+  periodDays,
+  exerciseFreq = 0,
+  exerciseMins = 60,
+  exerciseIntensity = 1,
+}: {
+  weight: number;
+  targetWeight: number;
+  height: number;
+  gender: "male" | "female";
+  birthDate: string;
+  periodDays: number;
+  /** 주당 운동 횟수 (0~7) */
+  exerciseFreq?: number;
+  /** 1회 운동 시간(분) */
+  exerciseMins?: number;
+  /** 강도 1(가벼움) / 2(보통) / 3(고강도) */
+  exerciseIntensity?: number;
+}) {
+  // 나이 계산
+  const birth = new Date(birthDate);
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  if (
+    today.getMonth() < birth.getMonth() ||
+    (today.getMonth() === birth.getMonth() && today.getDate() < birth.getDate())
+  ) {
+    age--;
+  }
+
+  // BMR (Mifflin-St Jeor)
+  const bmr =
+    gender === "male"
+      ? 10 * weight + 6.25 * height - 5 * age + 5
+      : 10 * weight + 6.25 * height - 5 * age - 161;
+
+  // NEAT(비운동 활동 열생산) = BMR × 0.2
+  const neat = bmr * 0.2;
+
+  // 일일 운동 칼로리 소비
+  const exerciseCal = calcDailyExerciseCal(
+    exerciseFreq,
+    exerciseMins,
+    exerciseIntensity,
+    weight
+  );
+
+  // TDEE = BMR + NEAT + 운동 칼로리
+  const tdee = bmr + neat + exerciseCal;
+
+  // 목표 증감 칼로리 (1kg = 7700kcal)
+  const totalDelta = (targetWeight - weight) * 7700;
+  const dailyDelta = periodDays > 0 ? totalDelta / periodDays : 0;
+  // 안전 범위 제한 (최대 ±1000kcal/일)
+  const safeDelta = Math.max(-1000, Math.min(1000, dailyDelta));
+
+  // 하루 권장 칼로리 (최소 1200kcal)
+  const kcal = Math.max(1200, Math.round(tdee + safeDelta));
+
+  // ─── 운동량 + 목표에 따른 동적 매크로 ───
+  const isLosing = targetWeight < weight;
+  const isGaining = targetWeight > weight;
+
+  // 주당 총 운동 시간(시)
+  const weeklyExHours = (exerciseFreq * exerciseMins) / 60;
+
+  // ── 단백질 (g/kg): 운동량에 비례하여 연속적으로 변화 ──
+  // 기본값 + 운동 시간에 따른 보너스
+  let baseProtein: number;
+  if (isLosing) {
+    baseProtein = 1.6; // 감량 기본
+  } else if (isGaining) {
+    baseProtein = 1.4; // 증량 기본
+  } else {
+    baseProtein = 1.2; // 유지 기본
+  }
+  // 운동량 보너스: 주당 운동시간에 비례 (최대 +0.8g/kg)
+  // 강도 가중치: 가벼움 0.6, 보통 0.8, 고강도 1.0
+  const intensityWeight =
+    exerciseIntensity === 3 ? 1.0 : exerciseIntensity === 2 ? 0.8 : 0.6;
+  const proteinBonus = Math.min(0.8, weeklyExHours * intensityWeight * 0.08);
+  const proteinPerKg = baseProtein + proteinBonus;
+
+  // ── 지방 비율: 운동 많을수록 약간 낮게 (탄수 비중↑) ──
+  // 기본 25~28% → 고활동 시 20~22%
+  let baseFatRatio: number;
+  if (isLosing) {
+    baseFatRatio = 0.28;
+  } else if (isGaining) {
+    baseFatRatio = 0.27;
+  } else {
+    baseFatRatio = 0.3;
+  }
+  // 운동량이 많을수록 지방 비율 감소 (탄수 에너지 필요↑), 최대 -0.08
+  const fatReduction = Math.min(0.08, weeklyExHours * 0.008);
+  const fatRatio = Math.max(0.2, baseFatRatio - fatReduction);
+
+  // 단백질(g)
+  const protein = Math.round(weight * proteinPerKg);
+  const proteinCal = protein * 4;
+
+  // 지방(g)
+  const fat = Math.round((kcal * fatRatio) / 9);
+  const fatCal = fat * 9;
+
+  // 탄수화물(g) = 나머지
+  const carb = Math.max(0, Math.round((kcal - proteinCal - fatCal) / 4));
+
+  // 안전 보정: 단백질+지방이 총 칼로리 초과 시 비율 재조정
+  if (proteinCal + fatCal > kcal) {
+    const pRatio = 0.35;
+    const fRatio = 0.25;
+    const cRatio = 0.4;
+    return {
+      kcal,
+      protein: Math.round((kcal * pRatio) / 4),
+      fat: Math.round((kcal * fRatio) / 9),
+      carb: Math.round((kcal * cRatio) / 4),
+      tdee: Math.round(tdee),
+      exerciseCal: Math.round(exerciseCal),
+    };
+  }
+
+  return {
+    kcal,
+    protein,
+    fat,
+    carb,
+    tdee: Math.round(tdee),
+    exerciseCal: Math.round(exerciseCal),
+  };
+}

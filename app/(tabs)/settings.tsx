@@ -24,6 +24,7 @@ import {
   getDaysInMonth,
   getFirstDayOfWeek,
   isValidDateString,
+  normalizeDateString,
   WEEKDAY_LABELS,
 } from "@/utils/format";
 import {
@@ -41,7 +42,6 @@ import {
   Dimensions,
   FlatList,
   Modal,
-  Platform,
   ScrollView,
   StyleSheet,
   Switch,
@@ -123,16 +123,20 @@ function CalendarPopup({
 
   const handleTextSubmit = () => {
     const v = textValue.trim();
-    if (!isValidDateString(v)) {
-      Alert.alert("형식 오류", "YYYY-MM-DD 형식으로 입력해주세요.");
+    const normalized = normalizeDateString(v);
+    if (!normalized || !isValidDateString(normalized)) {
+      Alert.alert(
+        "형식 오류",
+        "YYYYMMDD 또는 YYYY-MM-DD 형식으로 입력해주세요."
+      );
       return;
     }
-    const [y] = v.split("-").map(Number);
+    const [y] = normalized.split("-").map(Number);
     if (y < 1920 || y > CURRENT_YEAR) {
       Alert.alert("범위 오류", `연도는 1920~${CURRENT_YEAR} 사이여야 합니다.`);
       return;
     }
-    onSelect(v);
+    onSelect(normalized);
     onClose();
   };
 
@@ -586,15 +590,19 @@ export default function SettingsScreen() {
       return;
     }
 
-    const bd = birthDate.trim() || undefined;
+    let bd = birthDate.trim() || undefined;
     if (bd !== undefined) {
-      if (!isValidDateString(bd)) {
+      // YYYYMMDD → YYYY-MM-DD 자동 변환
+      const normalized = normalizeDateString(bd);
+      if (!normalized || !isValidDateString(normalized)) {
         Alert.alert(
           "입력 오류",
-          "생년월일은 YYYY-MM-DD 형식으로 입력해주세요."
+          "생년월일은 YYYYMMDD 또는 YYYY-MM-DD 형식으로 입력해주세요."
         );
         return;
       }
+      bd = normalized;
+      setBirthDate(bd);
       const [y] = bd.split("-").map(Number);
       if (y < 1920 || y > CURRENT_YEAR) {
         Alert.alert(
@@ -719,13 +727,9 @@ export default function SettingsScreen() {
                   style={[s.input, { flex: 1 }]}
                   value={birthDate}
                   onChangeText={setBirthDate}
-                  placeholder="YYYY-MM-DD"
+                  placeholder="YYYYMMDD 또는 YYYY-MM-DD"
                   placeholderTextColor="#A0AEC0"
-                  keyboardType={
-                    Platform.OS === "ios"
-                      ? "numbers-and-punctuation"
-                      : "default"
-                  }
+                  keyboardType="number-pad"
                   returnKeyType="done"
                   maxLength={10}
                 />

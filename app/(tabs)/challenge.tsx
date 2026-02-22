@@ -7,6 +7,7 @@ import {
   WeightRecord,
 } from "@/types";
 import {
+  calcDailyNutrition,
   daysBetween,
   fmtDate,
   getDaysInMonth,
@@ -20,7 +21,9 @@ import {
   loadChallenge,
   loadChallengeHistory,
   loadRecords,
+  loadUserSettings,
   saveChallenge,
+  saveUserSettings,
 } from "@/utils/storage";
 import { useFocusEffect } from "@react-navigation/native";
 import React, { useCallback, useMemo, useState } from "react";
@@ -667,6 +670,67 @@ export default function ChallengeScreen() {
     return Math.round(items.reduce((a, b) => a + b, 0) / items.length);
   }, [challenge, startValues, currentValues]);
 
+  // 챌린지 탭 상단: 하루 권장량 박스
+  const [userSettings, setUserSettings] = useState<any>(null);
+  const [exFreq, setExFreq] = useState(0);
+  const [exMins, setExMins] = useState(60);
+  const [exIntensity, setExIntensity] = useState(1);
+
+  const FREQ_OPTIONS = [0, 1, 2, 3, 4, 5, 6, 7];
+  const DURATION_OPTIONS = [
+    { value: 30, label: "30분" },
+    { value: 45, label: "45분" },
+    { value: 60, label: "1시간" },
+    { value: 90, label: "1.5시간" },
+    { value: 120, label: "2시간" },
+  ];
+  const INTENSITY_OPTIONS = [
+    { value: 1, label: "가벼움", desc: "가벼운 유산소·요가" },
+    { value: 2, label: "보통", desc: "근력+유산소 혼합" },
+    { value: 3, label: "고강도", desc: "고중량·인터벌·HIIT" },
+  ];
+
+  useFocusEffect(
+    useCallback(() => {
+      loadUserSettings().then((s) => {
+        setUserSettings(s);
+        setExFreq(s.exerciseFreq ?? 0);
+        setExMins(s.exerciseMins ?? 60);
+        setExIntensity(s.exerciseIntensity ?? 1);
+      });
+    }, [])
+  );
+
+  const saveExercise = async (f: number, m: number, i: number) => {
+    const cur = await loadUserSettings();
+    await saveUserSettings({
+      ...cur,
+      exerciseFreq: f,
+      exerciseMins: m,
+      exerciseIntensity: i,
+    });
+  };
+
+  const dailyNutrition = useMemo(() => {
+    if (!challenge || !userSettings) return null;
+    const { targetWeight, endDate } = challenge;
+    const { gender, birthDate, height } = userSettings;
+    if (!targetWeight || !gender || !birthDate || !height) return null;
+    const today = getLocalDateString();
+    const daysLeft = daysBetween(today, endDate);
+    return calcDailyNutrition({
+      weight: currentValues?.weight ?? targetWeight,
+      targetWeight,
+      height,
+      gender,
+      birthDate,
+      periodDays: daysLeft > 0 ? daysLeft : 1,
+      exerciseFreq: exFreq,
+      exerciseMins: exMins,
+      exerciseIntensity: exIntensity,
+    });
+  }, [challenge, userSettings, currentValues, exFreq, exMins, exIntensity]);
+
   return (
     <SwipeableTab currentIndex={3}>
       <ScrollView style={st.container} contentContainerStyle={st.content}>
@@ -809,6 +873,183 @@ export default function ChallengeScreen() {
                   </Text>
                 )}
             </View>
+
+            {/* 하루 권장 영양소 */}
+            {dailyNutrition ? (
+              <View style={st.card}>
+                <Text style={st.cardTitle}>하루 권장 영양소</Text>
+
+                {/* 운동 빈도 */}
+                <Text style={st.exSectionLabel}>주당 운동 횟수</Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={st.exScrollRow}
+                >
+                  <View style={st.exFreqRow}>
+                    {FREQ_OPTIONS.map((f) => (
+                      <TouchableOpacity
+                        key={f}
+                        style={[st.exChip, exFreq === f && st.exChipActive]}
+                        onPress={() => {
+                          setExFreq(f);
+                          saveExercise(f, exMins, exIntensity);
+                        }}
+                      >
+                        <Text
+                          style={[
+                            st.exChipText,
+                            exFreq === f && st.exChipTextActive,
+                          ]}
+                        >
+                          {f === 0 ? "안 함" : `${f}회`}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </ScrollView>
+
+                {/* 운동 시간 */}
+                {exFreq > 0 && (
+                  <>
+                    <Text style={st.exSectionLabel}>1회 운동 시간</Text>
+                    <View style={st.activityRow}>
+                      {DURATION_OPTIONS.map((d) => (
+                        <TouchableOpacity
+                          key={d.value}
+                          style={[
+                            st.exChip,
+                            exMins === d.value && st.exChipActive,
+                          ]}
+                          onPress={() => {
+                            setExMins(d.value);
+                            saveExercise(exFreq, d.value, exIntensity);
+                          }}
+                        >
+                          <Text
+                            style={[
+                              st.exChipText,
+                              exMins === d.value && st.exChipTextActive,
+                            ]}
+                          >
+                            {d.label}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+
+                    {/* 운동 강도 */}
+                    <Text style={st.exSectionLabel}>운동 강도</Text>
+                    <View style={st.activityRow}>
+                      {INTENSITY_OPTIONS.map((iv) => (
+                        <TouchableOpacity
+                          key={iv.value}
+                          style={[
+                            st.activityBtn,
+                            exIntensity === iv.value && st.activityBtnActive,
+                          ]}
+                          onPress={() => {
+                            setExIntensity(iv.value);
+                            saveExercise(exFreq, exMins, iv.value);
+                          }}
+                        >
+                          <Text
+                            style={[
+                              st.activityBtnLabel,
+                              exIntensity === iv.value &&
+                                st.activityBtnLabelActive,
+                            ]}
+                          >
+                            {iv.label}
+                          </Text>
+                          <Text
+                            style={[
+                              st.activityBtnDesc,
+                              exIntensity === iv.value &&
+                                st.activityBtnDescActive,
+                            ]}
+                          >
+                            {iv.desc}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </>
+                )}
+
+                <View style={st.nutriKcalRow}>
+                  <Text style={st.nutriKcalNum}>{dailyNutrition.kcal}</Text>
+                  <Text style={st.nutriKcalUnit}>kcal</Text>
+                </View>
+                <View style={st.nutriRow}>
+                  <View style={st.nutriItem}>
+                    <View
+                      style={[st.nutriDot, { backgroundColor: "#F6AD55" }]}
+                    />
+                    <Text style={st.nutriLabel}>탄수화물</Text>
+                    <Text style={st.nutriValue}>{dailyNutrition.carb}g</Text>
+                  </View>
+                  <View style={st.nutriItem}>
+                    <View
+                      style={[st.nutriDot, { backgroundColor: "#FC8181" }]}
+                    />
+                    <Text style={st.nutriLabel}>단백질</Text>
+                    <Text style={st.nutriValue}>{dailyNutrition.protein}g</Text>
+                  </View>
+                  <View style={st.nutriItem}>
+                    <View
+                      style={[st.nutriDot, { backgroundColor: "#63B3ED" }]}
+                    />
+                    <Text style={st.nutriLabel}>지방</Text>
+                    <Text style={st.nutriValue}>{dailyNutrition.fat}g</Text>
+                  </View>
+                </View>
+                <View style={st.nutriBarTrack}>
+                  <View
+                    style={[
+                      st.nutriBarSeg,
+                      {
+                        flex: Math.max(1, dailyNutrition.carb * 4),
+                        backgroundColor: "#F6AD55",
+                        borderTopLeftRadius: 6,
+                        borderBottomLeftRadius: 6,
+                      },
+                    ]}
+                  />
+                  <View
+                    style={[
+                      st.nutriBarSeg,
+                      {
+                        flex: Math.max(1, dailyNutrition.protein * 4),
+                        backgroundColor: "#FC8181",
+                      },
+                    ]}
+                  />
+                  <View
+                    style={[
+                      st.nutriBarSeg,
+                      {
+                        flex: Math.max(1, dailyNutrition.fat * 9),
+                        backgroundColor: "#63B3ED",
+                        borderTopRightRadius: 6,
+                        borderBottomRightRadius: 6,
+                      },
+                    ]}
+                  />
+                </View>
+                <Text style={st.nutriHint}>
+                  남은 {Math.max(0, daysLeft)}일 · 개인정보 기반 계산
+                </Text>
+              </View>
+            ) : challenge.targetWeight ? (
+              <View style={st.card}>
+                <Text style={st.cardTitle}>하루 권장 영양소</Text>
+                <Text style={st.nutriHint}>
+                  설정 탭에서 성별·키·생년월일을 입력하면{"\n"}권장 탄단지를
+                  계산해드립니다.
+                </Text>
+              </View>
+            ) : null}
           </>
         )}
 
@@ -1378,5 +1619,135 @@ const st = StyleSheet.create({
     fontSize: 13,
     fontWeight: "700",
     marginLeft: 8,
+  },
+
+  /* 하루 권장 영양소 */
+  exSectionLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#718096",
+    marginBottom: 6,
+    marginTop: 4,
+  },
+  exScrollRow: {
+    marginBottom: 12,
+  },
+  exFreqRow: {
+    flexDirection: "row",
+    gap: 6,
+  },
+  activityRow: {
+    flexDirection: "row",
+    gap: 6,
+    marginBottom: 12,
+    flexWrap: "wrap",
+  },
+  exChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 16,
+    backgroundColor: "#F7FAFC",
+    borderWidth: 1.5,
+    borderColor: "#E2E8F0",
+  },
+  exChipActive: {
+    backgroundColor: "#E6FFFA",
+    borderColor: "#4CAF50",
+  },
+  exChipText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#718096",
+  },
+  exChipTextActive: {
+    color: "#4CAF50",
+  },
+  activityBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    borderRadius: 10,
+    backgroundColor: "#F7FAFC",
+    borderWidth: 1.5,
+    borderColor: "#E2E8F0",
+    alignItems: "center",
+    minWidth: 80,
+  },
+  activityBtnActive: {
+    backgroundColor: "#E6FFFA",
+    borderColor: "#4CAF50",
+  },
+  activityBtnLabel: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#718096",
+  },
+  activityBtnLabelActive: {
+    color: "#4CAF50",
+  },
+  activityBtnDesc: {
+    fontSize: 10,
+    color: "#A0AEC0",
+    marginTop: 2,
+  },
+  activityBtnDescActive: {
+    color: "#68D391",
+  },
+  nutriKcalRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    marginBottom: 16,
+  },
+  nutriKcalNum: {
+    fontSize: 32,
+    fontWeight: "800",
+    color: "#2D3748",
+  },
+  nutriKcalUnit: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#A0AEC0",
+    marginLeft: 4,
+  },
+  nutriRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  nutriItem: {
+    flex: 1,
+    alignItems: "center",
+    gap: 4,
+  },
+  nutriDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  nutriLabel: {
+    fontSize: 12,
+    color: "#718096",
+    fontWeight: "500",
+  },
+  nutriValue: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#2D3748",
+  },
+  nutriBarTrack: {
+    flexDirection: "row",
+    height: 10,
+    borderRadius: 6,
+    overflow: "hidden",
+    marginBottom: 10,
+  },
+  nutriBarSeg: {
+    height: 10,
+  },
+  nutriHint: {
+    fontSize: 11,
+    color: "#A0AEC0",
+    textAlign: "center",
+    lineHeight: 16,
   },
 });
