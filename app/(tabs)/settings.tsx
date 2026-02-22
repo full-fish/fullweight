@@ -372,7 +372,6 @@ export default function SettingsScreen() {
   const [swipeEnabled, setSwipeEnabled] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [lockEnabled, setLockEnabled] = useState(false);
-  const [lockPin, setLockPin] = useState("");
   const [lockBiometric, setLockBiometric] = useState(false);
   const [showPinSetup, setShowPinSetup] = useState(false);
   const [newPin, setNewPin] = useState("");
@@ -417,6 +416,8 @@ export default function SettingsScreen() {
   >([]);
   const [showBackupList, setShowBackupList] = useState(false);
   const autoBackupTriggered = useRef(false);
+  const [devTapCount, setDevTapCount] = useState(0);
+  const [showDevTools, setShowDevTools] = useState(false);
 
   const { request, response, promptAsync, redirectUri } = useGoogleAuth();
 
@@ -429,7 +430,6 @@ export default function SettingsScreen() {
         setGender(settings.gender);
         setSwipeEnabled(settings.swipeEnabled ?? false);
         setLockEnabled(settings.lockEnabled ?? false);
-        setLockPin(settings.lockPin ?? "");
         setLockBiometric(settings.lockBiometric ?? false);
         setMetricInputVisibility(settings.metricInputVisibility ?? {});
         setMetricDisplayVisibility(settings.metricDisplayVisibility ?? {});
@@ -882,7 +882,6 @@ export default function SettingsScreen() {
                   setConfirmPin("");
                 } else {
                   setLockEnabled(false);
-                  setLockPin("");
                   const cur = await loadUserSettings();
                   await saveUserSettings({
                     ...cur,
@@ -1449,7 +1448,7 @@ export default function SettingsScreen() {
               marginTop: -8,
             }}
           >
-            운동·음주처럼 체크(✓/✗)로 기록할 항목을 추가할 수 있습니다
+            운동·음주처럼 ✓로 기록할 항목을 추가할 수 있습니다
           </Text>
           {customBoolMetrics.map((cbm) => (
             <View key={cbm.key} style={s.infoRow}>
@@ -1908,7 +1907,6 @@ export default function SettingsScreen() {
                               if (next.length === 4) {
                                 if (next === newPin) {
                                   setLockEnabled(true);
-                                  setLockPin(newPin);
                                   const cur = await loadUserSettings();
                                   await saveUserSettings({
                                     ...cur,
@@ -2132,37 +2130,48 @@ export default function SettingsScreen() {
 
         {/* 개발자 도구 */}
         <View style={s.card}>
-          <Text style={s.cardTitle}>개발자 도구</Text>
-          <TouchableOpacity style={s.actionBtn} onPress={handleSeedDummy}>
-            <Text style={s.actionIcon}></Text>
-            <View style={s.actionTextWrap}>
-              <Text style={s.actionTitle}>더미 데이터 생성</Text>
-              <Text style={s.actionDesc}>약 1년치 랜덤 테스트 데이터 삽입</Text>
-            </View>
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={() => {
+              const next = devTapCount + 1;
+              setDevTapCount(next);
+              if (next >= 10) {
+                setShowDevTools(true);
+              }
+            }}
+          >
+            <Text style={s.cardTitle}>개발자 정보</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={s.actionBtn} onPress={handleClearAll}>
-            <Text style={s.actionIcon}></Text>
-            <View style={s.actionTextWrap}>
-              <Text style={[s.actionTitle, { color: "#E53E3E" }]}>
-                전체 데이터 삭제
-              </Text>
-              <Text style={s.actionDesc}>모든 기록을 영구 삭제합니다</Text>
-            </View>
-          </TouchableOpacity>
+          <View style={s.infoRow}>
+            <Text style={s.infoLabel}>이메일</Text>
+            <Text style={s.infoValue}>manseon94@gmail.com</Text>
+          </View>
         </View>
 
-        {/* 앱 정보 */}
-        <View style={s.card}>
-          <Text style={s.cardTitle}>앱 정보</Text>
-          <View style={s.infoRow}>
-            <Text style={s.infoLabel}>앱 이름</Text>
-            <Text style={s.infoValue}>Full Weight</Text>
+        {/* 개발자 도구 (숨김 - 개발자 10회 탭 후 표시) */}
+        {showDevTools && (
+          <View style={s.card}>
+            <Text style={s.cardTitle}>개발자 도구</Text>
+            <TouchableOpacity style={s.actionBtn} onPress={handleSeedDummy}>
+              <Text style={s.actionIcon}></Text>
+              <View style={s.actionTextWrap}>
+                <Text style={s.actionTitle}>더미 데이터 생성</Text>
+                <Text style={s.actionDesc}>
+                  약 3년치 랜덤 테스트 데이터 삽입
+                </Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity style={s.actionBtn} onPress={handleClearAll}>
+              <Text style={s.actionIcon}></Text>
+              <View style={s.actionTextWrap}>
+                <Text style={[s.actionTitle, { color: "#E53E3E" }]}>
+                  전체 데이터 삭제
+                </Text>
+                <Text style={s.actionDesc}>모든 기록을 영구 삭제합니다</Text>
+              </View>
+            </TouchableOpacity>
           </View>
-          <View style={s.infoRow}>
-            <Text style={s.infoLabel}>버전</Text>
-            <Text style={s.infoValue}>1.0.0</Text>
-          </View>
-        </View>
+        )}
       </ScrollView>
 
       {/* 생년월일 캘린더 팝업 */}
