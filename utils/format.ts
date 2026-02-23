@@ -273,24 +273,47 @@ export function calcDailyNutrition({
   // 안전 범위 제한 (최대 ±1000kcal/일)
   const safeDelta = Math.max(-1000, Math.min(1000, dailyDelta));
 
-  // 하루 권장 칼로리 (최소 1200kcal)
-  const kcal = Math.max(1200, Math.round(tdee + safeDelta));
-
   // ─── 운동량 + 목표 + 체성분에 따른 동적 매크로 ───
   const isLosing = targetWeight < weight;
   const isGaining = targetWeight > weight;
 
-  // 근육 증가 목표 여부
+  // 근육 증가 목표 여부 (현재값이 없어도 목표가 설정되면 활성화)
   const wantsMuscleGain =
     targetMuscleMass != null &&
-    muscleMass != null &&
-    targetMuscleMass > muscleMass;
+    (muscleMass == null || targetMuscleMass > muscleMass);
 
-  // 체지방 감소 목표 여부
+  // 체지방 감소 목표 여부 (현재값이 없어도 목표가 설정되면 활성화)
   const wantsFatLoss =
     targetBodyFatPercent != null &&
-    bodyFatPercent != null &&
-    targetBodyFatPercent < bodyFatPercent;
+    (bodyFatPercent == null || targetBodyFatPercent < bodyFatPercent);
+
+  // 근육 증가 목표 시 추가 칼로리 (근합성을 위한 에너지 잉여)
+  let muscleSurplus = 0;
+  if (wantsMuscleGain) {
+    if (muscleMass != null && targetMuscleMass != null) {
+      // 목표 근육량 증가분에 비례 (kg당 100kcal, 최대 300kcal)
+      muscleSurplus = Math.min(300, Math.round((targetMuscleMass - muscleMass) * 100));
+    } else {
+      muscleSurplus = 150; // 현재 근육량 미기록 시 기본 보너스
+    }
+  }
+
+  // 체지방 감소 목표 시 칼로리 적자 (체지방 감량분에 비례)
+  let fatDeficit = 0;
+  if (wantsFatLoss && targetBodyFatPercent != null) {
+    // 현재 체지방률 → 목표 체지방률까지 감량할 체지방(kg)
+    const currentBfp = bodyFatPercent ?? (isLosing ? 25 : 20); // 미입력 시 추정
+    const fatLossKg = weight * (currentBfp - targetBodyFatPercent) / 100;
+    if (fatLossKg > 0 && periodDays > 0) {
+      // 지방 1kg = 7700kcal, 기간 내 분산
+      const dailyFatDeficit = (fatLossKg * 7700) / periodDays;
+      // 안전 범위 제한 (최대 500kcal/일)
+      fatDeficit = Math.min(500, Math.max(0, Math.round(dailyFatDeficit)));
+    }
+  }
+
+  // 하루 권장 칼로리 (최소 1200kcal)
+  const kcal = Math.max(1200, Math.round(tdee + safeDelta + muscleSurplus - fatDeficit));
 
   // 주당 총 운동 시간(시)
   const weeklyExHours = (exerciseFreq * exerciseMins) / 60;

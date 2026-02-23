@@ -2,6 +2,7 @@ import {
   Challenge,
   ChallengeHistory,
   MealEntry,
+  MealType,
   UserSettings,
   WeightRecord,
 } from "@/types";
@@ -60,10 +61,12 @@ export async function deleteRecord(date: string): Promise<WeightRecord[]> {
   return filtered;
 }
 
-/** 전체 기록 삭제 (사용자 정의 항목 + 식사 기록 포함) */
+/** 전체 기록 삭제 (체중 기록 + 식사 기록 + 챌린지 + 히스토리 + 사용자 정의 항목) */
 export async function clearAllRecords(): Promise<void> {
   await AsyncStorage.removeItem(STORAGE_KEY);
   await AsyncStorage.removeItem(MEAL_STORAGE_KEY);
+  await AsyncStorage.removeItem(CHALLENGE_KEY);
+  await AsyncStorage.removeItem(CHALLENGE_HISTORY_KEY);
   // 사용자 정의 항목들도 삭제
   const settings = await loadUserSettings();
   const {
@@ -266,6 +269,324 @@ export async function seedDummyData(): Promise<WeightRecord[]> {
       new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime()
   );
   await saveChallengeHistory(challengeHistory);
+
+  // ── 더미 식사 기록 생성 ──
+  const DUMMY_MEALS: {
+    name: string;
+    mealType: MealType;
+    kcal: number;
+    carb: number;
+    protein: number;
+    fat: number;
+  }[] = [
+    // 아침
+    {
+      name: "계란 프라이 2개, 식빵 1장",
+      mealType: "breakfast",
+      kcal: 350,
+      carb: 30,
+      protein: 18,
+      fat: 18,
+    },
+    {
+      name: "바나나 1개, 우유 한 잔",
+      mealType: "breakfast",
+      kcal: 220,
+      carb: 35,
+      protein: 10,
+      fat: 5,
+    },
+    {
+      name: "오트밀 + 블루베리",
+      mealType: "breakfast",
+      kcal: 280,
+      carb: 45,
+      protein: 8,
+      fat: 6,
+    },
+    {
+      name: "김치찌개, 밥 반공기",
+      mealType: "breakfast",
+      kcal: 380,
+      carb: 42,
+      protein: 15,
+      fat: 14,
+    },
+    {
+      name: "그릭요거트 + 그래놀라",
+      mealType: "breakfast",
+      kcal: 310,
+      carb: 38,
+      protein: 15,
+      fat: 10,
+    },
+    {
+      name: "토스트 + 아보카도",
+      mealType: "breakfast",
+      kcal: 340,
+      carb: 28,
+      protein: 8,
+      fat: 22,
+    },
+    {
+      name: "삶은 계란 3개",
+      mealType: "breakfast",
+      kcal: 240,
+      carb: 2,
+      protein: 21,
+      fat: 16,
+    },
+    // 점심
+    {
+      name: "닭가슴살 도시락",
+      mealType: "lunch",
+      kcal: 520,
+      carb: 55,
+      protein: 42,
+      fat: 12,
+    },
+    {
+      name: "김치볶음밥 + 계란",
+      mealType: "lunch",
+      kcal: 580,
+      carb: 72,
+      protein: 18,
+      fat: 20,
+    },
+    {
+      name: "제육볶음 정식",
+      mealType: "lunch",
+      kcal: 650,
+      carb: 65,
+      protein: 30,
+      fat: 25,
+    },
+    {
+      name: "순두부찌개 + 밥",
+      mealType: "lunch",
+      kcal: 480,
+      carb: 52,
+      protein: 22,
+      fat: 18,
+    },
+    {
+      name: "비빔밥",
+      mealType: "lunch",
+      kcal: 550,
+      carb: 68,
+      protein: 20,
+      fat: 18,
+    },
+    {
+      name: "샐러드 + 닭가슴살",
+      mealType: "lunch",
+      kcal: 380,
+      carb: 15,
+      protein: 38,
+      fat: 16,
+    },
+    {
+      name: "된장찌개 + 생선구이 + 밥",
+      mealType: "lunch",
+      kcal: 520,
+      carb: 58,
+      protein: 28,
+      fat: 16,
+    },
+    {
+      name: "돈까스 정식",
+      mealType: "lunch",
+      kcal: 720,
+      carb: 65,
+      protein: 28,
+      fat: 35,
+    },
+    {
+      name: "냉면",
+      mealType: "lunch",
+      kcal: 450,
+      carb: 70,
+      protein: 15,
+      fat: 10,
+    },
+    // 저녁
+    {
+      name: "삼겹살 200g + 쌈",
+      mealType: "dinner",
+      kcal: 680,
+      carb: 12,
+      protein: 32,
+      fat: 55,
+    },
+    {
+      name: "연어 스테이크 + 샐러드",
+      mealType: "dinner",
+      kcal: 520,
+      carb: 10,
+      protein: 40,
+      fat: 32,
+    },
+    {
+      name: "치킨 반마리",
+      mealType: "dinner",
+      kcal: 750,
+      carb: 25,
+      protein: 45,
+      fat: 48,
+    },
+    {
+      name: "된장찌개 + 밥",
+      mealType: "dinner",
+      kcal: 450,
+      carb: 55,
+      protein: 18,
+      fat: 14,
+    },
+    {
+      name: "불고기 + 밥",
+      mealType: "dinner",
+      kcal: 580,
+      carb: 62,
+      protein: 28,
+      fat: 20,
+    },
+    {
+      name: "두부 스테이크 + 현미밥",
+      mealType: "dinner",
+      kcal: 420,
+      carb: 48,
+      protein: 22,
+      fat: 14,
+    },
+    {
+      name: "갈비탕 + 밥",
+      mealType: "dinner",
+      kcal: 620,
+      carb: 55,
+      protein: 30,
+      fat: 28,
+    },
+    {
+      name: "파스타 (토마토 소스)",
+      mealType: "dinner",
+      kcal: 550,
+      carb: 68,
+      protein: 18,
+      fat: 18,
+    },
+    // 간식
+    {
+      name: "프로틴 쉐이크",
+      mealType: "snack",
+      kcal: 180,
+      carb: 8,
+      protein: 30,
+      fat: 3,
+    },
+    {
+      name: "아몬드 한 줌",
+      mealType: "snack",
+      kcal: 160,
+      carb: 6,
+      protein: 6,
+      fat: 14,
+    },
+    {
+      name: "고구마 1개",
+      mealType: "snack",
+      kcal: 130,
+      carb: 30,
+      protein: 2,
+      fat: 0,
+    },
+    {
+      name: "사과 1개",
+      mealType: "snack",
+      kcal: 95,
+      carb: 25,
+      protein: 0,
+      fat: 0,
+    },
+    {
+      name: "초코바",
+      mealType: "snack",
+      kcal: 250,
+      carb: 35,
+      protein: 4,
+      fat: 12,
+    },
+    {
+      name: "커피 (라떼)",
+      mealType: "snack",
+      kcal: 150,
+      carb: 15,
+      protein: 8,
+      fat: 6,
+    },
+    {
+      name: "떡볶이",
+      mealType: "snack",
+      kcal: 380,
+      carb: 62,
+      protein: 8,
+      fat: 10,
+    },
+  ];
+
+  type MealTypeKey = "breakfast" | "lunch" | "dinner" | "snack";
+  const mealsByType: Record<MealTypeKey, typeof DUMMY_MEALS> = {
+    breakfast: DUMMY_MEALS.filter((m) => m.mealType === "breakfast"),
+    lunch: DUMMY_MEALS.filter((m) => m.mealType === "lunch"),
+    dinner: DUMMY_MEALS.filter((m) => m.mealType === "dinner"),
+    snack: DUMMY_MEALS.filter((m) => m.mealType === "snack"),
+  };
+
+  const meals: MealEntry[] = [];
+  for (const date of selectedDates) {
+    // 70% 확률로 해당 날짜에 식사 기록 생성
+    if (Math.random() > 0.7) continue;
+
+    // 아침(60%), 점심(85%), 저녁(80%), 간식(40%) 확률
+    const mealProbs: { type: MealTypeKey; prob: number }[] = [
+      { type: "breakfast", prob: 0.6 },
+      { type: "lunch", prob: 0.85 },
+      { type: "dinner", prob: 0.8 },
+      { type: "snack", prob: 0.4 },
+    ];
+
+    for (const { type, prob } of mealProbs) {
+      if (Math.random() > prob) continue;
+      const pool = mealsByType[type];
+      const picked = pool[Math.floor(Math.random() * pool.length)];
+      // ±15% 변동
+      const vary = () => Math.round(picked.kcal * (0.85 + Math.random() * 0.3));
+      const varyG = (v: number) => Math.round(v * (0.85 + Math.random() * 0.3));
+
+      meals.push({
+        id: `dummy_meal_${date}_${type}`,
+        date,
+        mealType: type,
+        description: picked.name,
+        kcal: vary(),
+        carb: varyG(picked.carb),
+        protein: varyG(picked.protein),
+        fat: varyG(picked.fat),
+        createdAt: new Date(
+          `${date}T${
+            type === "breakfast"
+              ? "08"
+              : type === "lunch"
+                ? "12"
+                : type === "dinner"
+                  ? "19"
+                  : "15"
+          }:00:00`
+        ).toISOString(),
+      });
+    }
+  }
+
+  await saveMeals(meals);
 
   return records;
 }

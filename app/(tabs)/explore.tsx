@@ -36,6 +36,14 @@ import Svg, { Line as SvgLine, Text as SvgText } from "react-native-svg";
 const { width } = Dimensions.get("window");
 const CHART_WIDTH = width - 48;
 
+/** 영양소 수치별 고유 색상 (METRIC_COLORS에 없는 키) */
+const NUTRITION_COLORS: Record<string, string> = {
+  kcal: "#E53E3E",
+  carb: "#F6AD55",
+  protein: "#FC8181",
+  fat: "#63B3ED",
+};
+
 /* ───── MAIN ───── */
 
 export default function ChartScreen() {
@@ -141,6 +149,11 @@ export default function ChartScreen() {
   const getVal = useCallback(
     (r: WeightRecord, key: string): number | null => {
       if (NUTRITION_KEYS.has(key)) {
+        // 주/월별 집계 레코드의 경우 _nutritionAvg 사용
+        const aggRec = r as WeightRecord & { _nutritionAvg?: Record<string, number | null> };
+        if (aggRec._nutritionAvg) {
+          return aggRec._nutritionAvg[key] ?? null;
+        }
         const dm = dailyMealMap[r.date];
         if (!dm) return null;
         const v = dm[key as keyof typeof dm];
@@ -183,7 +196,20 @@ export default function ChartScreen() {
             ? valid.reduce((a, b) => a + b, 0) / valid.length
             : null;
         };
-        return {
+
+        // 영양소 평균 계산 (dailyMealMap에서 해당 기간 날짜들의 평균)
+        const nutKeys = ["kcal", "carb", "protein", "fat"] as const;
+        const nutAvg: Record<string, number | null> = {};
+        nutKeys.forEach((nk) => {
+          const vals = recs
+            .map((r) => dailyMealMap[r.date]?.[nk] ?? null)
+            .filter((v): v is number => v !== null && v > 0);
+          nutAvg[nk] = vals.length > 0
+            ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length)
+            : null;
+        });
+
+        const rec = {
           id: key,
           date: key,
           weight: avg(recs.map((r) => r.weight)) ?? 0,
@@ -194,9 +220,11 @@ export default function ChartScreen() {
           bodyFatMass: avg(recs.map((r) => r.bodyFatMass ?? null)) ?? undefined,
           exercised: recs.some((r) => r.exercised),
           drank: recs.some((r) => r.drank),
-        } as WeightRecord;
+          _nutritionAvg: nutAvg,
+        } as WeightRecord & { _nutritionAvg?: Record<string, number | null> };
+        return rec;
       });
-  }, [filteredRecords, periodMode]);
+  }, [filteredRecords, periodMode, dailyMealMap]);
 
   const slicedData = useMemo(() => {
     const len = chartData.length;
@@ -369,6 +397,7 @@ export default function ChartScreen() {
           color: (opacity = 1) =>
             hexToRGBA(
               (METRIC_COLORS as Record<string, string>)[key] ??
+                NUTRITION_COLORS[key] ??
                 userSettings.customMetrics?.find((m) => m.key === key)?.color ??
                 "#CBD5E0",
               opacity
@@ -545,11 +574,11 @@ export default function ChartScreen() {
     const dm = dailyMealMap[record.date];
     if (dm) {
       if (dm.kcal > 0)
-        metrics.push({ icon: "🔥", val: `${Math.round(dm.kcal)} kcal` });
+        metrics.push({ icon: "칼로리", val: `${Math.round(dm.kcal)} kcal` });
       if (dm.carb > 0)
-        metrics.push({ icon: "탄수", val: `${Math.round(dm.carb)} g` });
+        metrics.push({ icon: "탄수화물", val: `${Math.round(dm.carb)} g` });
       if (dm.protein > 0)
-        metrics.push({ icon: "단백", val: `${Math.round(dm.protein)} g` });
+        metrics.push({ icon: "단백질", val: `${Math.round(dm.protein)} g` });
       if (dm.fat > 0)
         metrics.push({ icon: "지방", val: `${Math.round(dm.fat)} g` });
     }
@@ -615,8 +644,9 @@ export default function ChartScreen() {
       const targetVal = NUTRITION_TARGET_MAP[metricKey];
       if (targetVal != null) {
         const padFactor = yPadding * 0.01;
-        const dataMin = Math.min(...dataValues) * (1 - padFactor);
-        const dataMax = Math.max(...dataValues) * (1 + padFactor);
+        const rangeVals = [...dataValues, targetVal];
+        const dataMin = Math.min(...rangeVals) * (1 - padFactor);
+        const dataMax = Math.max(...rangeVals) * (1 + padFactor);
         const range = dataMax - dataMin || 1;
         // chart-kit은 위가 max, 아래가 min
         const ratio = (targetVal - dataMin) / range;
@@ -939,28 +969,29 @@ export default function ChartScreen() {
                           ),
                         strokeWidth: 2,
                       },
-                      ...(yPadding > 0
-                        ? [
-                            {
-                              data: [
-                                Math.min(...singleChartInfo.values) *
-                                  (1 - yPadding * 0.01),
-                              ],
-                              withDots: false,
-                              strokeWidth: 0,
-                              color: () => "transparent",
-                            },
-                            {
-                              data: [
-                                Math.max(...singleChartInfo.values) *
-                                  (1 + yPadding * 0.01),
-                              ],
-                              withDots: false,
-                              strokeWidth: 0,
-                              color: () => "transparent",
-                            },
-                          ]
-                        : []),
+                      ...(() => {
+                        const tgt = NUTRITION_KEYS.has(singleChartInfo.key)
+                          ? NUTRITION_TARGET_MAP[singleChartInfo.key]
+                          : undefined;
+                        const allV = tgt != null
+                          ? [...singleChartInfo.values, tgt]
+                          : singleChartInfo.values;
+                        const pad = yPadding * 0.01;
+                        return [
+                          {
+                            data: [Math.min(...allV) * (1 - pad)],
+                            withDots: false,
+                            strokeWidth: 0,
+                            color: () => "transparent",
+                          },
+                          {
+                            data: [Math.max(...allV) * (1 + pad)],
+                            withDots: false,
+                            strokeWidth: 0,
+                            color: () => "transparent",
+                          },
+                        ];
+                      })(),
                     ],
                   }}
                   width={CHART_WIDTH}
@@ -1072,6 +1103,7 @@ export default function ChartScreen() {
                 <View style={s.overlayLegend}>
                   {selectedMetrics.map((key) => {
                     const range = overlayInfo.ranges[key];
+                    if (!range) return null; // 데이터가 없는 수치는 범례에서 제외
                     const mi = getMetricInfo(key);
                     return (
                       <View key={key} style={s.overlayLegendItem}>
@@ -1130,28 +1162,29 @@ export default function ChartScreen() {
                                 ),
                               strokeWidth: 2,
                             },
-                            ...(yPadding > 0
-                              ? [
-                                  {
-                                    data: [
-                                      Math.min(...info.values) *
-                                        (1 - yPadding * 0.01),
-                                    ],
-                                    withDots: false,
-                                    strokeWidth: 0,
-                                    color: () => "transparent",
-                                  },
-                                  {
-                                    data: [
-                                      Math.max(...info.values) *
-                                        (1 + yPadding * 0.01),
-                                    ],
-                                    withDots: false,
-                                    strokeWidth: 0,
-                                    color: () => "transparent",
-                                  },
-                                ]
-                              : []),
+                            ...(() => {
+                              const tgt = NUTRITION_KEYS.has(info.key)
+                                ? NUTRITION_TARGET_MAP[info.key]
+                                : undefined;
+                              const allV = tgt != null
+                                ? [...info.values, tgt]
+                                : info.values;
+                              const pad = yPadding * 0.01;
+                              return [
+                                {
+                                  data: [Math.min(...allV) * (1 - pad)],
+                                  withDots: false,
+                                  strokeWidth: 0,
+                                  color: () => "transparent",
+                                },
+                                {
+                                  data: [Math.max(...allV) * (1 + pad)],
+                                  withDots: false,
+                                  strokeWidth: 0,
+                                  color: () => "transparent",
+                                },
+                              ];
+                            })(),
                           ],
                         }}
                         width={CHART_WIDTH}

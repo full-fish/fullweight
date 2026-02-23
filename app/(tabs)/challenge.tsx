@@ -25,7 +25,7 @@ import {
   saveUserSettings,
 } from "@/utils/storage";
 import { useFocusEffect } from "@react-navigation/native";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Dimensions,
@@ -41,6 +41,118 @@ import {
 
 const { width } = Dimensions.get("window");
 const CP_DAY2 = Math.floor((width * 0.82 - 56) / 7);
+
+/* ───── 스텝 버튼 입력 (±0.1, 꾹 누르면 반복) ───── */
+function StepInput({
+  value,
+  onChangeText,
+  placeholder,
+  step = 0.1,
+  editable = true,
+}: {
+  value: string;
+  onChangeText: (v: string) => void;
+  placeholder?: string;
+  step?: number;
+  editable?: boolean;
+}) {
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const valRef = useRef(value);
+  valRef.current = value;
+
+  const adjust = useCallback(
+    (dir: 1 | -1) => {
+      const cur = parseFloat(valRef.current) || 0;
+      const next = Math.max(0, +(cur + dir * step).toFixed(1));
+      const nv = next.toFixed(1);
+      valRef.current = nv;
+      onChangeText(nv);
+    },
+    [onChangeText, step]
+  );
+
+  const startRepeat = useCallback(
+    (dir: 1 | -1) => {
+      adjust(dir);
+      timerRef.current = setInterval(() => adjust(dir), 120);
+    },
+    [adjust]
+  );
+
+  const stopRepeat = useCallback(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
+
+  return (
+    <View style={stepStyles.row}>
+      <TouchableOpacity
+        style={stepStyles.btn}
+        onPressIn={() => startRepeat(-1)}
+        onPressOut={stopRepeat}
+        disabled={!editable}
+      >
+        <Text style={stepStyles.btnText}>▼</Text>
+      </TouchableOpacity>
+      <TextInput
+        style={[stepStyles.input, !editable && stepStyles.inputDisabled]}
+        value={value}
+        onChangeText={onChangeText}
+        keyboardType="decimal-pad"
+        placeholder={placeholder}
+        placeholderTextColor="#aaa"
+        editable={editable}
+      />
+      <TouchableOpacity
+        style={stepStyles.btn}
+        onPressIn={() => startRepeat(1)}
+        onPressOut={stopRepeat}
+        disabled={!editable}
+      >
+        <Text style={stepStyles.btnText}>▲</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+const stepStyles = StyleSheet.create({
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 14,
+  },
+  btn: {
+    width: 40,
+    height: 44,
+    borderRadius: 10,
+    backgroundColor: "#EDF2F7",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  btnText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#4A5568",
+  },
+  input: {
+    flex: 1,
+    height: 44,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    fontSize: 15,
+    color: "#2D3748",
+    marginHorizontal: 8,
+    textAlign: "center",
+  },
+  inputDisabled: {
+    backgroundColor: "#F7FAFC",
+    color: "#A0AEC0",
+  },
+});
 
 /* ───── 날짜 캘린더 픽커 ───── */
 function DateCalendarPicker({
@@ -1107,28 +1219,29 @@ export default function ChallengeScreen() {
                 </Text>
 
                 <Text style={st.formLabel}>목표 몸무게 (kg)</Text>
-                <TextInput
-                  style={st.formInput}
+                <StepInput
                   value={fTargetWeight}
-                  onChangeText={setFTargetWeight}
-                  keyboardType="decimal-pad"
+                  onChangeText={(v) => {
+                    setFTargetWeight(v);
+                    // 체지방량이 있으면 체지방률 자동 계산
+                    const tw = parseFloat(v);
+                    const fm = parseFloat(fTargetBodyFatMass);
+                    if (!isNaN(tw) && tw > 0 && !isNaN(fm) && fm >= 0) {
+                      setFTargetBodyFatPercent(((fm / tw) * 100).toFixed(1));
+                    }
+                  }}
                   placeholder="예: 70.0"
-                  placeholderTextColor="#aaa"
                 />
 
                 <Text style={st.formLabel}>목표 골격근량 (kg)</Text>
-                <TextInput
-                  style={st.formInput}
+                <StepInput
                   value={fTargetMuscleMass}
                   onChangeText={setFTargetMuscleMass}
-                  keyboardType="decimal-pad"
                   placeholder="예: 35.0"
-                  placeholderTextColor="#aaa"
                 />
 
                 <Text style={st.formLabel}>목표 체지방량 (kg)</Text>
-                <TextInput
-                  style={st.formInput}
+                <StepInput
                   value={fTargetBodyFatMass}
                   onChangeText={(v) => {
                     setFTargetBodyFatMass(v);
@@ -1139,27 +1252,15 @@ export default function ChallengeScreen() {
                       setFTargetBodyFatPercent(((fm / tw) * 100).toFixed(1));
                     }
                   }}
-                  keyboardType="decimal-pad"
                   placeholder="예: 12.0"
-                  placeholderTextColor="#aaa"
                 />
 
-                <Text style={st.formLabel}>목표 체지방률 (%)</Text>
-                <TextInput
-                  style={st.formInput}
+                <Text style={st.formLabel}>목표 체지방률 (%) — 자동 계산</Text>
+                <StepInput
                   value={fTargetBodyFatPercent}
-                  onChangeText={(v) => {
-                    setFTargetBodyFatPercent(v);
-                    // 목표 몸무게가 있으면 체지방량 자동 계산
-                    const tw = parseFloat(fTargetWeight);
-                    const pct = parseFloat(v);
-                    if (!isNaN(tw) && tw > 0 && !isNaN(pct) && pct >= 0) {
-                      setFTargetBodyFatMass(((tw * pct) / 100).toFixed(1));
-                    }
-                  }}
-                  keyboardType="decimal-pad"
-                  placeholder="예: 15.0"
-                  placeholderTextColor="#aaa"
+                  onChangeText={() => {}}
+                  placeholder="체지방량÷몸무게 자동 계산"
+                  editable={false}
                 />
 
                 <DateCalendarPicker

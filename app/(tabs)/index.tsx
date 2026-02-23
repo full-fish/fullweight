@@ -1217,31 +1217,88 @@ export default function HomeScreen() {
                     (m) => m.date === record.date
                   );
                   if (dayMeals.length === 0) return null;
+                  const mealTypes: MealType[] = [
+                    "breakfast",
+                    "lunch",
+                    "dinner",
+                    "snack",
+                  ];
                   return (
                     <View style={styles.recordMealsSection}>
                       <Text style={styles.recordMealsTitle}>
                         식사 {dayMeals.reduce((s, m) => s + m.kcal, 0)}kcal
                       </Text>
-                      {dayMeals.map((meal) => (
-                        <View key={meal.id} style={styles.recordMealItem}>
-                          {meal.photoUri && (
-                            <TouchableOpacity
-                              onPress={() => setZoomPhotoUri(meal.photoUri!)}
-                            >
-                              <Image
-                                source={{ uri: meal.photoUri }}
-                                style={styles.recordMealPhoto}
-                              />
-                            </TouchableOpacity>
-                          )}
-                          <Text style={styles.recordMealDesc} numberOfLines={1}>
-                            {meal.description || "음식"}
-                          </Text>
-                          <Text style={styles.recordMealKcal}>
-                            {meal.kcal}kcal
-                          </Text>
-                        </View>
-                      ))}
+                      {mealTypes.map((mt) => {
+                        const items = dayMeals.filter((m) => m.mealType === mt);
+                        if (items.length === 0) return null;
+                        return (
+                          <View key={mt} style={mealStyles.mealCard}>
+                            <View style={mealStyles.mealHeader}>
+                              <Text style={mealStyles.mealTitle}>
+                                {MEAL_LABELS[mt]}
+                              </Text>
+                              {items.length > 0 && (
+                                <Text style={mealStyles.mealKcalBadge}>
+                                  {items.reduce((s, m) => s + m.kcal, 0)} kcal
+                                </Text>
+                              )}
+                            </View>
+                            {items.map((meal) => (
+                              <View key={meal.id} style={mealStyles.mealItem}>
+                                {meal.photoUri && (
+                                  <TouchableOpacity
+                                    onPress={() =>
+                                      setZoomPhotoUri(meal.photoUri!)
+                                    }
+                                  >
+                                    <Image
+                                      source={{ uri: meal.photoUri }}
+                                      style={mealStyles.mealPhoto}
+                                    />
+                                  </TouchableOpacity>
+                                )}
+                                <View style={mealStyles.mealInfo}>
+                                  <Text
+                                    style={mealStyles.mealDesc}
+                                    numberOfLines={1}
+                                  >
+                                    {meal.description || "음식"}
+                                  </Text>
+                                  <View style={mealStyles.macroRow}>
+                                    <Text
+                                      style={[
+                                        mealStyles.macroText,
+                                        { color: "#E53E3E" },
+                                      ]}
+                                    >
+                                      탄 {meal.carb}g
+                                    </Text>
+                                    <Text
+                                      style={[
+                                        mealStyles.macroText,
+                                        { color: "#3182CE" },
+                                      ]}
+                                    >
+                                      단 {meal.protein}g
+                                    </Text>
+                                    <Text
+                                      style={[
+                                        mealStyles.macroText,
+                                        { color: "#D69E2E" },
+                                      ]}
+                                    >
+                                      지 {meal.fat}g
+                                    </Text>
+                                    <Text style={mealStyles.macroKcal}>
+                                      {meal.kcal}kcal
+                                    </Text>
+                                  </View>
+                                </View>
+                              </View>
+                            ))}
+                          </View>
+                        );
+                      })}
                     </View>
                   );
                 })()}
