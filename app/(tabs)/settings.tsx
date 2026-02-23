@@ -780,6 +780,9 @@ export default function SettingsScreen() {
   return (
     <View style={{ flex: 1 }}>
       <ScrollView style={s.container} contentContainerStyle={s.content}>
+        {/* ─── 프로필 ─── */}
+        <Text style={s.sectionHeader}>프로필</Text>
+
         {/* 프로필 정보 */}
         <View style={s.card}>
           <View
@@ -936,7 +939,7 @@ export default function SettingsScreen() {
 
         {/* 환경 설정 */}
         <View style={s.card}>
-          <Text style={s.cardTitle}>환경 설정</Text>
+          <Text style={s.cardTitle}>보안</Text>
 
           {/* 앱 잠금 */}
           <View style={s.infoRow}>
@@ -1012,6 +1015,9 @@ export default function SettingsScreen() {
             </>
           )}
         </View>
+
+        {/* ─── 항목 관리 ─── */}
+        <Text style={s.sectionHeader}>항목 관리</Text>
 
         {/* 항목 입력 설정 */}
         <View style={s.card}>
@@ -2076,6 +2082,9 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </Modal>
 
+        {/* ─── 데이터 관리 ─── */}
+        <Text style={s.sectionHeader}>데이터 관리</Text>
+
         {/* 데이터 정보 */}
         <View style={s.card}>
           <Text style={s.cardTitle}>데이터 정보</Text>
@@ -2375,9 +2384,11 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </Modal>
 
-        {/* 데이터 내보내기 */}
+        {/* 가져오기·내보내기 */}
         <View style={s.card}>
-          <Text style={s.cardTitle}>데이터 내보내기</Text>
+          <Text style={s.cardTitle}>가져오기 · 내보내기</Text>
+
+          <Text style={s.subSectionLabel}>데이터 내보내기</Text>
           <Text style={[s.backupDesc, { marginBottom: 12 }]}>
             기록 데이터를 다양한 형식으로 로컬에 저장하거나{"\n"}다른 앱으로
             공유할 수 있습니다.
@@ -2388,11 +2399,10 @@ export default function SettingsScreen() {
           >
             <Text style={s.backupActionBtnText}>내보내기</Text>
           </TouchableOpacity>
-        </View>
 
-        {/* 인바디 가져오기 */}
-        <View style={s.card}>
-          <Text style={s.cardTitle}>인바디 데이터 가져오기</Text>
+          <View style={s.cardDivider} />
+
+          <Text style={s.subSectionLabel}>인바디 CSV 가져오기</Text>
           <Text style={[s.backupDesc, { marginBottom: 12 }]}>
             InBody 앱에서 내보낸 CSV 파일을 선택하면{"\n"}체중, 골격근량,
             체지방량/체지방률을 가져옵니다.{"\n"}같은 날짜 기록은 인바디
@@ -2411,9 +2421,14 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* AI 모델 설정 */}
+        {/* ─── 앱 설정 ─── */}
+        <Text style={s.sectionHeader}>앱 설정</Text>
+
+        {/* 앱 설정 (AI 모델 + 사진 화질) */}
         <View style={s.card}>
-          <Text style={s.cardTitle}>AI 음식 분석 모델</Text>
+          <Text style={s.cardTitle}>앱 설정</Text>
+
+          <Text style={s.subSectionLabel}>AI 음식 분석 모델</Text>
           <Text style={[s.backupDesc, { marginBottom: 12 }]}>
             음식 사진 분석 시 사용할 AI 모델을 선택합니다.
           </Text>
@@ -2489,11 +2504,11 @@ export default function SettingsScreen() {
               </Text>
             </TouchableOpacity>
           </View>
-        </View>
 
-        {/* 사진 화질 설정 */}
-        <View style={s.card}>
-          <Text style={s.cardTitle}>사진 화질 설정</Text>
+          <View style={s.cardDivider} />
+
+          {/* 사진 화질 */}
+          <Text style={s.subSectionLabel}>사진 화질</Text>
 
           {/* 눈바디 사진 */}
           <Text
@@ -2855,6 +2870,9 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </Modal>
 
+        {/* ─── 기타 ─── */}
+        <Text style={s.sectionHeader}>기타</Text>
+
         {/* 개발자 도구 */}
         <View style={s.card}>
           <TouchableOpacity
@@ -2938,6 +2956,27 @@ export default function SettingsScreen() {
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F0F4F8" },
   content: { paddingTop: 60, paddingHorizontal: 20, paddingBottom: 40 },
+  sectionHeader: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#718096",
+    letterSpacing: 0.8,
+    marginBottom: 6,
+    marginTop: 16,
+    paddingHorizontal: 4,
+  },
+  subSectionLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#4A5568",
+    marginBottom: 10,
+    marginTop: 16,
+  },
+  cardDivider: {
+    height: 1,
+    backgroundColor: "#F0F4F8",
+    marginVertical: 16,
+  },
   title: {
     fontSize: 28,
     fontWeight: "700",

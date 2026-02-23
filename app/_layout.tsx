@@ -1,9 +1,12 @@
+import { Ionicons } from "@expo/vector-icons";
 import {
   DarkTheme,
   DefaultTheme,
   ThemeProvider,
 } from "@react-navigation/native";
+import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "react-native-reanimated";
@@ -14,6 +17,9 @@ import { performBackup, shouldAutoBackup } from "@/utils/backup";
 import { loadUserSettings } from "@/utils/storage";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, InteractionManager, View } from "react-native";
+
+// 스플래시 화면 자동 숨김 방지 (폰트 로딩 완료까지 유지)
+SplashScreen.preventAutoHideAsync();
 
 const LOCK_GRACE_MS = 30_000; // 30초 이내 복귀 시 잠금 안 걸림 (카메라/크롭 등)
 
@@ -27,6 +33,11 @@ export default function RootLayout() {
   const [lockChecked, setLockChecked] = useState(false);
   const bgTime = useRef<number>(0);
 
+  // Ionicons 폰트 프리로딩 — 아이콘이 늦게 뜨는 현상 방지
+  const [fontsLoaded, fontError] = useFonts({
+    ...Ionicons.font,
+  });
+
   const checkLock = useCallback(async () => {
     const settings = await loadUserSettings();
     if (settings.lockEnabled && settings.lockPin) {
@@ -38,6 +49,13 @@ export default function RootLayout() {
   useEffect(() => {
     checkLock();
   }, [checkLock]);
+
+  // 폰트 로딩 + 잠금 확인이 모두 끝나면 스플래시 숨김
+  useEffect(() => {
+    if ((fontsLoaded || fontError) && lockChecked) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded, fontError, lockChecked]);
 
   /* ── 앱 시작 시 자동 백업 (UI 렌더 완료 후, 백그라운드 실행) ── */
   const backupDone = useRef(false);
@@ -76,7 +94,8 @@ export default function RootLayout() {
     return () => sub.remove();
   }, [checkLock]);
 
-  if (!lockChecked) return null;
+  // 폰트 로딩 중이거나 잠금 확인 전에는 렌더 보류 (스플래시 화면이 덮고 있음)
+  if ((!fontsLoaded && !fontError) || !lockChecked) return null;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

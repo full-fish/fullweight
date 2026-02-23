@@ -177,13 +177,20 @@ export default function HomeScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      loadAndSetRecords().then((data) => {
+      // 모든 데이터를 병렬로 로드 + loadMeals는 1회만 읽어 메모리에서 필터링
+      Promise.all([
+        loadAndSetRecords(),
+        loadUserSettings(),
+        loadChallenge(),
+        loadMeals(), // 전체 식사 데이터를 1번만 읽음
+      ]).then(([data, settings, ch, allMealsData]) => {
         populateForm(selectedDate, data);
+        setUserSettings(settings);
+        setChallenge(ch);
+        setAllMeals(allMealsData);
+        // AsyncStorage 재호출 없이 메모리에서 날짜 필터링
+        setMeals(allMealsData.filter((m) => m.date === selectedDate));
       });
-      loadUserSettings().then(setUserSettings);
-      loadChallenge().then(setChallenge);
-      loadMeals(selectedDate).then(setMeals);
-      loadMeals().then(setAllMeals);
     }, [selectedDate, loadAndSetRecords, populateForm])
   );
 
