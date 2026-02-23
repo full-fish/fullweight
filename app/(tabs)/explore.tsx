@@ -1,6 +1,5 @@
 import { CalendarModal } from "@/components/calendar-modal";
 import { DatePickerRow } from "@/components/date-picker-row";
-import { SwipeableTab } from "@/components/swipeable-tab";
 import {
   METRIC_COLORS,
   METRIC_UNITS,
@@ -635,7 +634,7 @@ export default function ChartScreen() {
   );
 
   return (
-    <SwipeableTab currentIndex={1}>
+    <View style={{ flex: 1 }}>
       <ScrollView
         style={s.container}
         contentContainerStyle={s.content}
@@ -1309,7 +1308,7 @@ export default function ChartScreen() {
           onClose={() => setShowActivityEndCal(false)}
         />
       </ScrollView>
-    </SwipeableTab>
+    </View>
   );
 }
 

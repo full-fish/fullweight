@@ -1,4 +1,3 @@
-import { SwipeableTab } from "@/components/swipeable-tab";
 import {
   AiModelOption,
   BodyPhotoQuality,
@@ -373,7 +372,6 @@ export default function SettingsScreen() {
     undefined
   );
   const [calendarVisible, setCalendarVisible] = useState(false);
-  const [swipeEnabled, setSwipeEnabled] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [lockEnabled, setLockEnabled] = useState(false);
   const [lockBiometric, setLockBiometric] = useState(false);
@@ -449,7 +447,6 @@ export default function SettingsScreen() {
         setHeight(settings.height != null ? String(settings.height) : "");
         setBirthDate(settings.birthDate ?? "");
         setGender(settings.gender);
-        setSwipeEnabled(settings.swipeEnabled ?? false);
         setLockEnabled(settings.lockEnabled ?? false);
         setLockBiometric(settings.lockBiometric ?? false);
         setMetricInputVisibility(settings.metricInputVisibility ?? {});
@@ -666,7 +663,6 @@ export default function SettingsScreen() {
       birthDate: bd,
       gender,
       age,
-      swipeEnabled,
     });
     setIsEditing(false);
     Alert.alert("저장 완료", "프로필 정보가 저장되었습니다.");
@@ -780,7 +776,7 @@ export default function SettingsScreen() {
   };
 
   return (
-    <SwipeableTab currentIndex={5} enabled={swipeEnabled}>
+    <View style={{ flex: 1 }}>
       <ScrollView style={s.container} contentContainerStyle={s.content}>
         {/* 프로필 정보 */}
         <View style={s.card}>
@@ -939,24 +935,6 @@ export default function SettingsScreen() {
         {/* 환경 설정 */}
         <View style={s.card}>
           <Text style={s.cardTitle}>환경 설정</Text>
-          <View style={s.infoRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={s.infoLabel}>좌우 스와이프로 탭 전환</Text>
-              <Text style={{ fontSize: 11, color: "#A0AEC0", marginTop: 2 }}>
-                화면을 좌우로 밀어 다른 탭으로 이동합니다
-              </Text>
-            </View>
-            <Switch
-              value={swipeEnabled}
-              onValueChange={async (v) => {
-                setSwipeEnabled(v);
-                const cur = await loadUserSettings();
-                await saveUserSettings({ ...cur, swipeEnabled: v });
-              }}
-              trackColor={{ false: "#E2E8F0", true: "#68D391" }}
-              thumbColor={swipeEnabled ? "#38A169" : "#fff"}
-            />
-          </View>
 
           {/* 앱 잠금 */}
           <View style={s.infoRow}>
@@ -2949,7 +2927,7 @@ export default function SettingsScreen() {
         onSelect={(date) => setBirthDate(date)}
         onClose={() => setCalendarVisible(false)}
       />
-    </SwipeableTab>
+    </View>
   );
 }
 

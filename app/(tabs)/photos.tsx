@@ -1,4 +1,3 @@
-import { SwipeableTab } from "@/components/swipeable-tab";
 import { WeightRecord } from "@/types";
 import { loadRecords } from "@/utils/storage";
 import { useFocusEffect } from "@react-navigation/native";
@@ -105,7 +104,7 @@ export default function PhotosScreen() {
   };
 
   return (
-    <SwipeableTab currentIndex={4}>
+    <View style={{ flex: 1 }}>
       <View style={s.container}>
         <View style={s.header}>
           {photoRecords.length > 0 && (
@@ -387,7 +386,7 @@ export default function PhotosScreen() {
           </View>
         </Modal>
       </View>
-    </SwipeableTab>
+    </View>
   );
 }
 

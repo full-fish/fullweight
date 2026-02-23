@@ -1,5 +1,4 @@
 import { ProgressBar } from "@/components/progress-bar";
-import { SwipeableTab } from "@/components/swipeable-tab";
 import {
   Challenge,
   ChallengeHistory,
@@ -740,7 +739,7 @@ export default function ChallengeScreen() {
   }, [challenge, userSettings, currentValues, exFreq, exMins, exIntensity]);
 
   return (
-    <SwipeableTab currentIndex={3}>
+    <View style={{ flex: 1 }}>
       <ScrollView style={st.container} contentContainerStyle={st.content}>
         {!challenge && (
           <View style={st.emptyCard}>
@@ -1328,7 +1327,7 @@ export default function ChallengeScreen() {
           </View>
         )}
       </ScrollView>
-    </SwipeableTab>
+    </View>
   );
 }
 
