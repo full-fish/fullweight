@@ -1678,409 +1678,439 @@ export default function SettingsScreen() {
         </View>
 
         {/* 사용자 정의 체크항목 추가 모달 */}
-        <Modal
-          visible={showAddBoolMetric}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setShowAddBoolMetric(false)}
-        >
-          <TouchableOpacity
-            style={s.pinModalOverlay}
-            activeOpacity={1}
-            onPress={() => setShowAddBoolMetric(false)}
+        {showAddBoolMetric && (
+          <Modal
+            visible
+            transparent
+            animationType="fade"
+            onRequestClose={() => setShowAddBoolMetric(false)}
           >
-            <View style={s.pinModalCard} onStartShouldSetResponder={() => true}>
-              <Text style={s.pinModalTitle}>체크항목 추가</Text>
-              <Text style={s.pinModalDesc}>
-                체크로 기록할 항목의 이름을 입력하세요
-              </Text>
-              <View style={{ width: "100%", marginBottom: 12 }}>
-                <Text
-                  style={{ fontSize: 13, color: "#4A5568", marginBottom: 4 }}
-                >
-                  이름
+            <TouchableOpacity
+              style={s.pinModalOverlay}
+              activeOpacity={1}
+              onPress={() => setShowAddBoolMetric(false)}
+            >
+              <View
+                style={s.pinModalCard}
+                onStartShouldSetResponder={() => true}
+              >
+                <Text style={s.pinModalTitle}>체크항목 추가</Text>
+                <Text style={s.pinModalDesc}>
+                  체크로 기록할 항목의 이름을 입력하세요
                 </Text>
-                <TextInput
-                  style={[s.input, { width: "100%", textAlign: "left" }]}
-                  value={newBoolLabel}
-                  onChangeText={setNewBoolLabel}
-                  placeholder="예: 스트레칭, 명상, 금연"
-                  placeholderTextColor="#A0AEC0"
-                  returnKeyType="next"
-                />
-              </View>
-              <View style={{ width: "100%", marginBottom: 20 }}>
-                <Text
-                  style={{ fontSize: 13, color: "#4A5568", marginBottom: 4 }}
-                >
-                  이모지 (선택)
-                </Text>
-                <TextInput
-                  style={[s.input, { width: "100%", textAlign: "left" }]}
-                  value={newBoolEmoji}
-                  onChangeText={(t) => setNewBoolEmoji(t.slice(0, 2))}
-                  placeholder="예: 🧘 💊 🚭"
-                  placeholderTextColor="#A0AEC0"
-                  returnKeyType="done"
-                />
-              </View>
-              <View style={{ flexDirection: "row", gap: 10, width: "100%" }}>
-                <TouchableOpacity
-                  style={[s.saveBtn, { flex: 1, marginTop: 0 }]}
-                  onPress={async () => {
-                    const label = newBoolLabel.trim();
-                    if (!label) {
-                      Alert.alert("입력 오류", "항목 이름을 입력해주세요.");
-                      return;
-                    }
-                    const key = `bool_${label}`;
-                    if (customBoolMetrics.some((c) => c.key === key)) {
-                      Alert.alert(
-                        "입력 오류",
-                        "같은 이름의 항목이 이미 존재합니다."
-                      );
-                      return;
-                    }
-                    const colorIdx =
-                      customBoolMetrics.length % CUSTOM_BOOL_COLORS.length;
-                    const color = CUSTOM_BOOL_COLORS[colorIdx];
-                    const emoji = newBoolEmoji.trim() || undefined;
-                    const newCbm: CustomBoolMetric = {
-                      key,
-                      label,
-                      color,
-                      emoji,
-                    };
-                    const next = [...customBoolMetrics, newCbm];
-                    setCustomBoolMetrics(next);
-                    const cur = await loadUserSettings();
-                    await saveUserSettings({ ...cur, customBoolMetrics: next });
-                    setShowAddBoolMetric(false);
-                    Alert.alert(
-                      "추가 완료",
-                      `"${label}" 항목이 추가되었습니다.`
-                    );
-                  }}
-                >
-                  <Text style={s.saveBtnText}>추가</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    s.saveBtn,
-                    { flex: 1, marginTop: 0, backgroundColor: "#EDF2F7" },
-                  ]}
-                  onPress={() => setShowAddBoolMetric(false)}
-                >
-                  <Text style={[s.saveBtnText, { color: "#718096" }]}>
-                    취소
+                <View style={{ width: "100%", marginBottom: 12 }}>
+                  <Text
+                    style={{ fontSize: 13, color: "#4A5568", marginBottom: 4 }}
+                  >
+                    이름
                   </Text>
-                </TouchableOpacity>
+                  <TextInput
+                    style={[s.input, { width: "100%", textAlign: "left" }]}
+                    value={newBoolLabel}
+                    onChangeText={setNewBoolLabel}
+                    placeholder="예: 스트레칭, 명상, 금연"
+                    placeholderTextColor="#A0AEC0"
+                    returnKeyType="next"
+                  />
+                </View>
+                <View style={{ width: "100%", marginBottom: 20 }}>
+                  <Text
+                    style={{ fontSize: 13, color: "#4A5568", marginBottom: 4 }}
+                  >
+                    이모지 (선택)
+                  </Text>
+                  <TextInput
+                    style={[s.input, { width: "100%", textAlign: "left" }]}
+                    value={newBoolEmoji}
+                    onChangeText={(t) => setNewBoolEmoji(t.slice(0, 2))}
+                    placeholder="예: 🧘 💊 🚭"
+                    placeholderTextColor="#A0AEC0"
+                    returnKeyType="done"
+                  />
+                </View>
+                <View style={{ flexDirection: "row", gap: 10, width: "100%" }}>
+                  <TouchableOpacity
+                    style={[s.saveBtn, { flex: 1, marginTop: 0 }]}
+                    onPress={async () => {
+                      const label = newBoolLabel.trim();
+                      if (!label) {
+                        Alert.alert("입력 오류", "항목 이름을 입력해주세요.");
+                        return;
+                      }
+                      const key = `bool_${label}`;
+                      if (customBoolMetrics.some((c) => c.key === key)) {
+                        Alert.alert(
+                          "입력 오류",
+                          "같은 이름의 항목이 이미 존재합니다."
+                        );
+                        return;
+                      }
+                      const colorIdx =
+                        customBoolMetrics.length % CUSTOM_BOOL_COLORS.length;
+                      const color = CUSTOM_BOOL_COLORS[colorIdx];
+                      const emoji = newBoolEmoji.trim() || undefined;
+                      const newCbm: CustomBoolMetric = {
+                        key,
+                        label,
+                        color,
+                        emoji,
+                      };
+                      const next = [...customBoolMetrics, newCbm];
+                      setCustomBoolMetrics(next);
+                      const cur = await loadUserSettings();
+                      await saveUserSettings({
+                        ...cur,
+                        customBoolMetrics: next,
+                      });
+                      setShowAddBoolMetric(false);
+                      Alert.alert(
+                        "추가 완료",
+                        `"${label}" 항목이 추가되었습니다.`
+                      );
+                    }}
+                  >
+                    <Text style={s.saveBtnText}>추가</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      s.saveBtn,
+                      { flex: 1, marginTop: 0, backgroundColor: "#EDF2F7" },
+                    ]}
+                    onPress={() => setShowAddBoolMetric(false)}
+                  >
+                    <Text style={[s.saveBtnText, { color: "#718096" }]}>
+                      취소
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
-          </TouchableOpacity>
-        </Modal>
+            </TouchableOpacity>
+          </Modal>
+        )}
 
         {/* 이모지 편집 모달 */}
-        <Modal
-          visible={editingBoolEmojiKey !== null}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setEditingBoolEmojiKey(null)}
-        >
-          <TouchableOpacity
-            style={s.pinModalOverlay}
-            activeOpacity={1}
-            onPress={() => setEditingBoolEmojiKey(null)}
+        {editingBoolEmojiKey !== null && (
+          <Modal
+            visible
+            transparent
+            animationType="fade"
+            onRequestClose={() => setEditingBoolEmojiKey(null)}
           >
-            <View style={s.pinModalCard} onStartShouldSetResponder={() => true}>
-              <Text style={s.pinModalTitle}>이모지 변경</Text>
-              <Text style={s.pinModalDesc}>
-                {customBoolMetrics.find((c) => c.key === editingBoolEmojiKey)
-                  ?.label || ""}{" "}
-                항목의 이모지를 변경합니다
-              </Text>
-              <View style={{ width: "100%", marginBottom: 20 }}>
-                <Text
-                  style={{ fontSize: 13, color: "#4A5568", marginBottom: 4 }}
-                >
-                  이모지
+            <TouchableOpacity
+              style={s.pinModalOverlay}
+              activeOpacity={1}
+              onPress={() => setEditingBoolEmojiKey(null)}
+            >
+              <View
+                style={s.pinModalCard}
+                onStartShouldSetResponder={() => true}
+              >
+                <Text style={s.pinModalTitle}>이모지 변경</Text>
+                <Text style={s.pinModalDesc}>
+                  {customBoolMetrics.find((c) => c.key === editingBoolEmojiKey)
+                    ?.label || ""}{" "}
+                  항목의 이모지를 변경합니다
                 </Text>
-                <TextInput
-                  style={[s.input, { width: "100%", textAlign: "left" }]}
-                  value={editBoolEmoji}
-                  onChangeText={(t) => setEditBoolEmoji(t.slice(0, 2))}
-                  placeholder="예: 🧘 💊 🚭 (비우면 제거)"
-                  placeholderTextColor="#A0AEC0"
-                  returnKeyType="done"
-                  autoFocus
-                />
-              </View>
-              <View style={{ flexDirection: "row", gap: 10, width: "100%" }}>
-                <TouchableOpacity
-                  style={[s.saveBtn, { flex: 1, marginTop: 0 }]}
-                  onPress={async () => {
-                    if (!editingBoolEmojiKey) return;
-                    const emoji = editBoolEmoji.trim() || undefined;
-                    const next = customBoolMetrics.map((c) =>
-                      c.key === editingBoolEmojiKey ? { ...c, emoji } : c
-                    );
-                    setCustomBoolMetrics(next);
-                    const cur = await loadUserSettings();
-                    await saveUserSettings({ ...cur, customBoolMetrics: next });
-                    setEditingBoolEmojiKey(null);
-                  }}
-                >
-                  <Text style={s.saveBtnText}>저장</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    s.saveBtn,
-                    { flex: 1, marginTop: 0, backgroundColor: "#EDF2F7" },
-                  ]}
-                  onPress={() => setEditingBoolEmojiKey(null)}
-                >
-                  <Text style={[s.saveBtnText, { color: "#718096" }]}>
-                    취소
+                <View style={{ width: "100%", marginBottom: 20 }}>
+                  <Text
+                    style={{ fontSize: 13, color: "#4A5568", marginBottom: 4 }}
+                  >
+                    이모지
                   </Text>
-                </TouchableOpacity>
+                  <TextInput
+                    style={[s.input, { width: "100%", textAlign: "left" }]}
+                    value={editBoolEmoji}
+                    onChangeText={(t) => setEditBoolEmoji(t.slice(0, 2))}
+                    placeholder="예: 🧘 💊 🚭 (비우면 제거)"
+                    placeholderTextColor="#A0AEC0"
+                    returnKeyType="done"
+                    autoFocus
+                  />
+                </View>
+                <View style={{ flexDirection: "row", gap: 10, width: "100%" }}>
+                  <TouchableOpacity
+                    style={[s.saveBtn, { flex: 1, marginTop: 0 }]}
+                    onPress={async () => {
+                      if (!editingBoolEmojiKey) return;
+                      const emoji = editBoolEmoji.trim() || undefined;
+                      const next = customBoolMetrics.map((c) =>
+                        c.key === editingBoolEmojiKey ? { ...c, emoji } : c
+                      );
+                      setCustomBoolMetrics(next);
+                      const cur = await loadUserSettings();
+                      await saveUserSettings({
+                        ...cur,
+                        customBoolMetrics: next,
+                      });
+                      setEditingBoolEmojiKey(null);
+                    }}
+                  >
+                    <Text style={s.saveBtnText}>저장</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      s.saveBtn,
+                      { flex: 1, marginTop: 0, backgroundColor: "#EDF2F7" },
+                    ]}
+                    onPress={() => setEditingBoolEmojiKey(null)}
+                  >
+                    <Text style={[s.saveBtnText, { color: "#718096" }]}>
+                      취소
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
-          </TouchableOpacity>
-        </Modal>
+            </TouchableOpacity>
+          </Modal>
+        )}
 
         {/* 사용자 정의 수치 추가 모달 */}
-        <Modal
-          visible={showAddMetric}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setShowAddMetric(false)}
-        >
-          <TouchableOpacity
-            style={s.pinModalOverlay}
-            activeOpacity={1}
-            onPress={() => setShowAddMetric(false)}
+        {showAddMetric && (
+          <Modal
+            visible
+            transparent
+            animationType="fade"
+            onRequestClose={() => setShowAddMetric(false)}
           >
-            <View style={s.pinModalCard} onStartShouldSetResponder={() => true}>
-              <Text style={s.pinModalTitle}>수치 추가</Text>
-              <Text style={s.pinModalDesc}>
-                기록할 수치의 이름과 단위를 입력하세요
-              </Text>
-
-              <View style={{ width: "100%", marginBottom: 12 }}>
-                <Text
-                  style={{ fontSize: 13, color: "#4A5568", marginBottom: 4 }}
-                >
-                  이름
+            <TouchableOpacity
+              style={s.pinModalOverlay}
+              activeOpacity={1}
+              onPress={() => setShowAddMetric(false)}
+            >
+              <View
+                style={s.pinModalCard}
+                onStartShouldSetResponder={() => true}
+              >
+                <Text style={s.pinModalTitle}>수치 추가</Text>
+                <Text style={s.pinModalDesc}>
+                  기록할 수치의 이름과 단위를 입력하세요
                 </Text>
-                <TextInput
-                  style={[s.input, { width: "100%", textAlign: "left" }]}
-                  value={newMetricLabel}
-                  onChangeText={setNewMetricLabel}
-                  placeholder="예: 악력, 혈압, 혈당"
-                  placeholderTextColor="#A0AEC0"
-                  returnKeyType="next"
-                />
-              </View>
-              <View style={{ width: "100%", marginBottom: 20 }}>
-                <Text
-                  style={{ fontSize: 13, color: "#4A5568", marginBottom: 4 }}
-                >
-                  단위
-                </Text>
-                <TextInput
-                  style={[s.input, { width: "100%", textAlign: "left" }]}
-                  value={newMetricUnit}
-                  onChangeText={setNewMetricUnit}
-                  placeholder="예: kg, mmHg, mg/dL"
-                  placeholderTextColor="#A0AEC0"
-                  returnKeyType="done"
-                />
-              </View>
 
-              <View style={{ flexDirection: "row", gap: 10, width: "100%" }}>
-                <TouchableOpacity
-                  style={[s.saveBtn, { flex: 1, marginTop: 0 }]}
-                  onPress={async () => {
-                    const label = newMetricLabel.trim();
-                    const unit = newMetricUnit.trim();
-                    if (!label) {
-                      Alert.alert("입력 오류", "수치 이름을 입력해주세요.");
-                      return;
-                    }
-                    if (!unit) {
-                      Alert.alert("입력 오류", "단위를 입력해주세요.");
-                      return;
-                    }
-                    const key = `custom_${label}`;
-                    if (customMetrics.some((c) => c.key === key)) {
-                      Alert.alert(
-                        "입력 오류",
-                        "같은 이름의 수치가 이미 존재합니다."
-                      );
-                      return;
-                    }
-                    const colorIdx =
-                      customMetrics.length % CUSTOM_METRIC_COLORS.length;
-                    const color = CUSTOM_METRIC_COLORS[colorIdx];
-                    const newCm: CustomMetric = { key, label, unit, color };
-                    const next = [...customMetrics, newCm];
-                    setCustomMetrics(next);
-                    const cur = await loadUserSettings();
-                    await saveUserSettings({ ...cur, customMetrics: next });
-                    setShowAddMetric(false);
-                    Alert.alert(
-                      "추가 완료",
-                      `"${label}" 수치가 추가되었습니다.`
-                    );
-                  }}
-                >
-                  <Text style={s.saveBtnText}>추가</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    s.saveBtn,
-                    { flex: 1, marginTop: 0, backgroundColor: "#EDF2F7" },
-                  ]}
-                  onPress={() => setShowAddMetric(false)}
-                >
-                  <Text style={[s.saveBtnText, { color: "#718096" }]}>
-                    취소
+                <View style={{ width: "100%", marginBottom: 12 }}>
+                  <Text
+                    style={{ fontSize: 13, color: "#4A5568", marginBottom: 4 }}
+                  >
+                    이름
                   </Text>
-                </TouchableOpacity>
+                  <TextInput
+                    style={[s.input, { width: "100%", textAlign: "left" }]}
+                    value={newMetricLabel}
+                    onChangeText={setNewMetricLabel}
+                    placeholder="예: 악력, 혈압, 혈당"
+                    placeholderTextColor="#A0AEC0"
+                    returnKeyType="next"
+                  />
+                </View>
+                <View style={{ width: "100%", marginBottom: 20 }}>
+                  <Text
+                    style={{ fontSize: 13, color: "#4A5568", marginBottom: 4 }}
+                  >
+                    단위
+                  </Text>
+                  <TextInput
+                    style={[s.input, { width: "100%", textAlign: "left" }]}
+                    value={newMetricUnit}
+                    onChangeText={setNewMetricUnit}
+                    placeholder="예: kg, mmHg, mg/dL"
+                    placeholderTextColor="#A0AEC0"
+                    returnKeyType="done"
+                  />
+                </View>
+
+                <View style={{ flexDirection: "row", gap: 10, width: "100%" }}>
+                  <TouchableOpacity
+                    style={[s.saveBtn, { flex: 1, marginTop: 0 }]}
+                    onPress={async () => {
+                      const label = newMetricLabel.trim();
+                      const unit = newMetricUnit.trim();
+                      if (!label) {
+                        Alert.alert("입력 오류", "수치 이름을 입력해주세요.");
+                        return;
+                      }
+                      if (!unit) {
+                        Alert.alert("입력 오류", "단위를 입력해주세요.");
+                        return;
+                      }
+                      const key = `custom_${label}`;
+                      if (customMetrics.some((c) => c.key === key)) {
+                        Alert.alert(
+                          "입력 오류",
+                          "같은 이름의 수치가 이미 존재합니다."
+                        );
+                        return;
+                      }
+                      const colorIdx =
+                        customMetrics.length % CUSTOM_METRIC_COLORS.length;
+                      const color = CUSTOM_METRIC_COLORS[colorIdx];
+                      const newCm: CustomMetric = { key, label, unit, color };
+                      const next = [...customMetrics, newCm];
+                      setCustomMetrics(next);
+                      const cur = await loadUserSettings();
+                      await saveUserSettings({ ...cur, customMetrics: next });
+                      setShowAddMetric(false);
+                      Alert.alert(
+                        "추가 완료",
+                        `"${label}" 수치가 추가되었습니다.`
+                      );
+                    }}
+                  >
+                    <Text style={s.saveBtnText}>추가</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      s.saveBtn,
+                      { flex: 1, marginTop: 0, backgroundColor: "#EDF2F7" },
+                    ]}
+                    onPress={() => setShowAddMetric(false)}
+                  >
+                    <Text style={[s.saveBtnText, { color: "#718096" }]}>
+                      취소
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
-          </TouchableOpacity>
-        </Modal>
+            </TouchableOpacity>
+          </Modal>
+        )}
 
         {/* PIN 설정 모달 */}
-        <Modal
-          visible={showPinSetup}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setShowPinSetup(false)}
-        >
-          <TouchableOpacity
-            style={s.pinModalOverlay}
-            activeOpacity={1}
-            onPress={() => setShowPinSetup(false)}
+        {showPinSetup && (
+          <Modal
+            visible
+            transparent
+            animationType="fade"
+            onRequestClose={() => setShowPinSetup(false)}
           >
-            <View style={s.pinModalCard} onStartShouldSetResponder={() => true}>
-              <Text style={s.pinModalTitle}>
-                {confirmPin !== "" || newPin.length === 4
-                  ? "PIN 확인"
-                  : "새 PIN 설정"}
-              </Text>
-              <Text style={s.pinModalDesc}>
-                {newPin.length < 4
-                  ? "4자리 숫자를 입력하세요"
-                  : "한 번 더 입력하세요"}
-              </Text>
+            <TouchableOpacity
+              style={s.pinModalOverlay}
+              activeOpacity={1}
+              onPress={() => setShowPinSetup(false)}
+            >
+              <View
+                style={s.pinModalCard}
+                onStartShouldSetResponder={() => true}
+              >
+                <Text style={s.pinModalTitle}>
+                  {confirmPin !== "" || newPin.length === 4
+                    ? "PIN 확인"
+                    : "새 PIN 설정"}
+                </Text>
+                <Text style={s.pinModalDesc}>
+                  {newPin.length < 4
+                    ? "4자리 숫자를 입력하세요"
+                    : "한 번 더 입력하세요"}
+                </Text>
 
-              <View style={s.pinDotsRow}>
-                {Array.from({ length: 4 }, (_, i) => (
-                  <View
-                    key={i}
-                    style={[
-                      s.pinDot,
-                      i <
-                        (newPin.length < 4
-                          ? newPin.length
-                          : confirmPin.length) && s.pinDotFilled,
-                    ]}
-                  />
-                ))}
-              </View>
+                <View style={s.pinDotsRow}>
+                  {Array.from({ length: 4 }, (_, i) => (
+                    <View
+                      key={i}
+                      style={[
+                        s.pinDot,
+                        i <
+                          (newPin.length < 4
+                            ? newPin.length
+                            : confirmPin.length) && s.pinDotFilled,
+                      ]}
+                    />
+                  ))}
+                </View>
 
-              <View style={s.pinPadContainer}>
-                {[
-                  ["1", "2", "3"],
-                  ["4", "5", "6"],
-                  ["7", "8", "9"],
-                  ["", "0", "del"],
-                ].map((row, ri) => (
-                  <View key={ri} style={s.pinPadRow}>
-                    {row.map((key, ki) => {
-                      if (key === "")
-                        return <View key={ki} style={s.pinPadKey} />;
-                      if (key === "del") {
+                <View style={s.pinPadContainer}>
+                  {[
+                    ["1", "2", "3"],
+                    ["4", "5", "6"],
+                    ["7", "8", "9"],
+                    ["", "0", "del"],
+                  ].map((row, ri) => (
+                    <View key={ri} style={s.pinPadRow}>
+                      {row.map((key, ki) => {
+                        if (key === "")
+                          return <View key={ki} style={s.pinPadKey} />;
+                        if (key === "del") {
+                          return (
+                            <TouchableOpacity
+                              key={ki}
+                              style={s.pinPadKey}
+                              onPress={() => {
+                                if (newPin.length < 4) {
+                                  setNewPin((p) => p.slice(0, -1));
+                                } else {
+                                  setConfirmPin((p) => p.slice(0, -1));
+                                }
+                              }}
+                            >
+                              <Text style={s.pinPadSpecial}>⌫</Text>
+                            </TouchableOpacity>
+                          );
+                        }
                         return (
                           <TouchableOpacity
                             key={ki}
                             style={s.pinPadKey}
-                            onPress={() => {
+                            onPress={async () => {
                               if (newPin.length < 4) {
-                                setNewPin((p) => p.slice(0, -1));
+                                const next = newPin + key;
+                                setNewPin(next);
                               } else {
-                                setConfirmPin((p) => p.slice(0, -1));
+                                const next = confirmPin + key;
+                                setConfirmPin(next);
+                                if (next.length === 4) {
+                                  if (next === newPin) {
+                                    setLockEnabled(true);
+                                    const cur = await loadUserSettings();
+                                    await saveUserSettings({
+                                      ...cur,
+                                      lockEnabled: true,
+                                      lockPin: newPin,
+                                    });
+                                    setShowPinSetup(false);
+                                    Alert.alert(
+                                      "설정 완료",
+                                      "앱 잠금이 활성화되었습니다."
+                                    );
+                                  } else {
+                                    Alert.alert(
+                                      "불일치",
+                                      "PIN이 일치하지 않습니다. 다시 시도하세요."
+                                    );
+                                    setNewPin("");
+                                    setConfirmPin("");
+                                  }
+                                }
                               }
                             }}
                           >
-                            <Text style={s.pinPadSpecial}>⌫</Text>
+                            <Text style={s.pinPadText}>{key}</Text>
                           </TouchableOpacity>
                         );
-                      }
-                      return (
-                        <TouchableOpacity
-                          key={ki}
-                          style={s.pinPadKey}
-                          onPress={async () => {
-                            if (newPin.length < 4) {
-                              const next = newPin + key;
-                              setNewPin(next);
-                            } else {
-                              const next = confirmPin + key;
-                              setConfirmPin(next);
-                              if (next.length === 4) {
-                                if (next === newPin) {
-                                  setLockEnabled(true);
-                                  const cur = await loadUserSettings();
-                                  await saveUserSettings({
-                                    ...cur,
-                                    lockEnabled: true,
-                                    lockPin: newPin,
-                                  });
-                                  setShowPinSetup(false);
-                                  Alert.alert(
-                                    "설정 완료",
-                                    "앱 잠금이 활성화되었습니다."
-                                  );
-                                } else {
-                                  Alert.alert(
-                                    "불일치",
-                                    "PIN이 일치하지 않습니다. 다시 시도하세요."
-                                  );
-                                  setNewPin("");
-                                  setConfirmPin("");
-                                }
-                              }
-                            }
-                          }}
-                        >
-                          <Text style={s.pinPadText}>{key}</Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                ))}
-              </View>
+                      })}
+                    </View>
+                  ))}
+                </View>
 
-              <TouchableOpacity
-                style={{
-                  marginTop: 12,
-                  alignItems: "center",
-                  paddingVertical: 8,
-                }}
-                onPress={() => setShowPinSetup(false)}
-              >
-                <Text
-                  style={{ fontSize: 14, fontWeight: "600", color: "#718096" }}
+                <TouchableOpacity
+                  style={{
+                    marginTop: 12,
+                    alignItems: "center",
+                    paddingVertical: 8,
+                  }}
+                  onPress={() => setShowPinSetup(false)}
                 >
-                  취소
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </TouchableOpacity>
-        </Modal>
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      fontWeight: "600",
+                      color: "#718096",
+                    }}
+                  >
+                    취소
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
+          </Modal>
+        )}
 
         {/* ─── 데이터 관리 ─── */}
         <Text style={s.sectionHeader}>데이터 관리</Text>
@@ -2275,114 +2305,120 @@ export default function SettingsScreen() {
         </View>
 
         {/* 백업 목록 모달 */}
-        <Modal
-          visible={showBackupList}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setShowBackupList(false)}
-        >
-          <TouchableOpacity
-            style={s.pinModalOverlay}
-            activeOpacity={1}
-            onPress={() => setShowBackupList(false)}
+        {showBackupList && (
+          <Modal
+            visible
+            transparent
+            animationType="fade"
+            onRequestClose={() => setShowBackupList(false)}
           >
-            <View
-              style={[s.pinModalCard, { width: SCREEN_WIDTH * 0.9 }]}
-              onStartShouldSetResponder={() => true}
+            <TouchableOpacity
+              style={s.pinModalOverlay}
+              activeOpacity={1}
+              onPress={() => setShowBackupList(false)}
             >
-              <Text style={[s.pinModalTitle, { marginBottom: 16 }]}>
-                백업 파일 목록
-              </Text>
-
-              {backupList.length === 0 ? (
-                <Text
-                  style={{
-                    fontSize: 14,
-                    color: "#A0AEC0",
-                    textAlign: "center",
-                    paddingVertical: 24,
-                  }}
-                >
-                  백업 파일이 없습니다
+              <View
+                style={[s.pinModalCard, { width: SCREEN_WIDTH * 0.9 }]}
+                onStartShouldSetResponder={() => true}
+              >
+                <Text style={[s.pinModalTitle, { marginBottom: 16 }]}>
+                  백업 파일 목록
                 </Text>
-              ) : (
-                <View style={{ maxHeight: 300, width: "100%" }}>
-                  {backupList.map((item, idx) => {
-                    const d = new Date(item.createdTime);
-                    const dateLabel = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
-                    const sizeKB = item.size
-                      ? `${(parseInt(item.size, 10) / 1024).toFixed(1)}KB`
-                      : "";
-                    const isNewest = idx === 0;
-                    return (
-                      <TouchableOpacity
-                        key={item.id}
-                        style={[
-                          s.backupListItem,
-                          isNewest && {
-                            backgroundColor: "#EBF8FF",
-                          },
-                        ]}
-                        onPress={() => handleRestore(item.id, item.name)}
-                      >
-                        <View style={{ flex: 1 }}>
-                          <View
-                            style={{
-                              flexDirection: "row",
-                              alignItems: "center",
-                              gap: 6,
-                            }}
-                          >
-                            <Text style={s.backupListDate}>{dateLabel}</Text>
-                            {isNewest && (
-                              <View
-                                style={{
-                                  backgroundColor: "#4299E1",
-                                  borderRadius: 4,
-                                  paddingHorizontal: 6,
-                                  paddingVertical: 1,
-                                }}
-                              >
-                                <Text
+
+                {backupList.length === 0 ? (
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      color: "#A0AEC0",
+                      textAlign: "center",
+                      paddingVertical: 24,
+                    }}
+                  >
+                    백업 파일이 없습니다
+                  </Text>
+                ) : (
+                  <View style={{ maxHeight: 300, width: "100%" }}>
+                    {backupList.map((item, idx) => {
+                      const d = new Date(item.createdTime);
+                      const dateLabel = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
+                      const sizeKB = item.size
+                        ? `${(parseInt(item.size, 10) / 1024).toFixed(1)}KB`
+                        : "";
+                      const isNewest = idx === 0;
+                      return (
+                        <TouchableOpacity
+                          key={item.id}
+                          style={[
+                            s.backupListItem,
+                            isNewest && {
+                              backgroundColor: "#EBF8FF",
+                            },
+                          ]}
+                          onPress={() => handleRestore(item.id, item.name)}
+                        >
+                          <View style={{ flex: 1 }}>
+                            <View
+                              style={{
+                                flexDirection: "row",
+                                alignItems: "center",
+                                gap: 6,
+                              }}
+                            >
+                              <Text style={s.backupListDate}>{dateLabel}</Text>
+                              {isNewest && (
+                                <View
                                   style={{
-                                    fontSize: 10,
-                                    fontWeight: "700",
-                                    color: "#fff",
+                                    backgroundColor: "#4299E1",
+                                    borderRadius: 4,
+                                    paddingHorizontal: 6,
+                                    paddingVertical: 1,
                                   }}
                                 >
-                                  최신
-                                </Text>
-                              </View>
-                            )}
+                                  <Text
+                                    style={{
+                                      fontSize: 10,
+                                      fontWeight: "700",
+                                      color: "#fff",
+                                    }}
+                                  >
+                                    최신
+                                  </Text>
+                                </View>
+                              )}
+                            </View>
+                            {sizeKB ? (
+                              <Text style={s.backupListSize}>{sizeKB}</Text>
+                            ) : null}
                           </View>
-                          {sizeKB ? (
-                            <Text style={s.backupListSize}>{sizeKB}</Text>
-                          ) : null}
-                        </View>
-                        <Text style={s.backupListRestore}>복원</Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              )}
+                          <Text style={s.backupListRestore}>복원</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                )}
 
-              <TouchableOpacity
-                style={{
-                  marginTop: 16,
-                  alignItems: "center",
-                  paddingVertical: 10,
-                }}
-                onPress={() => setShowBackupList(false)}
-              >
-                <Text
-                  style={{ fontSize: 14, fontWeight: "600", color: "#718096" }}
+                <TouchableOpacity
+                  style={{
+                    marginTop: 16,
+                    alignItems: "center",
+                    paddingVertical: 10,
+                  }}
+                  onPress={() => setShowBackupList(false)}
                 >
-                  닫기
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </TouchableOpacity>
-        </Modal>
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      fontWeight: "600",
+                      color: "#718096",
+                    }}
+                  >
+                    닫기
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
+          </Modal>
+        )}
 
         {/* 가져오기·내보내기 */}
         <View style={s.card}>
@@ -2731,144 +2767,152 @@ export default function SettingsScreen() {
         </View>
 
         {/* 내보내기 모달 */}
-        <Modal
-          visible={showExportModal}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setShowExportModal(false)}
-        >
-          <TouchableOpacity
-            style={s.pinModalOverlay}
-            activeOpacity={1}
-            onPress={() => !exportLoading && setShowExportModal(false)}
+        {showExportModal && (
+          <Modal
+            visible
+            transparent
+            animationType="fade"
+            onRequestClose={() => setShowExportModal(false)}
           >
-            <View
-              style={[s.pinModalCard, { width: SCREEN_WIDTH * 0.9 }]}
-              onStartShouldSetResponder={() => true}
+            <TouchableOpacity
+              style={s.pinModalOverlay}
+              activeOpacity={1}
+              onPress={() => !exportLoading && setShowExportModal(false)}
             >
-              <Text style={[s.pinModalTitle, { marginBottom: 16 }]}>
-                내보내기 형식 선택
-              </Text>
-
-              {/* 형식 버튼들 */}
-              <View style={{ gap: 10 }}>
-                <TouchableOpacity
-                  style={[s.exportFormatBtn, { backgroundColor: "#4299E1" }]}
-                  onPress={() => handleExport("json")}
-                  disabled={exportLoading}
-                >
-                  {exportLoading ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                  ) : (
-                    <View style={{ alignItems: "center" }}>
-                      <Text style={s.exportFormatBtnText}>JSON</Text>
-                      <Text style={s.exportFormatBtnDesc}>
-                        전체 데이터 · 다른 앱에서 재사용 가능
-                      </Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[s.exportFormatBtn, { backgroundColor: "#48BB78" }]}
-                  onPress={() => handleExport("csv")}
-                  disabled={exportLoading}
-                >
-                  {exportLoading ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                  ) : (
-                    <View style={{ alignItems: "center" }}>
-                      <Text style={s.exportFormatBtnText}>CSV</Text>
-                      <Text style={s.exportFormatBtnDesc}>
-                        엑셀 호환 · 체중/식사 기록 스프레드시트
-                      </Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[s.exportFormatBtn, { backgroundColor: "#667EEA" }]}
-                  onPress={() => handleExport("zip")}
-                  disabled={exportLoading}
-                >
-                  {exportLoading ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                  ) : (
-                    <View style={{ alignItems: "center" }}>
-                      <Text style={s.exportFormatBtnText}>ZIP (전체 백업)</Text>
-                      <Text style={s.exportFormatBtnDesc}>
-                        JSON + CSV + 사진 · 완전한 백업
-                      </Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              </View>
-
-              {/* 사진 포함 토글 (ZIP 전용) */}
               <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  paddingVertical: 12,
-                  paddingHorizontal: 4,
-                  marginTop: 12,
-                  borderTopWidth: 1,
-                  borderTopColor: "#F0F4F8",
-                }}
+                style={[s.pinModalCard, { width: SCREEN_WIDTH * 0.9 }]}
+                onStartShouldSetResponder={() => true}
               >
-                <View style={{ flex: 1 }}>
+                <Text style={[s.pinModalTitle, { marginBottom: 16 }]}>
+                  내보내기 형식 선택
+                </Text>
+
+                {/* 형식 버튼들 */}
+                <View style={{ gap: 10 }}>
+                  <TouchableOpacity
+                    style={[s.exportFormatBtn, { backgroundColor: "#4299E1" }]}
+                    onPress={() => handleExport("json")}
+                    disabled={exportLoading}
+                  >
+                    {exportLoading ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <View style={{ alignItems: "center" }}>
+                        <Text style={s.exportFormatBtnText}>JSON</Text>
+                        <Text style={s.exportFormatBtnDesc}>
+                          전체 데이터 · 다른 앱에서 재사용 가능
+                        </Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[s.exportFormatBtn, { backgroundColor: "#48BB78" }]}
+                    onPress={() => handleExport("csv")}
+                    disabled={exportLoading}
+                  >
+                    {exportLoading ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <View style={{ alignItems: "center" }}>
+                        <Text style={s.exportFormatBtnText}>CSV</Text>
+                        <Text style={s.exportFormatBtnDesc}>
+                          엑셀 호환 · 체중/식사 기록 스프레드시트
+                        </Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[s.exportFormatBtn, { backgroundColor: "#667EEA" }]}
+                    onPress={() => handleExport("zip")}
+                    disabled={exportLoading}
+                  >
+                    {exportLoading ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <View style={{ alignItems: "center" }}>
+                        <Text style={s.exportFormatBtnText}>
+                          ZIP (전체 백업)
+                        </Text>
+                        <Text style={s.exportFormatBtnDesc}>
+                          JSON + CSV + 사진 · 완전한 백업
+                        </Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                </View>
+
+                {/* 사진 포함 토글 (ZIP 전용) */}
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    paddingVertical: 12,
+                    paddingHorizontal: 4,
+                    marginTop: 12,
+                    borderTopWidth: 1,
+                    borderTopColor: "#F0F4F8",
+                  }}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      style={{
+                        fontSize: 14,
+                        fontWeight: "600",
+                        color: "#2D3748",
+                      }}
+                    >
+                      ZIP에 사진 포함
+                    </Text>
+                    {exportPhotoInfo && exportPhotoInfo.count > 0 ? (
+                      <Text
+                        style={{ fontSize: 11, color: "#A0AEC0", marginTop: 2 }}
+                      >
+                        사진 {exportPhotoInfo.count}장 ·{" "}
+                        {formatBytes(exportPhotoInfo.sizeBytes)}
+                      </Text>
+                    ) : (
+                      <Text
+                        style={{ fontSize: 11, color: "#A0AEC0", marginTop: 2 }}
+                      >
+                        저장된 사진이 없습니다
+                      </Text>
+                    )}
+                  </View>
+                  <Switch
+                    value={exportIncludePhotos}
+                    onValueChange={setExportIncludePhotos}
+                    disabled={!exportPhotoInfo || exportPhotoInfo.count === 0}
+                    trackColor={{ false: "#E2E8F0", true: "#90CDF4" }}
+                    thumbColor={exportIncludePhotos ? "#4299E1" : "#fff"}
+                  />
+                </View>
+
+                <TouchableOpacity
+                  style={{
+                    marginTop: 16,
+                    alignItems: "center",
+                    paddingVertical: 10,
+                  }}
+                  onPress={() => setShowExportModal(false)}
+                  disabled={exportLoading}
+                >
                   <Text
                     style={{
                       fontSize: 14,
                       fontWeight: "600",
-                      color: "#2D3748",
+                      color: "#718096",
                     }}
                   >
-                    ZIP에 사진 포함
+                    닫기
                   </Text>
-                  {exportPhotoInfo && exportPhotoInfo.count > 0 ? (
-                    <Text
-                      style={{ fontSize: 11, color: "#A0AEC0", marginTop: 2 }}
-                    >
-                      사진 {exportPhotoInfo.count}장 ·{" "}
-                      {formatBytes(exportPhotoInfo.sizeBytes)}
-                    </Text>
-                  ) : (
-                    <Text
-                      style={{ fontSize: 11, color: "#A0AEC0", marginTop: 2 }}
-                    >
-                      저장된 사진이 없습니다
-                    </Text>
-                  )}
-                </View>
-                <Switch
-                  value={exportIncludePhotos}
-                  onValueChange={setExportIncludePhotos}
-                  disabled={!exportPhotoInfo || exportPhotoInfo.count === 0}
-                  trackColor={{ false: "#E2E8F0", true: "#90CDF4" }}
-                  thumbColor={exportIncludePhotos ? "#4299E1" : "#fff"}
-                />
+                </TouchableOpacity>
               </View>
-
-              <TouchableOpacity
-                style={{
-                  marginTop: 16,
-                  alignItems: "center",
-                  paddingVertical: 10,
-                }}
-                onPress={() => setShowExportModal(false)}
-                disabled={exportLoading}
-              >
-                <Text
-                  style={{ fontSize: 14, fontWeight: "600", color: "#718096" }}
-                >
-                  닫기
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </TouchableOpacity>
-        </Modal>
+            </TouchableOpacity>
+          </Modal>
+        )}
 
         {/* ─── 기타 ─── */}
         <Text style={s.sectionHeader}>기타</Text>

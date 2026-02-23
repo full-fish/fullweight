@@ -1505,48 +1505,56 @@ export default function ChartScreen() {
         )}
 
         {/* 통계 시작 캘린더 팝업 */}
-        <CalendarModal
-          visible={showStatsCal}
-          value={statsStart}
-          onChange={(v) => {
-            setStatsStart(v);
-            if (statsEnd && v > statsEnd) setStatsEnd(v);
-          }}
-          onClose={() => setShowStatsCal(false)}
-          maxDate={todayStr}
-        />
+        {showStatsCal && (
+          <CalendarModal
+            visible
+            value={statsStart}
+            onChange={(v) => {
+              setStatsStart(v);
+              if (statsEnd && v > statsEnd) setStatsEnd(v);
+            }}
+            onClose={() => setShowStatsCal(false)}
+            maxDate={todayStr}
+          />
+        )}
 
         {/* 통계 끝 캘린더 팝업 */}
-        <CalendarModal
-          visible={showStatsEndCal}
-          value={statsEnd}
-          onChange={setStatsEnd}
-          onClose={() => setShowStatsEndCal(false)}
-          minDate={statsStart || undefined}
-          maxDate={todayStr}
-        />
+        {showStatsEndCal && (
+          <CalendarModal
+            visible
+            value={statsEnd}
+            onChange={setStatsEnd}
+            onClose={() => setShowStatsEndCal(false)}
+            minDate={statsStart || undefined}
+            maxDate={todayStr}
+          />
+        )}
 
         {/* 활동 요약 시작 캘린더 팝업 */}
-        <CalendarModal
-          visible={showActivityCal}
-          value={activityStart}
-          onChange={(v) => {
-            setActivityStart(v);
-            if (activityEnd && v > activityEnd) setActivityEnd(v);
-          }}
-          onClose={() => setShowActivityCal(false)}
-          maxDate={todayStr}
-        />
+        {showActivityCal && (
+          <CalendarModal
+            visible
+            value={activityStart}
+            onChange={(v) => {
+              setActivityStart(v);
+              if (activityEnd && v > activityEnd) setActivityEnd(v);
+            }}
+            onClose={() => setShowActivityCal(false)}
+            maxDate={todayStr}
+          />
+        )}
 
         {/* 활동 요약 끝 캘린더 팝업 */}
-        <CalendarModal
-          visible={showActivityEndCal}
-          value={activityEnd}
-          onChange={setActivityEnd}
-          onClose={() => setShowActivityEndCal(false)}
-          minDate={activityStart || undefined}
-          maxDate={todayStr}
-        />
+        {showActivityEndCal && (
+          <CalendarModal
+            visible
+            value={activityEnd}
+            onChange={setActivityEnd}
+            onClose={() => setShowActivityEndCal(false)}
+            minDate={activityStart || undefined}
+            maxDate={todayStr}
+          />
+        )}
       </ScrollView>
     </View>
   );

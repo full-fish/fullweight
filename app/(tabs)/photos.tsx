@@ -264,127 +264,131 @@ export default function PhotosScreen() {
         )}
 
         {/* 전체 화면 뷰어 (드래그 넘기기) */}
-        <Modal
-          visible={viewerVisible}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setViewerVisible(false)}
-        >
-          <View style={s.viewerBg}>
-            <TouchableOpacity
-              style={s.viewerClose}
-              onPress={() => setViewerVisible(false)}
-            >
-              <Text style={s.viewerCloseText}>✕</Text>
-            </TouchableOpacity>
+        {viewerVisible && (
+          <Modal
+            visible
+            transparent
+            animationType="fade"
+            onRequestClose={() => setViewerVisible(false)}
+          >
+            <View style={s.viewerBg}>
+              <TouchableOpacity
+                style={s.viewerClose}
+                onPress={() => setViewerVisible(false)}
+              >
+                <Text style={s.viewerCloseText}>✕</Text>
+              </TouchableOpacity>
 
-            <FlatList
-              ref={flatListRef}
-              data={photoRecords}
-              horizontal
-              pagingEnabled
-              showsHorizontalScrollIndicator={false}
-              initialScrollIndex={viewerIndex}
-              getItemLayout={(_, index) => ({
-                length: width,
-                offset: width * index,
-                index,
-              })}
-              keyExtractor={(item) => item.id}
-              onMomentumScrollEnd={(e) => {
-                const idx = Math.round(e.nativeEvent.contentOffset.x / width);
-                setViewerIndex(idx);
-              }}
-              renderItem={({ item }) => (
-                <View style={s.viewerSlide}>
-                  <Image
-                    source={{ uri: item.photoUri }}
-                    style={s.viewerImage}
-                    resizeMode="contain"
-                  />
-                  <View style={s.viewerInfo}>
-                    <Text style={s.viewerDate}>{fmtDate(item.date)}</Text>
-                    <Text style={s.viewerWeight}>{item.weight} kg</Text>
-                    {item.muscleMass != null && (
-                      <Text style={s.viewerMeta}>{item.muscleMass}kg</Text>
-                    )}
-                    {item.bodyFatPercent != null && (
-                      <Text style={s.viewerMeta}>{item.bodyFatPercent}%</Text>
-                    )}
+              <FlatList
+                ref={flatListRef}
+                data={photoRecords}
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                initialScrollIndex={viewerIndex}
+                getItemLayout={(_, index) => ({
+                  length: width,
+                  offset: width * index,
+                  index,
+                })}
+                keyExtractor={(item) => item.id}
+                onMomentumScrollEnd={(e) => {
+                  const idx = Math.round(e.nativeEvent.contentOffset.x / width);
+                  setViewerIndex(idx);
+                }}
+                renderItem={({ item }) => (
+                  <View style={s.viewerSlide}>
+                    <Image
+                      source={{ uri: item.photoUri }}
+                      style={s.viewerImage}
+                      resizeMode="contain"
+                    />
+                    <View style={s.viewerInfo}>
+                      <Text style={s.viewerDate}>{fmtDate(item.date)}</Text>
+                      <Text style={s.viewerWeight}>{item.weight} kg</Text>
+                      {item.muscleMass != null && (
+                        <Text style={s.viewerMeta}>{item.muscleMass}kg</Text>
+                      )}
+                      {item.bodyFatPercent != null && (
+                        <Text style={s.viewerMeta}>{item.bodyFatPercent}%</Text>
+                      )}
+                    </View>
                   </View>
-                </View>
-              )}
-            />
+                )}
+              />
 
-            <Text style={s.viewerCounter}>
-              {viewerIndex + 1} / {photoRecords.length}
-            </Text>
-          </View>
-        </Modal>
+              <Text style={s.viewerCounter}>
+                {viewerIndex + 1} / {photoRecords.length}
+              </Text>
+            </View>
+          </Modal>
+        )}
 
         {/* 비교 전체 화면 뷰어 (2장 드래그) */}
-        <Modal
-          visible={compareViewerVisible}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setCompareViewerVisible(false)}
-        >
-          <View style={s.viewerBg}>
-            <TouchableOpacity
-              style={s.viewerClose}
-              onPress={() => setCompareViewerVisible(false)}
-            >
-              <Text style={s.viewerCloseText}>✕</Text>
-            </TouchableOpacity>
+        {compareViewerVisible && (
+          <Modal
+            visible
+            transparent
+            animationType="fade"
+            onRequestClose={() => setCompareViewerVisible(false)}
+          >
+            <View style={s.viewerBg}>
+              <TouchableOpacity
+                style={s.viewerClose}
+                onPress={() => setCompareViewerVisible(false)}
+              >
+                <Text style={s.viewerCloseText}>✕</Text>
+              </TouchableOpacity>
 
-            <FlatList
-              ref={compareFlatListRef}
-              data={comparePhotos}
-              horizontal
-              pagingEnabled
-              showsHorizontalScrollIndicator={false}
-              initialScrollIndex={compareViewerIndex}
-              getItemLayout={(_, index) => ({
-                length: width,
-                offset: width * index,
-                index,
-              })}
-              keyExtractor={(item) => item.id}
-              onMomentumScrollEnd={(e) => {
-                const idx = Math.round(e.nativeEvent.contentOffset.x / width);
-                setCompareViewerIndex(idx);
-              }}
-              renderItem={({ item, index }) => (
-                <View style={s.viewerSlide}>
-                  <Image
-                    source={{ uri: item.photoUri }}
-                    style={s.viewerImage}
-                    resizeMode="contain"
-                  />
-                  <View style={s.viewerInfo}>
-                    <View style={s.compareBadgeViewer}>
-                      <Text style={s.compareBadgeViewerText}>
-                        {index === 0 ? "전 (Before)" : "후 (After)"}
-                      </Text>
+              <FlatList
+                ref={compareFlatListRef}
+                data={comparePhotos}
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                initialScrollIndex={compareViewerIndex}
+                getItemLayout={(_, index) => ({
+                  length: width,
+                  offset: width * index,
+                  index,
+                })}
+                keyExtractor={(item) => item.id}
+                onMomentumScrollEnd={(e) => {
+                  const idx = Math.round(e.nativeEvent.contentOffset.x / width);
+                  setCompareViewerIndex(idx);
+                }}
+                renderItem={({ item, index }) => (
+                  <View style={s.viewerSlide}>
+                    <Image
+                      source={{ uri: item.photoUri }}
+                      style={s.viewerImage}
+                      resizeMode="contain"
+                    />
+                    <View style={s.viewerInfo}>
+                      <View style={s.compareBadgeViewer}>
+                        <Text style={s.compareBadgeViewerText}>
+                          {index === 0 ? "전 (Before)" : "후 (After)"}
+                        </Text>
+                      </View>
+                      <Text style={s.viewerDate}>{fmtDate(item.date)}</Text>
+                      <Text style={s.viewerWeight}>{item.weight} kg</Text>
+                      {item.muscleMass != null && (
+                        <Text style={s.viewerMeta}>{item.muscleMass}kg</Text>
+                      )}
+                      {item.bodyFatPercent != null && (
+                        <Text style={s.viewerMeta}>{item.bodyFatPercent}%</Text>
+                      )}
                     </View>
-                    <Text style={s.viewerDate}>{fmtDate(item.date)}</Text>
-                    <Text style={s.viewerWeight}>{item.weight} kg</Text>
-                    {item.muscleMass != null && (
-                      <Text style={s.viewerMeta}>{item.muscleMass}kg</Text>
-                    )}
-                    {item.bodyFatPercent != null && (
-                      <Text style={s.viewerMeta}>{item.bodyFatPercent}%</Text>
-                    )}
                   </View>
-                </View>
-              )}
-            />
+                )}
+              />
 
-            <Text style={s.viewerCounter}>
-              {compareViewerIndex === 0 ? "전" : "후"} · 좌우로 넘기세요
-            </Text>
-          </View>
-        </Modal>
+              <Text style={s.viewerCounter}>
+                {compareViewerIndex === 0 ? "전" : "후"} · 좌우로 넘기세요
+              </Text>
+            </View>
+          </Modal>
+        )}
       </View>
     </View>
   );

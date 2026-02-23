@@ -1229,118 +1229,123 @@ export default function ChallengeScreen() {
         )}
 
         {/* 챌린지 생성/수정 모달 */}
-        <Modal
-          visible={showForm}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setShowForm(false)}
-        >
-          <View style={st.formOverlay}>
-            <View style={st.formCard}>
-              <ScrollView showsVerticalScrollIndicator={false}>
-                <Text style={st.formTitle}>
-                  {challenge ? "챌린지 수정" : "새 챌린지"}
-                </Text>
+        {showForm && (
+          <Modal
+            visible
+            transparent
+            animationType="slide"
+            onRequestClose={() => setShowForm(false)}
+          >
+            <View style={st.formOverlay}>
+              <View style={st.formCard}>
+                <ScrollView showsVerticalScrollIndicator={false}>
+                  <Text style={st.formTitle}>
+                    {challenge ? "챌린지 수정" : "새 챌린지"}
+                  </Text>
 
-                <Text style={st.formLabel}>목표 몸무게 (kg)</Text>
-                <StepInput
-                  value={fTargetWeight}
-                  onChangeText={(v) => {
-                    setFTargetWeight(v);
-                    // 체지방량이 있으면 체지방률 자동 계산
-                    const tw = parseFloat(v);
-                    const fm = parseFloat(fTargetBodyFatMass);
-                    if (!isNaN(tw) && tw > 0 && !isNaN(fm) && fm >= 0) {
-                      setFTargetBodyFatPercent(((fm / tw) * 100).toFixed(1));
-                    }
-                  }}
-                  placeholder="예: 70.0"
-                />
+                  <Text style={st.formLabel}>목표 몸무게 (kg)</Text>
+                  <StepInput
+                    value={fTargetWeight}
+                    onChangeText={(v) => {
+                      setFTargetWeight(v);
+                      // 체지방량이 있으면 체지방률 자동 계산
+                      const tw = parseFloat(v);
+                      const fm = parseFloat(fTargetBodyFatMass);
+                      if (!isNaN(tw) && tw > 0 && !isNaN(fm) && fm >= 0) {
+                        setFTargetBodyFatPercent(((fm / tw) * 100).toFixed(1));
+                      }
+                    }}
+                    placeholder="예: 70.0"
+                  />
 
-                <Text style={st.formLabel}>목표 골격근량 (kg)</Text>
-                <StepInput
-                  value={fTargetMuscleMass}
-                  onChangeText={setFTargetMuscleMass}
-                  placeholder="예: 35.0"
-                />
+                  <Text style={st.formLabel}>목표 골격근량 (kg)</Text>
+                  <StepInput
+                    value={fTargetMuscleMass}
+                    onChangeText={setFTargetMuscleMass}
+                    placeholder="예: 35.0"
+                  />
 
-                <Text style={st.formLabel}>목표 체지방량 (kg)</Text>
-                <View style={{ flexDirection: "row", alignItems: "center" }}>
-                  <View style={{ flex: 1 }}>
-                    <StepInput
-                      value={fTargetBodyFatMass}
-                      onChangeText={(v) => {
-                        setFTargetBodyFatMass(v);
-                        // 목표 몸무게가 있으면 체지방률 자동 계산
-                        const tw = parseFloat(fTargetWeight);
-                        const fm = parseFloat(v);
-                        if (!isNaN(tw) && tw > 0 && !isNaN(fm) && fm >= 0) {
-                          setFTargetBodyFatPercent(
-                            ((fm / tw) * 100).toFixed(1)
-                          );
-                        } else {
-                          setFTargetBodyFatPercent("");
-                        }
-                      }}
-                      placeholder="예: 12.0"
-                    />
-                  </View>
-                  {fTargetBodyFatPercent ? (
-                    <View
-                      style={{
-                        marginLeft: 10,
-                        backgroundColor: "#EBF8FF",
-                        paddingHorizontal: 10,
-                        paddingVertical: 8,
-                        borderRadius: 10,
-                        marginBottom: 14,
-                        alignItems: "center",
-                      }}
-                    >
-                      <Text
-                        style={{
-                          fontSize: 10,
-                          fontWeight: "500",
-                          color: "#63B3ED",
-                          marginBottom: 2,
+                  <Text style={st.formLabel}>목표 체지방량 (kg)</Text>
+                  <View style={{ flexDirection: "row", alignItems: "center" }}>
+                    <View style={{ flex: 1 }}>
+                      <StepInput
+                        value={fTargetBodyFatMass}
+                        onChangeText={(v) => {
+                          setFTargetBodyFatMass(v);
+                          // 목표 몸무게가 있으면 체지방률 자동 계산
+                          const tw = parseFloat(fTargetWeight);
+                          const fm = parseFloat(v);
+                          if (!isNaN(tw) && tw > 0 && !isNaN(fm) && fm >= 0) {
+                            setFTargetBodyFatPercent(
+                              ((fm / tw) * 100).toFixed(1)
+                            );
+                          } else {
+                            setFTargetBodyFatPercent("");
+                          }
                         }}
-                      >
-                        체지방률
-                      </Text>
-                      <Text
-                        style={{
-                          fontSize: 14,
-                          fontWeight: "700",
-                          color: "#3182CE",
-                        }}
-                      >
-                        {fTargetBodyFatPercent}%
-                      </Text>
+                        placeholder="예: 12.0"
+                      />
                     </View>
-                  ) : null}
-                </View>
+                    {fTargetBodyFatPercent ? (
+                      <View
+                        style={{
+                          marginLeft: 10,
+                          backgroundColor: "#EBF8FF",
+                          paddingHorizontal: 10,
+                          paddingVertical: 8,
+                          borderRadius: 10,
+                          marginBottom: 14,
+                          alignItems: "center",
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 10,
+                            fontWeight: "500",
+                            color: "#63B3ED",
+                            marginBottom: 2,
+                          }}
+                        >
+                          체지방률
+                        </Text>
+                        <Text
+                          style={{
+                            fontSize: 14,
+                            fontWeight: "700",
+                            color: "#3182CE",
+                          }}
+                        >
+                          {fTargetBodyFatPercent}%
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
 
-                <DateCalendarPicker
-                  label="목표 종료일"
-                  value={fEndDate}
-                  onChange={setFEndDate}
-                />
+                  <DateCalendarPicker
+                    label="목표 종료일"
+                    value={fEndDate}
+                    onChange={setFEndDate}
+                  />
 
-                <View style={st.formBtnRow}>
-                  <TouchableOpacity style={st.formSaveBtn} onPress={handleSave}>
-                    <Text style={st.formSaveBtnText}>저장</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={st.formCancelBtn}
-                    onPress={() => setShowForm(false)}
-                  >
-                    <Text style={st.formCancelBtnText}>취소</Text>
-                  </TouchableOpacity>
-                </View>
-              </ScrollView>
+                  <View style={st.formBtnRow}>
+                    <TouchableOpacity
+                      style={st.formSaveBtn}
+                      onPress={handleSave}
+                    >
+                      <Text style={st.formSaveBtnText}>저장</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={st.formCancelBtn}
+                      onPress={() => setShowForm(false)}
+                    >
+                      <Text style={st.formCancelBtnText}>취소</Text>
+                    </TouchableOpacity>
+                  </View>
+                </ScrollView>
+              </View>
             </View>
-          </View>
-        </Modal>
+          </Modal>
+        )}
 
         {/* 이전 챌린지 기록 */}
         {history.length > 0 && (

@@ -100,6 +100,11 @@ export default function HomeScreen() {
 
   /* 편집 모달 상태 */
   const [showEditModal, setShowEditModal] = useState(false);
+
+  /* 기록 목록 페이징 (성능: 초기 7개만 렌더, 더보기로 확장) */
+  const RECORDS_PER_PAGE = 7;
+  const [visibleRecordCount, setVisibleRecordCount] =
+    useState(RECORDS_PER_PAGE);
   const [editRecord, setEditRecord] = useState<WeightRecord | null>(null);
   const [emWeight, setEmWeight] = useState("");
   const [emWaist, setEmWaist] = useState("");
@@ -175,67 +180,34 @@ export default function HomeScreen() {
     []
   );
 
+  // 탭 포커스 시 1회만 데이터 로드 (selectedDate 변경 시에는 재로드 안 함)
+  const selectedDateRef = useRef(selectedDate);
+  selectedDateRef.current = selectedDate;
+
   useFocusEffect(
     useCallback(() => {
-      // 모든 데이터를 병렬로 로드 + loadMeals는 1회만 읽어 메모리에서 필터링
+      const d = selectedDateRef.current;
       Promise.all([
         loadAndSetRecords(),
         loadUserSettings(),
         loadChallenge(),
-        loadMeals(), // 전체 식사 데이터를 1번만 읽음
+        loadMeals(),
       ]).then(([data, settings, ch, allMealsData]) => {
-        populateForm(selectedDate, data);
+        populateForm(d, data);
         setUserSettings(settings);
         setChallenge(ch);
         setAllMeals(allMealsData);
-        // AsyncStorage 재호출 없이 메모리에서 날짜 필터링
-        setMeals(allMealsData.filter((m) => m.date === selectedDate));
+        setMeals(allMealsData.filter((m) => m.date === d));
       });
-    }, [selectedDate, loadAndSetRecords, populateForm])
+    }, [loadAndSetRecords, populateForm])
   );
 
   const handleDateSelect = (date: string) => {
     setSelectedDate(date);
     setShowDatePicker(false);
-    const existing = records.find((r) => r.date === date);
-    if (existing) {
-      setWeight(existing.weight.toString());
-      setWaist(existing.waist?.toString() ?? "");
-      setMuscleMass(existing.muscleMass?.toString() ?? "");
-      setBodyFatPercent(existing.bodyFatPercent?.toString() ?? "");
-      setBodyFatMass(existing.bodyFatMass?.toString() ?? "");
-      setExercised(existing.exercised);
-      setDrank(existing.drank);
-      setPhotoUri(existing.photoUri);
-      const ci: Record<string, string> = {};
-      if (existing.customValues) {
-        for (const [k, v] of Object.entries(existing.customValues)) {
-          ci[k] = v.toString();
-        }
-      }
-      setCustomInputs(ci);
-      const bi: Record<string, boolean> = {};
-      if (existing.customBoolValues) {
-        for (const [k, v] of Object.entries(existing.customBoolValues)) {
-          bi[k] = v;
-        }
-      }
-      setBoolCustomInputs(bi);
-    } else {
-      // Pre-fill weight with most recent record
-      const sorted = [...records].sort((a, b) => b.date.localeCompare(a.date));
-      const latestWeight = sorted.length > 0 ? sorted[0].weight.toString() : "";
-      setWeight(latestWeight);
-      setWaist("");
-      setMuscleMass("");
-      setBodyFatPercent("");
-      setBodyFatMass("");
-      setExercised(false);
-      setDrank(false);
-      setPhotoUri(undefined);
-      setCustomInputs({});
-      setBoolCustomInputs({});
-    }
+    populateForm(date, records);
+    // 메모리에서 식사 필터링 (AsyncStorage 재호출 없음)
+    setMeals(allMeals.filter((m) => m.date === date));
   };
 
   /* ───── 식사 관련 핸들러 ───── */
@@ -1091,230 +1063,269 @@ export default function HomeScreen() {
               아직 기록이 없습니다.{"\n"}첫 번째 기록을 추가해보세요!
             </Text>
           ) : (
-            records.map((record) => (
-              <View key={record.id} style={styles.recordCard}>
-                <View style={styles.recordTop}>
-                  <Text style={styles.recordDate}>{fmtDate(record.date)}</Text>
-                  <View style={styles.recordActions}>
-                    <TouchableOpacity
-                      style={styles.editBtnContainer}
-                      onPress={() => handleEdit(record)}
-                    >
-                      <Text style={styles.editBtn}>수정</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.deleteBtnContainer}
-                      onPress={() => handleDelete(record.date)}
-                    >
-                      <Text style={styles.deleteBtn}>삭제</Text>
-                    </TouchableOpacity>
+            <>
+              {records.slice(0, visibleRecordCount).map((record) => (
+                <View key={record.id} style={styles.recordCard}>
+                  <View style={styles.recordTop}>
+                    <Text style={styles.recordDate}>
+                      {fmtDate(record.date)}
+                    </Text>
+                    <View style={styles.recordActions}>
+                      <TouchableOpacity
+                        style={styles.editBtnContainer}
+                        onPress={() => handleEdit(record)}
+                      >
+                        <Text style={styles.editBtn}>수정</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.deleteBtnContainer}
+                        onPress={() => handleDelete(record.date)}
+                      >
+                        <Text style={styles.deleteBtn}>삭제</Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
-                </View>
-                <Text style={styles.recordWeight}>{record.weight} kg</Text>
-                {userSettings.height &&
-                  (() => {
-                    const info = getBmiInfo(record.weight, userSettings.height);
-                    if (!info) return null;
-                    return (
-                      <View style={styles.bmiRow}>
-                        <Text style={styles.recordSub}>BMI: {info.bmi}</Text>
-                        <View style={styles.bmiBadge}>
-                          <Text
-                            style={[styles.bmiBadgeText, { color: info.color }]}
-                          >
-                            {info.label}
-                          </Text>
-                        </View>
-                        <View style={styles.bmiBarWrap}>
-                          <View style={styles.bmiBarTrack}>
-                            <View
+                  <Text style={styles.recordWeight}>{record.weight} kg</Text>
+                  {userSettings.height &&
+                    (() => {
+                      const info = getBmiInfo(
+                        record.weight,
+                        userSettings.height
+                      );
+                      if (!info) return null;
+                      return (
+                        <View style={styles.bmiRow}>
+                          <Text style={styles.recordSub}>BMI: {info.bmi}</Text>
+                          <View style={styles.bmiBadge}>
+                            <Text
                               style={[
-                                styles.bmiBarZone,
-                                { flex: 18.5, backgroundColor: "#BEE3F8" },
+                                styles.bmiBadgeText,
+                                { color: info.color },
                               ]}
-                            />
+                            >
+                              {info.label}
+                            </Text>
+                          </View>
+                          <View style={styles.bmiBarWrap}>
+                            <View style={styles.bmiBarTrack}>
+                              <View
+                                style={[
+                                  styles.bmiBarZone,
+                                  { flex: 18.5, backgroundColor: "#BEE3F8" },
+                                ]}
+                              />
+                              <View
+                                style={[
+                                  styles.bmiBarZone,
+                                  { flex: 4.5, backgroundColor: "#C6F6D5" },
+                                ]}
+                              />
+                              <View
+                                style={[
+                                  styles.bmiBarZone,
+                                  { flex: 2, backgroundColor: "#FEEBC8" },
+                                ]}
+                              />
+                              <View
+                                style={[
+                                  styles.bmiBarZone,
+                                  { flex: 15, backgroundColor: "#FED7D7" },
+                                ]}
+                              />
+                            </View>
                             <View
                               style={[
-                                styles.bmiBarZone,
-                                { flex: 4.5, backgroundColor: "#C6F6D5" },
-                              ]}
-                            />
-                            <View
-                              style={[
-                                styles.bmiBarZone,
-                                { flex: 2, backgroundColor: "#FEEBC8" },
-                              ]}
-                            />
-                            <View
-                              style={[
-                                styles.bmiBarZone,
-                                { flex: 15, backgroundColor: "#FED7D7" },
+                                styles.bmiIndicator,
+                                {
+                                  left: `${Math.min(95, Math.max(2, ((info.bmi - 10) / 30) * 100))}%`,
+                                },
                               ]}
                             />
                           </View>
-                          <View
-                            style={[
-                              styles.bmiIndicator,
-                              {
-                                left: `${Math.min(95, Math.max(2, ((info.bmi - 10) / 30) * 100))}%`,
-                              },
-                            ]}
-                          />
                         </View>
+                      );
+                    })()}
+                  {userSettings.metricDisplayVisibility?.waist !== false &&
+                    record.waist != null && (
+                      <Text style={styles.recordSub}>
+                        허리: {record.waist} cm
+                      </Text>
+                    )}
+                  {userSettings.metricDisplayVisibility?.muscleMass !== false &&
+                    record.muscleMass != null && (
+                      <Text style={styles.recordSub}>
+                        골격근: {record.muscleMass} kg
+                      </Text>
+                    )}
+                  {userSettings.metricDisplayVisibility?.bodyFatPercent !==
+                    false &&
+                    record.bodyFatPercent != null && (
+                      <Text style={styles.recordSub}>
+                        체지방률: {record.bodyFatPercent} %
+                      </Text>
+                    )}
+                  {userSettings.metricDisplayVisibility?.bodyFatMass !==
+                    false &&
+                    record.bodyFatMass != null && (
+                      <Text style={styles.recordSub}>
+                        체지방량: {record.bodyFatMass} kg
+                      </Text>
+                    )}
+                  {/* 사용자 정의 수치 표시 */}
+                  {(userSettings.customMetrics ?? [])
+                    .filter(
+                      (cm) =>
+                        userSettings.metricDisplayVisibility?.[cm.key] !== false
+                    )
+                    .map((cm) => {
+                      const val = record.customValues?.[cm.key];
+                      if (val == null) return null;
+                      return (
+                        <Text key={cm.key} style={styles.recordSub}>
+                          {cm.label}: {val} {cm.unit}
+                        </Text>
+                      );
+                    })}
+                  {record.photoUri && (
+                    <Image
+                      source={{ uri: record.photoUri }}
+                      style={styles.recordPhoto}
+                    />
+                  )}
+                  <View style={styles.badgeRow}>
+                    {record.exercised && (
+                      <View style={[styles.badge, styles.badgeExercise]}>
+                        <Text style={styles.badgeText}>운동</Text>
+                      </View>
+                    )}
+                    {record.drank && (
+                      <View style={[styles.badge, styles.badgeDrank]}>
+                        <Text style={styles.badgeText}>음주</Text>
+                      </View>
+                    )}
+                  </View>
+                  {/* 해당 날짜 식사 기록 */}
+                  {(() => {
+                    const dayMeals = allMeals.filter(
+                      (m) => m.date === record.date
+                    );
+                    if (dayMeals.length === 0) return null;
+                    const mealTypes: MealType[] = [
+                      "breakfast",
+                      "lunch",
+                      "dinner",
+                      "snack",
+                    ];
+                    return (
+                      <View style={styles.recordMealsSection}>
+                        <Text style={styles.recordMealsTitle}>
+                          식사 {dayMeals.reduce((s, m) => s + m.kcal, 0)}kcal
+                        </Text>
+                        {mealTypes.map((mt) => {
+                          const items = dayMeals.filter(
+                            (m) => m.mealType === mt
+                          );
+                          if (items.length === 0) return null;
+                          return (
+                            <View key={mt} style={mealStyles.mealCard}>
+                              <View style={mealStyles.mealHeader}>
+                                <Text style={mealStyles.mealTitle}>
+                                  {MEAL_LABELS[mt]}
+                                </Text>
+                                {items.length > 0 && (
+                                  <Text style={mealStyles.mealKcalBadge}>
+                                    {items.reduce((s, m) => s + m.kcal, 0)} kcal
+                                  </Text>
+                                )}
+                              </View>
+                              {items.map((meal) => (
+                                <View key={meal.id} style={mealStyles.mealItem}>
+                                  {meal.photoUri && (
+                                    <TouchableOpacity
+                                      onPress={() =>
+                                        setZoomPhotoUri(meal.photoUri!)
+                                      }
+                                    >
+                                      <Image
+                                        source={{ uri: meal.photoUri }}
+                                        style={mealStyles.mealPhoto}
+                                      />
+                                    </TouchableOpacity>
+                                  )}
+                                  <View style={mealStyles.mealInfo}>
+                                    <Text
+                                      style={mealStyles.mealDesc}
+                                      numberOfLines={1}
+                                    >
+                                      {meal.description || "음식"}
+                                    </Text>
+                                    <View style={mealStyles.macroRow}>
+                                      <Text
+                                        style={[
+                                          mealStyles.macroText,
+                                          { color: "#E53E3E" },
+                                        ]}
+                                      >
+                                        탄 {meal.carb}g
+                                      </Text>
+                                      <Text
+                                        style={[
+                                          mealStyles.macroText,
+                                          { color: "#3182CE" },
+                                        ]}
+                                      >
+                                        단 {meal.protein}g
+                                      </Text>
+                                      <Text
+                                        style={[
+                                          mealStyles.macroText,
+                                          { color: "#D69E2E" },
+                                        ]}
+                                      >
+                                        지 {meal.fat}g
+                                      </Text>
+                                      <Text style={mealStyles.macroKcal}>
+                                        {meal.kcal}kcal
+                                      </Text>
+                                    </View>
+                                  </View>
+                                </View>
+                              ))}
+                            </View>
+                          );
+                        })}
                       </View>
                     );
                   })()}
-                {userSettings.metricDisplayVisibility?.waist !== false &&
-                  record.waist != null && (
-                    <Text style={styles.recordSub}>
-                      허리: {record.waist} cm
-                    </Text>
-                  )}
-                {userSettings.metricDisplayVisibility?.muscleMass !== false &&
-                  record.muscleMass != null && (
-                    <Text style={styles.recordSub}>
-                      골격근: {record.muscleMass} kg
-                    </Text>
-                  )}
-                {userSettings.metricDisplayVisibility?.bodyFatPercent !==
-                  false &&
-                  record.bodyFatPercent != null && (
-                    <Text style={styles.recordSub}>
-                      체지방률: {record.bodyFatPercent} %
-                    </Text>
-                  )}
-                {userSettings.metricDisplayVisibility?.bodyFatMass !== false &&
-                  record.bodyFatMass != null && (
-                    <Text style={styles.recordSub}>
-                      체지방량: {record.bodyFatMass} kg
-                    </Text>
-                  )}
-                {/* 사용자 정의 수치 표시 */}
-                {(userSettings.customMetrics ?? [])
-                  .filter(
-                    (cm) =>
-                      userSettings.metricDisplayVisibility?.[cm.key] !== false
-                  )
-                  .map((cm) => {
-                    const val = record.customValues?.[cm.key];
-                    if (val == null) return null;
-                    return (
-                      <Text key={cm.key} style={styles.recordSub}>
-                        {cm.label}: {val} {cm.unit}
-                      </Text>
-                    );
-                  })}
-                {record.photoUri && (
-                  <Image
-                    source={{ uri: record.photoUri }}
-                    style={styles.recordPhoto}
-                  />
-                )}
-                <View style={styles.badgeRow}>
-                  {record.exercised && (
-                    <View style={[styles.badge, styles.badgeExercise]}>
-                      <Text style={styles.badgeText}>운동</Text>
-                    </View>
-                  )}
-                  {record.drank && (
-                    <View style={[styles.badge, styles.badgeDrank]}>
-                      <Text style={styles.badgeText}>음주</Text>
-                    </View>
-                  )}
                 </View>
-                {/* 해당 날짜 식사 기록 */}
-                {(() => {
-                  const dayMeals = allMeals.filter(
-                    (m) => m.date === record.date
-                  );
-                  if (dayMeals.length === 0) return null;
-                  const mealTypes: MealType[] = [
-                    "breakfast",
-                    "lunch",
-                    "dinner",
-                    "snack",
-                  ];
-                  return (
-                    <View style={styles.recordMealsSection}>
-                      <Text style={styles.recordMealsTitle}>
-                        식사 {dayMeals.reduce((s, m) => s + m.kcal, 0)}kcal
-                      </Text>
-                      {mealTypes.map((mt) => {
-                        const items = dayMeals.filter((m) => m.mealType === mt);
-                        if (items.length === 0) return null;
-                        return (
-                          <View key={mt} style={mealStyles.mealCard}>
-                            <View style={mealStyles.mealHeader}>
-                              <Text style={mealStyles.mealTitle}>
-                                {MEAL_LABELS[mt]}
-                              </Text>
-                              {items.length > 0 && (
-                                <Text style={mealStyles.mealKcalBadge}>
-                                  {items.reduce((s, m) => s + m.kcal, 0)} kcal
-                                </Text>
-                              )}
-                            </View>
-                            {items.map((meal) => (
-                              <View key={meal.id} style={mealStyles.mealItem}>
-                                {meal.photoUri && (
-                                  <TouchableOpacity
-                                    onPress={() =>
-                                      setZoomPhotoUri(meal.photoUri!)
-                                    }
-                                  >
-                                    <Image
-                                      source={{ uri: meal.photoUri }}
-                                      style={mealStyles.mealPhoto}
-                                    />
-                                  </TouchableOpacity>
-                                )}
-                                <View style={mealStyles.mealInfo}>
-                                  <Text
-                                    style={mealStyles.mealDesc}
-                                    numberOfLines={1}
-                                  >
-                                    {meal.description || "음식"}
-                                  </Text>
-                                  <View style={mealStyles.macroRow}>
-                                    <Text
-                                      style={[
-                                        mealStyles.macroText,
-                                        { color: "#E53E3E" },
-                                      ]}
-                                    >
-                                      탄 {meal.carb}g
-                                    </Text>
-                                    <Text
-                                      style={[
-                                        mealStyles.macroText,
-                                        { color: "#3182CE" },
-                                      ]}
-                                    >
-                                      단 {meal.protein}g
-                                    </Text>
-                                    <Text
-                                      style={[
-                                        mealStyles.macroText,
-                                        { color: "#D69E2E" },
-                                      ]}
-                                    >
-                                      지 {meal.fat}g
-                                    </Text>
-                                    <Text style={mealStyles.macroKcal}>
-                                      {meal.kcal}kcal
-                                    </Text>
-                                  </View>
-                                </View>
-                              </View>
-                            ))}
-                          </View>
-                        );
-                      })}
-                    </View>
-                  );
-                })()}
-              </View>
-            ))
+              ))}
+              {visibleRecordCount < records.length && (
+                <TouchableOpacity
+                  style={{
+                    alignItems: "center",
+                    paddingVertical: 14,
+                    marginBottom: 8,
+                    backgroundColor: "#fff",
+                    borderRadius: 14,
+                    borderWidth: 1,
+                    borderColor: "#E2E8F0",
+                  }}
+                  onPress={() =>
+                    setVisibleRecordCount((c) => c + RECORDS_PER_PAGE)
+                  }
+                >
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      fontWeight: "600",
+                      color: "#4CAF50",
+                    }}
+                  >
+                    더보기 ({records.length - visibleRecordCount}개 남음)
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </>
           )}
         </ScrollView>
 
@@ -1327,57 +1338,363 @@ export default function HomeScreen() {
         />
 
         {/* 식사 입력 모달 */}
-        <Modal
-          visible={showMealModal}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setShowMealModal(false)}
-        >
-          <View style={mealModalStyles.overlay}>
-            <KeyboardAvoidingView
-              behavior={Platform.OS === "ios" ? "padding" : undefined}
-              style={{ width: "100%" }}
-            >
-              <View style={mealModalStyles.sheet}>
-                {/* 헤더 */}
-                <View style={mealModalStyles.header}>
-                  <Text style={mealModalStyles.title}>
-                    {MEAL_LABELS[mealModalType]} 추가
-                  </Text>
-                  <TouchableOpacity onPress={() => setShowMealModal(false)}>
-                    <Text style={mealModalStyles.closeBtn}>✕</Text>
-                  </TouchableOpacity>
-                </View>
+        {showMealModal && (
+          <Modal
+            visible
+            transparent
+            animationType="slide"
+            onRequestClose={() => setShowMealModal(false)}
+          >
+            <View style={mealModalStyles.overlay}>
+              <KeyboardAvoidingView
+                behavior={Platform.OS === "ios" ? "padding" : undefined}
+                style={{ width: "100%" }}
+              >
+                <View style={mealModalStyles.sheet}>
+                  {/* 헤더 */}
+                  <View style={mealModalStyles.header}>
+                    <Text style={mealModalStyles.title}>
+                      {MEAL_LABELS[mealModalType]} 추가
+                    </Text>
+                    <TouchableOpacity onPress={() => setShowMealModal(false)}>
+                      <Text style={mealModalStyles.closeBtn}>✕</Text>
+                    </TouchableOpacity>
+                  </View>
 
+                  <ScrollView
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                    contentContainerStyle={{ paddingBottom: 45 }}
+                  >
+                    {/* 사진 선택 */}
+                    <View style={mealModalStyles.photoRow}>
+                      {mealPhotoUri ? (
+                        <View style={{ position: "relative" }}>
+                          <Image
+                            source={{ uri: mealPhotoUri }}
+                            style={mealModalStyles.photoPreview}
+                          />
+                          {aiAnalyzing && (
+                            <View style={mealModalStyles.photoAnalyzingOverlay}>
+                              <ActivityIndicator size="large" color="#fff" />
+                              <Text style={mealModalStyles.photoAnalyzingText}>
+                                AI 분석 중...
+                              </Text>
+                            </View>
+                          )}
+                          <TouchableOpacity
+                            style={mealModalStyles.photoRemove}
+                            onPress={() => setMealPhotoUri(undefined)}
+                          >
+                            <Text
+                              style={{
+                                color: "#fff",
+                                fontSize: 12,
+                                fontWeight: "700",
+                              }}
+                            >
+                              ✕
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+                      ) : (
+                        <>
+                          <TouchableOpacity
+                            style={mealModalStyles.photoBtn}
+                            onPress={() => handleMealPhotoSelect("camera")}
+                          >
+                            <Text style={mealModalStyles.photoBtnText}>
+                              촬영
+                            </Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={mealModalStyles.photoBtn}
+                            onPress={() => handleMealPhotoSelect("gallery")}
+                          >
+                            <Text style={mealModalStyles.photoBtnText}>
+                              갤러리
+                            </Text>
+                          </TouchableOpacity>
+                        </>
+                      )}
+                    </View>
+
+                    {/* 음식 이름 */}
+                    <Text style={mealModalStyles.label}>음식 이름 *</Text>
+                    <TextInput
+                      style={mealModalStyles.input}
+                      value={mealDesc}
+                      onChangeText={setMealDesc}
+                      placeholder="예: 닭가슴살 볶음밥"
+                      placeholderTextColor="#CBD5E0"
+                    />
+
+                    {/* 영양소 입력 */}
+                    <Text style={mealModalStyles.label}>
+                      영양소 (먹은 양 전체)
+                    </Text>
+                    <View style={mealModalStyles.macroGrid}>
+                      {(
+                        [
+                          {
+                            label: "탄수화물(g)",
+                            value: mealCarb,
+                            key: "carb",
+                            color: "#E53E3E",
+                          },
+                          {
+                            label: "단백질(g)",
+                            value: mealProtein,
+                            key: "protein",
+                            color: "#3182CE",
+                          },
+                          {
+                            label: "지방(g)",
+                            value: mealFat,
+                            key: "fat",
+                            color: "#D69E2E",
+                          },
+                        ] as const
+                      ).map(({ label, value, key, color }) => (
+                        <View key={label} style={mealModalStyles.macroField}>
+                          <Text style={[mealModalStyles.macroLabel, { color }]}>
+                            {label}
+                          </Text>
+                          <TextInput
+                            style={mealModalStyles.macroInput}
+                            value={value}
+                            onChangeText={(v) => {
+                              const c = key === "carb" ? v : mealCarb;
+                              const p = key === "protein" ? v : mealProtein;
+                              const f = key === "fat" ? v : mealFat;
+                              if (key === "carb") setMealCarb(v);
+                              if (key === "protein") setMealProtein(v);
+                              if (key === "fat") setMealFat(v);
+                              const auto = Math.round(
+                                (parseFloat(c) || 0) * 4 +
+                                  (parseFloat(p) || 0) * 4 +
+                                  (parseFloat(f) || 0) * 9
+                              );
+                              setMealKcal(auto > 0 ? String(auto) : "");
+                            }}
+                            keyboardType="numeric"
+                            placeholder="0"
+                            placeholderTextColor="#CBD5E0"
+                          />
+                        </View>
+                      ))}
+                      <View style={mealModalStyles.macroField}>
+                        <Text
+                          style={[
+                            mealModalStyles.macroLabel,
+                            { color: "#718096" },
+                          ]}
+                        >
+                          칼로리(kcal)
+                        </Text>
+                        <TextInput
+                          style={[
+                            mealModalStyles.macroInput,
+                            { backgroundColor: "#F0F4F8" },
+                          ]}
+                          value={mealKcal}
+                          editable={false}
+                          placeholder="자동 계산"
+                          placeholderTextColor="#CBD5E0"
+                        />
+                      </View>
+                    </View>
+                    <Text style={mealModalStyles.kcalHint}>
+                      * 칼로리는 탄단지 입력 시 자동 계산됩니다
+                    </Text>
+
+                    <TouchableOpacity
+                      style={mealModalStyles.saveBtn}
+                      onPress={handleSaveMealEntry}
+                    >
+                      <Text style={mealModalStyles.saveBtnText}>저장</Text>
+                    </TouchableOpacity>
+                  </ScrollView>
+                </View>
+              </KeyboardAvoidingView>
+            </View>
+          </Modal>
+        )}
+
+        {/* 편집 팝업 모달 */}
+        {showEditModal && (
+          <Modal
+            visible
+            transparent
+            animationType="fade"
+            onRequestClose={() => {
+              setShowEditModal(false);
+              setEditRecord(null);
+            }}
+          >
+            <View style={editModalStyles.overlay}>
+              <TouchableOpacity
+                style={StyleSheet.absoluteFill}
+                activeOpacity={1}
+                onPress={() => {
+                  setShowEditModal(false);
+                  setEditRecord(null);
+                }}
+              />
+              <View style={editModalStyles.card}>
                 <ScrollView
                   showsVerticalScrollIndicator={false}
                   keyboardShouldPersistTaps="handled"
-                  contentContainerStyle={{ paddingBottom: 45 }}
+                  nestedScrollEnabled
+                  contentContainerStyle={{ paddingBottom: 20 }}
                 >
-                  {/* 사진 선택 */}
-                  <View style={mealModalStyles.photoRow}>
-                    {mealPhotoUri ? (
-                      <View style={{ position: "relative" }}>
-                        <Image
-                          source={{ uri: mealPhotoUri }}
-                          style={mealModalStyles.photoPreview}
+                  <Text style={editModalStyles.title}>
+                    {editRecord ? `${fmtDate(editRecord.date)} 수정` : "수정"}
+                  </Text>
+
+                  <Text style={editModalStyles.label}>몸무게 (kg) *</Text>
+                  <TextInput
+                    style={editModalStyles.input}
+                    value={emWeight}
+                    onChangeText={setEmWeight}
+                    keyboardType="decimal-pad"
+                    placeholder="0.0"
+                    placeholderTextColor="#aaa"
+                  />
+
+                  {userSettings.metricInputVisibility?.waist !== false && (
+                    <>
+                      <Text style={editModalStyles.label}>허리둘레 (cm)</Text>
+                      <TextInput
+                        style={editModalStyles.input}
+                        value={emWaist}
+                        onChangeText={setEmWaist}
+                        keyboardType="decimal-pad"
+                        placeholder="선택"
+                        placeholderTextColor="#aaa"
+                      />
+                    </>
+                  )}
+
+                  {userSettings.metricInputVisibility?.muscleMass !== false && (
+                    <>
+                      <Text style={editModalStyles.label}>골격근량 (kg)</Text>
+                      <TextInput
+                        style={editModalStyles.input}
+                        value={emMuscleMass}
+                        onChangeText={setEmMuscleMass}
+                        keyboardType="decimal-pad"
+                        placeholder="선택"
+                        placeholderTextColor="#aaa"
+                      />
+                    </>
+                  )}
+
+                  {userSettings.metricInputVisibility?.bodyFatPercent !==
+                    false && (
+                    <>
+                      <Text style={editModalStyles.label}>체지방률 (%)</Text>
+                      <TextInput
+                        style={editModalStyles.input}
+                        value={emBodyFatPercent}
+                        onChangeText={(v) => {
+                          setEmBodyFatPercent(v);
+                          const w = parseFloat(emWeight);
+                          const p = parseFloat(v);
+                          if (w > 0 && p >= 0 && !isNaN(p)) {
+                            setEmBodyFatMass(((w * p) / 100).toFixed(1));
+                          }
+                        }}
+                        keyboardType="decimal-pad"
+                        placeholder="선택"
+                        placeholderTextColor="#aaa"
+                      />
+                    </>
+                  )}
+
+                  {userSettings.metricInputVisibility?.bodyFatMass !==
+                    false && (
+                    <>
+                      <Text style={editModalStyles.label}>체지방량 (kg)</Text>
+                      <TextInput
+                        style={editModalStyles.input}
+                        value={emBodyFatMass}
+                        onChangeText={(v) => {
+                          setEmBodyFatMass(v);
+                          const w = parseFloat(emWeight);
+                          const m = parseFloat(v);
+                          if (w > 0 && m >= 0 && !isNaN(m)) {
+                            setEmBodyFatPercent(((m / w) * 100).toFixed(1));
+                          }
+                        }}
+                        keyboardType="decimal-pad"
+                        placeholder="선택"
+                        placeholderTextColor="#aaa"
+                      />
+                    </>
+                  )}
+
+                  {/* 사용자 정의 수치 */}
+                  {(userSettings.customMetrics ?? [])
+                    .filter(
+                      (cm) =>
+                        userSettings.metricInputVisibility?.[cm.key] !== false
+                    )
+                    .map((cm) => (
+                      <View key={cm.key}>
+                        <Text style={editModalStyles.label}>
+                          {cm.label} ({cm.unit})
+                        </Text>
+                        <TextInput
+                          style={editModalStyles.input}
+                          value={emCustomInputs[cm.key] ?? ""}
+                          onChangeText={(v) =>
+                            setEmCustomInputs((prev) => ({
+                              ...prev,
+                              [cm.key]: v,
+                            }))
+                          }
+                          keyboardType="decimal-pad"
+                          placeholder="선택"
+                          placeholderTextColor="#aaa"
                         />
-                        {aiAnalyzing && (
-                          <View style={mealModalStyles.photoAnalyzingOverlay}>
-                            <ActivityIndicator size="large" color="#fff" />
-                            <Text style={mealModalStyles.photoAnalyzingText}>
-                              AI 분석 중...
-                            </Text>
-                          </View>
-                        )}
+                      </View>
+                    ))}
+
+                  {/* 사진 */}
+                  <Text style={editModalStyles.label}>바디 사진</Text>
+                  <View style={{ marginBottom: 12 }}>
+                    {emPhotoUri ? (
+                      <View style={{ position: "relative", marginBottom: 8 }}>
+                        <Image
+                          source={{ uri: emPhotoUri }}
+                          style={{
+                            width: "100%",
+                            height: 160,
+                            borderRadius: 10,
+                          }}
+                        />
                         <TouchableOpacity
-                          style={mealModalStyles.photoRemove}
-                          onPress={() => setMealPhotoUri(undefined)}
+                          style={{
+                            position: "absolute",
+                            top: 6,
+                            right: 6,
+                            backgroundColor: "rgba(0,0,0,0.5)",
+                            width: 26,
+                            height: 26,
+                            borderRadius: 13,
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                          onPress={async () => {
+                            await deletePhoto(emPhotoUri!);
+                            setEmPhotoUri(undefined);
+                          }}
                         >
                           <Text
                             style={{
                               color: "#fff",
-                              fontSize: 12,
+                              fontSize: 13,
                               fontWeight: "700",
                             }}
                           >
@@ -1385,563 +1702,278 @@ export default function HomeScreen() {
                           </Text>
                         </TouchableOpacity>
                       </View>
-                    ) : (
-                      <>
-                        <TouchableOpacity
-                          style={mealModalStyles.photoBtn}
-                          onPress={() => handleMealPhotoSelect("camera")}
-                        >
-                          <Text style={mealModalStyles.photoBtnText}>촬영</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={mealModalStyles.photoBtn}
-                          onPress={() => handleMealPhotoSelect("gallery")}
-                        >
-                          <Text style={mealModalStyles.photoBtnText}>
-                            갤러리
-                          </Text>
-                        </TouchableOpacity>
-                      </>
-                    )}
-                  </View>
-
-                  {/* 음식 이름 */}
-                  <Text style={mealModalStyles.label}>음식 이름 *</Text>
-                  <TextInput
-                    style={mealModalStyles.input}
-                    value={mealDesc}
-                    onChangeText={setMealDesc}
-                    placeholder="예: 닭가슴살 볶음밥"
-                    placeholderTextColor="#CBD5E0"
-                  />
-
-                  {/* 영양소 입력 */}
-                  <Text style={mealModalStyles.label}>
-                    영양소 (먹은 양 전체)
-                  </Text>
-                  <View style={mealModalStyles.macroGrid}>
-                    {(
-                      [
-                        {
-                          label: "탄수화물(g)",
-                          value: mealCarb,
-                          key: "carb",
-                          color: "#E53E3E",
-                        },
-                        {
-                          label: "단백질(g)",
-                          value: mealProtein,
-                          key: "protein",
-                          color: "#3182CE",
-                        },
-                        {
-                          label: "지방(g)",
-                          value: mealFat,
-                          key: "fat",
-                          color: "#D69E2E",
-                        },
-                      ] as const
-                    ).map(({ label, value, key, color }) => (
-                      <View key={label} style={mealModalStyles.macroField}>
-                        <Text style={[mealModalStyles.macroLabel, { color }]}>
-                          {label}
-                        </Text>
-                        <TextInput
-                          style={mealModalStyles.macroInput}
-                          value={value}
-                          onChangeText={(v) => {
-                            const c = key === "carb" ? v : mealCarb;
-                            const p = key === "protein" ? v : mealProtein;
-                            const f = key === "fat" ? v : mealFat;
-                            if (key === "carb") setMealCarb(v);
-                            if (key === "protein") setMealProtein(v);
-                            if (key === "fat") setMealFat(v);
-                            const auto = Math.round(
-                              (parseFloat(c) || 0) * 4 +
-                                (parseFloat(p) || 0) * 4 +
-                                (parseFloat(f) || 0) * 9
-                            );
-                            setMealKcal(auto > 0 ? String(auto) : "");
-                          }}
-                          keyboardType="numeric"
-                          placeholder="0"
-                          placeholderTextColor="#CBD5E0"
-                        />
-                      </View>
-                    ))}
-                    <View style={mealModalStyles.macroField}>
-                      <Text
-                        style={[
-                          mealModalStyles.macroLabel,
-                          { color: "#718096" },
-                        ]}
-                      >
-                        칼로리(kcal)
-                      </Text>
-                      <TextInput
-                        style={[
-                          mealModalStyles.macroInput,
-                          { backgroundColor: "#F0F4F8" },
-                        ]}
-                        value={mealKcal}
-                        editable={false}
-                        placeholder="자동 계산"
-                        placeholderTextColor="#CBD5E0"
-                      />
-                    </View>
-                  </View>
-                  <Text style={mealModalStyles.kcalHint}>
-                    * 칼로리는 탄단지 입력 시 자동 계산됩니다
-                  </Text>
-
-                  <TouchableOpacity
-                    style={mealModalStyles.saveBtn}
-                    onPress={handleSaveMealEntry}
-                  >
-                    <Text style={mealModalStyles.saveBtnText}>저장</Text>
-                  </TouchableOpacity>
-                </ScrollView>
-              </View>
-            </KeyboardAvoidingView>
-          </View>
-        </Modal>
-
-        {/* 편집 팝업 모달 */}
-        <Modal
-          visible={showEditModal}
-          transparent
-          animationType="fade"
-          onRequestClose={() => {
-            setShowEditModal(false);
-            setEditRecord(null);
-          }}
-        >
-          <View style={editModalStyles.overlay}>
-            <TouchableOpacity
-              style={StyleSheet.absoluteFill}
-              activeOpacity={1}
-              onPress={() => {
-                setShowEditModal(false);
-                setEditRecord(null);
-              }}
-            />
-            <View style={editModalStyles.card}>
-              <ScrollView
-                showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
-                nestedScrollEnabled
-                contentContainerStyle={{ paddingBottom: 20 }}
-              >
-                <Text style={editModalStyles.title}>
-                  {editRecord ? `${fmtDate(editRecord.date)} 수정` : "수정"}
-                </Text>
-
-                <Text style={editModalStyles.label}>몸무게 (kg) *</Text>
-                <TextInput
-                  style={editModalStyles.input}
-                  value={emWeight}
-                  onChangeText={setEmWeight}
-                  keyboardType="decimal-pad"
-                  placeholder="0.0"
-                  placeholderTextColor="#aaa"
-                />
-
-                {userSettings.metricInputVisibility?.waist !== false && (
-                  <>
-                    <Text style={editModalStyles.label}>허리둘레 (cm)</Text>
-                    <TextInput
-                      style={editModalStyles.input}
-                      value={emWaist}
-                      onChangeText={setEmWaist}
-                      keyboardType="decimal-pad"
-                      placeholder="선택"
-                      placeholderTextColor="#aaa"
-                    />
-                  </>
-                )}
-
-                {userSettings.metricInputVisibility?.muscleMass !== false && (
-                  <>
-                    <Text style={editModalStyles.label}>골격근량 (kg)</Text>
-                    <TextInput
-                      style={editModalStyles.input}
-                      value={emMuscleMass}
-                      onChangeText={setEmMuscleMass}
-                      keyboardType="decimal-pad"
-                      placeholder="선택"
-                      placeholderTextColor="#aaa"
-                    />
-                  </>
-                )}
-
-                {userSettings.metricInputVisibility?.bodyFatPercent !==
-                  false && (
-                  <>
-                    <Text style={editModalStyles.label}>체지방률 (%)</Text>
-                    <TextInput
-                      style={editModalStyles.input}
-                      value={emBodyFatPercent}
-                      onChangeText={(v) => {
-                        setEmBodyFatPercent(v);
-                        const w = parseFloat(emWeight);
-                        const p = parseFloat(v);
-                        if (w > 0 && p >= 0 && !isNaN(p)) {
-                          setEmBodyFatMass(((w * p) / 100).toFixed(1));
-                        }
-                      }}
-                      keyboardType="decimal-pad"
-                      placeholder="선택"
-                      placeholderTextColor="#aaa"
-                    />
-                  </>
-                )}
-
-                {userSettings.metricInputVisibility?.bodyFatMass !== false && (
-                  <>
-                    <Text style={editModalStyles.label}>체지방량 (kg)</Text>
-                    <TextInput
-                      style={editModalStyles.input}
-                      value={emBodyFatMass}
-                      onChangeText={(v) => {
-                        setEmBodyFatMass(v);
-                        const w = parseFloat(emWeight);
-                        const m = parseFloat(v);
-                        if (w > 0 && m >= 0 && !isNaN(m)) {
-                          setEmBodyFatPercent(((m / w) * 100).toFixed(1));
-                        }
-                      }}
-                      keyboardType="decimal-pad"
-                      placeholder="선택"
-                      placeholderTextColor="#aaa"
-                    />
-                  </>
-                )}
-
-                {/* 사용자 정의 수치 */}
-                {(userSettings.customMetrics ?? [])
-                  .filter(
-                    (cm) =>
-                      userSettings.metricInputVisibility?.[cm.key] !== false
-                  )
-                  .map((cm) => (
-                    <View key={cm.key}>
-                      <Text style={editModalStyles.label}>
-                        {cm.label} ({cm.unit})
-                      </Text>
-                      <TextInput
-                        style={editModalStyles.input}
-                        value={emCustomInputs[cm.key] ?? ""}
-                        onChangeText={(v) =>
-                          setEmCustomInputs((prev) => ({
-                            ...prev,
-                            [cm.key]: v,
-                          }))
-                        }
-                        keyboardType="decimal-pad"
-                        placeholder="선택"
-                        placeholderTextColor="#aaa"
-                      />
-                    </View>
-                  ))}
-
-                {/* 사진 */}
-                <Text style={editModalStyles.label}>바디 사진</Text>
-                <View style={{ marginBottom: 12 }}>
-                  {emPhotoUri ? (
-                    <View style={{ position: "relative", marginBottom: 8 }}>
-                      <Image
-                        source={{ uri: emPhotoUri }}
-                        style={{ width: "100%", height: 160, borderRadius: 10 }}
-                      />
+                    ) : null}
+                    <View style={{ flexDirection: "row", gap: 8 }}>
                       <TouchableOpacity
                         style={{
-                          position: "absolute",
-                          top: 6,
-                          right: 6,
-                          backgroundColor: "rgba(0,0,0,0.5)",
-                          width: 26,
-                          height: 26,
-                          borderRadius: 13,
+                          flex: 1,
+                          backgroundColor: "#EDF2F7",
+                          borderRadius: 8,
+                          paddingVertical: 10,
                           alignItems: "center",
-                          justifyContent: "center",
                         }}
                         onPress={async () => {
-                          await deletePhoto(emPhotoUri!);
-                          setEmPhotoUri(undefined);
+                          const uri = await takePhoto(
+                            "body",
+                            userSettings.bodyPhotoQuality
+                          );
+                          if (uri) setEmPhotoUri(uri);
                         }}
                       >
                         <Text
                           style={{
-                            color: "#fff",
                             fontSize: 13,
-                            fontWeight: "700",
+                            fontWeight: "600",
+                            color: "#4A5568",
                           }}
                         >
-                          ✕
+                          {"촬영"}
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={{
+                          flex: 1,
+                          backgroundColor: "#EDF2F7",
+                          borderRadius: 8,
+                          paddingVertical: 10,
+                          alignItems: "center",
+                        }}
+                        onPress={async () => {
+                          const uri = await pickPhoto(
+                            "body",
+                            userSettings.bodyPhotoQuality
+                          );
+                          if (uri) setEmPhotoUri(uri);
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 13,
+                            fontWeight: "600",
+                            color: "#4A5568",
+                          }}
+                        >
+                          {"갤러리"}
                         </Text>
                       </TouchableOpacity>
                     </View>
-                  ) : null}
-                  <View style={{ flexDirection: "row", gap: 8 }}>
-                    <TouchableOpacity
-                      style={{
-                        flex: 1,
-                        backgroundColor: "#EDF2F7",
-                        borderRadius: 8,
-                        paddingVertical: 10,
-                        alignItems: "center",
-                      }}
-                      onPress={async () => {
-                        const uri = await takePhoto(
-                          "body",
-                          userSettings.bodyPhotoQuality
-                        );
-                        if (uri) setEmPhotoUri(uri);
-                      }}
-                    >
-                      <Text
-                        style={{
-                          fontSize: 13,
-                          fontWeight: "600",
-                          color: "#4A5568",
-                        }}
-                      >
-                        {"촬영"}
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={{
-                        flex: 1,
-                        backgroundColor: "#EDF2F7",
-                        borderRadius: 8,
-                        paddingVertical: 10,
-                        alignItems: "center",
-                      }}
-                      onPress={async () => {
-                        const uri = await pickPhoto(
-                          "body",
-                          userSettings.bodyPhotoQuality
-                        );
-                        if (uri) setEmPhotoUri(uri);
-                      }}
-                    >
-                      <Text
-                        style={{
-                          fontSize: 13,
-                          fontWeight: "600",
-                          color: "#4A5568",
-                        }}
-                      >
-                        {"갤러리"}
-                      </Text>
-                    </TouchableOpacity>
                   </View>
-                </View>
 
-                {userSettings.metricInputVisibility?.["exercised"] !==
-                  false && (
-                  <View style={editModalStyles.switchRow}>
-                    <Text style={editModalStyles.label}>{"🏃 운동"}</Text>
-                    <Switch
-                      value={emExercised}
-                      onValueChange={setEmExercised}
-                      trackColor={{ true: "#4CAF50", false: "#ddd" }}
-                      thumbColor="#fff"
-                    />
-                  </View>
-                )}
-                {userSettings.metricInputVisibility?.["drank"] !== false && (
-                  <View style={editModalStyles.switchRow}>
-                    <Text style={editModalStyles.label}>{"🍺 음주"}</Text>
-                    <Switch
-                      value={emDrank}
-                      onValueChange={setEmDrank}
-                      trackColor={{ true: "#FF9800", false: "#ddd" }}
-                      thumbColor="#fff"
-                    />
-                  </View>
-                )}
-                {(userSettings.customBoolMetrics ?? [])
-                  .filter(
-                    (cbm) =>
-                      userSettings.metricInputVisibility?.[cbm.key] !== false
-                  )
-                  .map((cbm) => (
-                    <View key={cbm.key} style={editModalStyles.switchRow}>
-                      <Text style={editModalStyles.label}>
-                        {cbm.emoji ? `${cbm.emoji} ` : ""}
-                        {cbm.label}
-                      </Text>
+                  {userSettings.metricInputVisibility?.["exercised"] !==
+                    false && (
+                    <View style={editModalStyles.switchRow}>
+                      <Text style={editModalStyles.label}>{"🏃 운동"}</Text>
                       <Switch
-                        value={emBoolCustomInputs[cbm.key] ?? false}
-                        onValueChange={(v) =>
-                          setEmBoolCustomInputs((prev) => ({
-                            ...prev,
-                            [cbm.key]: v,
-                          }))
-                        }
-                        trackColor={{ true: cbm.color, false: "#ddd" }}
+                        value={emExercised}
+                        onValueChange={setEmExercised}
+                        trackColor={{ true: "#4CAF50", false: "#ddd" }}
                         thumbColor="#fff"
                       />
                     </View>
-                  ))}
-
-                {/* ── 식사 기록 편집 ── */}
-                <View
-                  style={{
-                    marginTop: 16,
-                    borderTopWidth: 1,
-                    borderTopColor: "#F0F4F8",
-                    paddingTop: 12,
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 14,
-                      fontWeight: "600",
-                      color: "#2D3748",
-                      marginBottom: 8,
-                    }}
-                  >
-                    식사 기록
-                  </Text>
-                  {(
-                    ["breakfast", "lunch", "dinner", "snack"] as MealType[]
-                  ).map((mealType) => {
-                    const mealItems = emMeals.filter(
-                      (m) => m.mealType === mealType
-                    );
-                    return (
-                      <View key={mealType} style={mealStyles.mealCard}>
-                        <View style={mealStyles.mealHeader}>
-                          <Text style={mealStyles.mealTitle}>
-                            {MEAL_LABELS[mealType]}
-                          </Text>
-                          {mealItems.length > 0 && (
-                            <Text style={mealStyles.mealKcalBadge}>
-                              {mealItems.reduce((sum, m) => sum + m.kcal, 0)}{" "}
-                              kcal
-                            </Text>
-                          )}
-                        </View>
-                        {mealItems.map((meal) => (
-                          <View key={meal.id} style={mealStyles.mealItem}>
-                            {meal.photoUri && (
-                              <TouchableOpacity
-                                onPress={() => setZoomPhotoUri(meal.photoUri!)}
-                              >
-                                <Image
-                                  source={{ uri: meal.photoUri }}
-                                  style={mealStyles.mealPhoto}
-                                />
-                              </TouchableOpacity>
-                            )}
-                            <View style={mealStyles.mealInfo}>
-                              <TextInput
-                                style={[
-                                  mealStyles.mealDesc,
-                                  { padding: 0, marginBottom: 2 },
-                                ]}
-                                value={meal.description ?? ""}
-                                onChangeText={(v) =>
-                                  handleEditMealField(meal.id, "description", v)
-                                }
-                                placeholder="음식 이름"
-                                placeholderTextColor="#CBD5E0"
-                              />
-                              <View style={mealStyles.macroRow}>
-                                <Text
-                                  style={[
-                                    mealStyles.macroText,
-                                    { color: "#E53E3E" },
-                                  ]}
-                                >
-                                  탄 {meal.carb}g
-                                </Text>
-                                <Text
-                                  style={[
-                                    mealStyles.macroText,
-                                    { color: "#3182CE" },
-                                  ]}
-                                >
-                                  단 {meal.protein}g
-                                </Text>
-                                <Text
-                                  style={[
-                                    mealStyles.macroText,
-                                    { color: "#D69E2E" },
-                                  ]}
-                                >
-                                  지 {meal.fat}g
-                                </Text>
-                                <Text style={mealStyles.macroKcal}>
-                                  {meal.kcal}kcal
-                                </Text>
-                              </View>
-                            </View>
-                            <TouchableOpacity
-                              style={mealStyles.mealDeleteBtn}
-                              onPress={() => handleDeleteEmMeal(meal)}
-                            >
-                              <Text style={mealStyles.mealDeleteText}>✕</Text>
-                            </TouchableOpacity>
-                          </View>
-                        ))}
-                        <TouchableOpacity
-                          style={mealStyles.addBtn}
-                          onPress={() => handleAddMealInEdit(mealType)}
-                        >
-                          <Text style={mealStyles.addBtnText}>+ 음식 추가</Text>
-                        </TouchableOpacity>
+                  )}
+                  {userSettings.metricInputVisibility?.["drank"] !== false && (
+                    <View style={editModalStyles.switchRow}>
+                      <Text style={editModalStyles.label}>{"🍺 음주"}</Text>
+                      <Switch
+                        value={emDrank}
+                        onValueChange={setEmDrank}
+                        trackColor={{ true: "#FF9800", false: "#ddd" }}
+                        thumbColor="#fff"
+                      />
+                    </View>
+                  )}
+                  {(userSettings.customBoolMetrics ?? [])
+                    .filter(
+                      (cbm) =>
+                        userSettings.metricInputVisibility?.[cbm.key] !== false
+                    )
+                    .map((cbm) => (
+                      <View key={cbm.key} style={editModalStyles.switchRow}>
+                        <Text style={editModalStyles.label}>
+                          {cbm.emoji ? `${cbm.emoji} ` : ""}
+                          {cbm.label}
+                        </Text>
+                        <Switch
+                          value={emBoolCustomInputs[cbm.key] ?? false}
+                          onValueChange={(v) =>
+                            setEmBoolCustomInputs((prev) => ({
+                              ...prev,
+                              [cbm.key]: v,
+                            }))
+                          }
+                          trackColor={{ true: cbm.color, false: "#ddd" }}
+                          thumbColor="#fff"
+                        />
                       </View>
-                    );
-                  })}
-                </View>
+                    ))}
 
-                <View style={editModalStyles.btnRow}>
-                  <TouchableOpacity
-                    style={editModalStyles.saveBtn}
-                    onPress={handleEditModalSave}
-                  >
-                    <Text style={editModalStyles.saveBtnText}>저장</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={editModalStyles.cancelBtn}
-                    onPress={() => {
-                      setShowEditModal(false);
-                      setEditRecord(null);
+                  {/* ── 식사 기록 편집 ── */}
+                  <View
+                    style={{
+                      marginTop: 16,
+                      borderTopWidth: 1,
+                      borderTopColor: "#F0F4F8",
+                      paddingTop: 12,
                     }}
                   >
-                    <Text style={editModalStyles.cancelBtnText}>취소</Text>
-                  </TouchableOpacity>
-                </View>
-              </ScrollView>
+                    <Text
+                      style={{
+                        fontSize: 14,
+                        fontWeight: "600",
+                        color: "#2D3748",
+                        marginBottom: 8,
+                      }}
+                    >
+                      식사 기록
+                    </Text>
+                    {(
+                      ["breakfast", "lunch", "dinner", "snack"] as MealType[]
+                    ).map((mealType) => {
+                      const mealItems = emMeals.filter(
+                        (m) => m.mealType === mealType
+                      );
+                      return (
+                        <View key={mealType} style={mealStyles.mealCard}>
+                          <View style={mealStyles.mealHeader}>
+                            <Text style={mealStyles.mealTitle}>
+                              {MEAL_LABELS[mealType]}
+                            </Text>
+                            {mealItems.length > 0 && (
+                              <Text style={mealStyles.mealKcalBadge}>
+                                {mealItems.reduce((sum, m) => sum + m.kcal, 0)}{" "}
+                                kcal
+                              </Text>
+                            )}
+                          </View>
+                          {mealItems.map((meal) => (
+                            <View key={meal.id} style={mealStyles.mealItem}>
+                              {meal.photoUri && (
+                                <TouchableOpacity
+                                  onPress={() =>
+                                    setZoomPhotoUri(meal.photoUri!)
+                                  }
+                                >
+                                  <Image
+                                    source={{ uri: meal.photoUri }}
+                                    style={mealStyles.mealPhoto}
+                                  />
+                                </TouchableOpacity>
+                              )}
+                              <View style={mealStyles.mealInfo}>
+                                <TextInput
+                                  style={[
+                                    mealStyles.mealDesc,
+                                    { padding: 0, marginBottom: 2 },
+                                  ]}
+                                  value={meal.description ?? ""}
+                                  onChangeText={(v) =>
+                                    handleEditMealField(
+                                      meal.id,
+                                      "description",
+                                      v
+                                    )
+                                  }
+                                  placeholder="음식 이름"
+                                  placeholderTextColor="#CBD5E0"
+                                />
+                                <View style={mealStyles.macroRow}>
+                                  <Text
+                                    style={[
+                                      mealStyles.macroText,
+                                      { color: "#E53E3E" },
+                                    ]}
+                                  >
+                                    탄 {meal.carb}g
+                                  </Text>
+                                  <Text
+                                    style={[
+                                      mealStyles.macroText,
+                                      { color: "#3182CE" },
+                                    ]}
+                                  >
+                                    단 {meal.protein}g
+                                  </Text>
+                                  <Text
+                                    style={[
+                                      mealStyles.macroText,
+                                      { color: "#D69E2E" },
+                                    ]}
+                                  >
+                                    지 {meal.fat}g
+                                  </Text>
+                                  <Text style={mealStyles.macroKcal}>
+                                    {meal.kcal}kcal
+                                  </Text>
+                                </View>
+                              </View>
+                              <TouchableOpacity
+                                style={mealStyles.mealDeleteBtn}
+                                onPress={() => handleDeleteEmMeal(meal)}
+                              >
+                                <Text style={mealStyles.mealDeleteText}>✕</Text>
+                              </TouchableOpacity>
+                            </View>
+                          ))}
+                          <TouchableOpacity
+                            style={mealStyles.addBtn}
+                            onPress={() => handleAddMealInEdit(mealType)}
+                          >
+                            <Text style={mealStyles.addBtnText}>
+                              + 음식 추가
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+                      );
+                    })}
+                  </View>
+
+                  <View style={editModalStyles.btnRow}>
+                    <TouchableOpacity
+                      style={editModalStyles.saveBtn}
+                      onPress={handleEditModalSave}
+                    >
+                      <Text style={editModalStyles.saveBtnText}>저장</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={editModalStyles.cancelBtn}
+                      onPress={() => {
+                        setShowEditModal(false);
+                        setEditRecord(null);
+                      }}
+                    >
+                      <Text style={editModalStyles.cancelBtnText}>취소</Text>
+                    </TouchableOpacity>
+                  </View>
+                </ScrollView>
+              </View>
             </View>
-          </View>
-        </Modal>
+          </Modal>
+        )}
       </KeyboardAvoidingView>
 
       {/* 사진 확대 모달 */}
-      <Modal
-        visible={!!zoomPhotoUri}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setZoomPhotoUri(null)}
-      >
-        <TouchableOpacity
-          style={zoomStyles.overlay}
-          activeOpacity={1}
-          onPress={() => setZoomPhotoUri(null)}
+      {zoomPhotoUri && (
+        <Modal
+          visible
+          transparent
+          animationType="fade"
+          onRequestClose={() => setZoomPhotoUri(null)}
         >
-          {zoomPhotoUri && (
-            <Image
-              source={{ uri: zoomPhotoUri }}
-              style={zoomStyles.image}
-              resizeMode="contain"
-            />
-          )}
-        </TouchableOpacity>
-      </Modal>
+          <TouchableOpacity
+            style={zoomStyles.overlay}
+            activeOpacity={1}
+            onPress={() => setZoomPhotoUri(null)}
+          >
+            {zoomPhotoUri && (
+              <Image
+                source={{ uri: zoomPhotoUri }}
+                style={zoomStyles.image}
+                resizeMode="contain"
+              />
+            )}
+          </TouchableOpacity>
+        </Modal>
+      )}
     </View>
   );
 }
