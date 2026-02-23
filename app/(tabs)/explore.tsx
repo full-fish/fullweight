@@ -8,6 +8,7 @@ import {
   WeightRecord,
 } from "@/types";
 import {
+  calcDailyNutrition,
   fmtDate,
   fmtLabel,
   fmtMonthLabel,
@@ -17,7 +18,7 @@ import {
   monthKey,
   weekKey,
 } from "@/utils/format";
-import { loadRecords, loadUserSettings } from "@/utils/storage";
+import { loadMeals, loadRecords, loadUserSettings } from "@/utils/storage";
 import { useFocusEffect } from "@react-navigation/native";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
@@ -30,7 +31,7 @@ import {
 } from "react-native";
 import { LineChart } from "react-native-chart-kit";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import Svg, { Line as SvgLine } from "react-native-svg";
+import Svg, { Line as SvgLine, Text as SvgText } from "react-native-svg";
 
 const { width } = Dimensions.get("window");
 const CHART_WIDTH = width - 48;
@@ -81,13 +82,73 @@ export default function ChartScreen() {
   const [showActivityCal, setShowActivityCal] = useState(false);
   const [showActivityEndCal, setShowActivityEndCal] = useState(false);
 
+  /* ── 식사 데이터 (일별 합산) ── */
+  const [dailyMealMap, setDailyMealMap] = useState<
+    Record<string, { kcal: number; carb: number; protein: number; fat: number }>
+  >({});
+
   useFocusEffect(
     useCallback(() => {
       loadRecords().then((data) => {
         setAllRecords([...data].sort((a, b) => a.date.localeCompare(b.date)));
       });
       loadUserSettings().then(setUserSettings);
+      loadMeals().then((meals) => {
+        const map: Record<
+          string,
+          { kcal: number; carb: number; protein: number; fat: number }
+        > = {};
+        meals.forEach((m) => {
+          if (!map[m.date])
+            map[m.date] = { kcal: 0, carb: 0, protein: 0, fat: 0 };
+          map[m.date].kcal += m.kcal;
+          map[m.date].carb += m.carb;
+          map[m.date].protein += m.protein;
+          map[m.date].fat += m.fat;
+        });
+        setDailyMealMap(map);
+      });
     }, [])
+  );
+
+  /* ── 하루 권장 영양소 (그래프 기준선용) ── */
+  const dailyNutrition = useMemo(() => {
+    const s = userSettings;
+    if (!s.height || !s.gender || !s.birthDate || allRecords.length === 0)
+      return null;
+    const latest = allRecords[allRecords.length - 1];
+    return calcDailyNutrition({
+      weight: latest.weight,
+      targetWeight: latest.weight,
+      height: s.height,
+      gender: s.gender,
+      birthDate: s.birthDate,
+      periodDays: 30,
+      exerciseFreq: s.exerciseFreq ?? 0,
+      exerciseMins: s.exerciseMins ?? 60,
+      exerciseIntensity: s.exerciseIntensity ?? 1,
+      muscleMass: latest.muscleMass,
+      bodyFatPercent: latest.bodyFatPercent,
+    });
+  }, [userSettings, allRecords]);
+
+  /* ── 영양소 키 + 확장 getMetricValue ── */
+  const NUTRITION_KEYS = useMemo(
+    () => new Set(["kcal", "carb", "protein", "fat"]),
+    []
+  );
+
+  const getVal = useCallback(
+    (r: WeightRecord, key: string): number | null => {
+      if (NUTRITION_KEYS.has(key)) {
+        const dm = dailyMealMap[r.date];
+        if (!dm) return null;
+        const v = dm[key as keyof typeof dm];
+        return v > 0 ? Math.round(v) : null;
+      }
+      return getMetricValue(r, key);
+    },
+    [dailyMealMap, NUTRITION_KEYS]
   );
 
   /* ── 기간 필터 ── */
@@ -236,25 +297,25 @@ export default function ChartScreen() {
   const singleChartInfo = useMemo(() => {
     if (selectedMetrics.length !== 1) return null;
     const key = selectedMetrics[0];
-    const filtered = slicedData.filter((r) => getMetricValue(r, key) !== null);
-    const values = filtered.map((r) => getMetricValue(r, key)!);
+    const filtered = slicedData.filter((r) => getVal(r, key) !== null);
+    const values = filtered.map((r) => getVal(r, key)!);
     const labels = makeLabels(filtered);
     return { key, filtered, values: values.length > 0 ? values : [0], labels };
-  }, [slicedData, selectedMetrics, makeLabels]);
+  }, [slicedData, selectedMetrics, makeLabels, getVal]);
 
   /* ── 오버레이 차트 데이터 (정규화 + 모든 데이터 포함, 누락값은 빈칸) ── */
   const overlayInfo = useMemo(() => {
     if (selectedMetrics.length <= 1 || !overlayMode) return null;
     // 선택된 수치 중 하나라도 있는 레코드를 모두 사용
     const filtered = slicedData.filter((r) =>
-      selectedMetrics.some((key) => getMetricValue(r, key) !== null)
+      selectedMetrics.some((key) => getVal(r, key) !== null)
     );
     if (filtered.length < 2) return null;
     const labels = makeLabels(filtered);
     const ranges: Record<string, { min: number; max: number }> = {};
     const datasets = selectedMetrics
       .map((key) => {
-        const rawVals = filtered.map((r) => getMetricValue(r, key));
+        const rawVals = filtered.map((r) => getVal(r, key));
         const validVals = rawVals.filter((v): v is number => v !== null);
         if (validVals.length === 0) return null;
         const min = Math.min(...validVals);
@@ -328,23 +389,30 @@ export default function ChartScreen() {
     // 어느 위치가 널이었는지 추적 (데이셋 인덱스 순서와 동일)
     const nullMasks = selectedMetrics
       .filter((key) => {
-        const rawVals = filtered.map((r) => getMetricValue(r, key));
+        const rawVals = filtered.map((r) => getVal(r, key));
         return rawVals.some((v) => v !== null);
       })
-      .map((key) => filtered.map((r) => getMetricValue(r, key) === null));
+      .map((key) => filtered.map((r) => getVal(r, key) === null));
     return { filtered, labels, datasets, ranges, nullMasks };
-  }, [slicedData, selectedMetrics, overlayMode, makeLabels, userSettings]);
+  }, [
+    slicedData,
+    selectedMetrics,
+    overlayMode,
+    makeLabels,
+    userSettings,
+    getVal,
+  ]);
 
   /* ── 개별 차트 데이터 (전체 날짜 기반, 선형보간 + 점은 실제데이터만) ── */
   const separateCharts = useMemo(() => {
     if (selectedMetrics.length <= 1) return null;
     // 모든 수치가 하나의 통일된 X축(날짜) 기반을 사용
     const allDatesFiltered = slicedData.filter((r) =>
-      selectedMetrics.some((key) => getMetricValue(r, key) !== null)
+      selectedMetrics.some((key) => getVal(r, key) !== null)
     );
     const commonLabels = makeLabels(allDatesFiltered);
     return selectedMetrics.map((key) => {
-      const rawValues = allDatesFiltered.map((r) => getMetricValue(r, key));
+      const rawValues = allDatesFiltered.map((r) => getVal(r, key));
       const validValues = rawValues.filter((v): v is number => v !== null);
       // 선형보간: null 위치를 이전/다음 유효값 사이 직선으로
       // 양 끝 외삽은 하지 않음 (첫/마지막 유효값으로 평탄하게 유지)
@@ -397,19 +465,19 @@ export default function ChartScreen() {
         nullMask: rawValues.map((v) => v === null),
       };
     });
-  }, [slicedData, selectedMetrics, makeLabels]);
+  }, [slicedData, selectedMetrics, makeLabels, getVal]);
 
   /* ── 통계 ── */
   const statsRecords = useMemo(() => {
     let recs = allRecords;
     if (statsStart) recs = recs.filter((r) => r.date >= statsStart);
     if (statsEnd) recs = recs.filter((r) => r.date <= statsEnd);
-    return recs.filter((r) => getMetricValue(r, statsMetric) !== null);
-  }, [allRecords, statsStart, statsEnd, statsMetric]);
+    return recs.filter((r) => getVal(r, statsMetric) !== null);
+  }, [allRecords, statsStart, statsEnd, statsMetric, getVal]);
 
   const stats = useMemo(() => {
     if (statsRecords.length === 0) return null;
-    const vals = statsRecords.map((r) => getMetricValue(r, statsMetric)!);
+    const vals = statsRecords.map((r) => getVal(r, statsMetric)!);
     const current = vals[vals.length - 1];
     const max = Math.max(...vals);
     const min = Math.min(...vals);
@@ -419,9 +487,15 @@ export default function ChartScreen() {
     const customCm = userSettings.customMetrics?.find(
       (m) => m.key === statsMetric
     );
-    const unit = builtinUnit ?? customCm?.unit ?? "";
+    const nutriUnits: Record<string, string> = {
+      kcal: "kcal",
+      carb: "g",
+      protein: "g",
+      fat: "g",
+    };
+    const unit = builtinUnit ?? customCm?.unit ?? nutriUnits[statsMetric] ?? "";
     return { current, max, min, avg, diff, unit };
-  }, [statsRecords, statsMetric, userSettings.customMetrics]);
+  }, [statsRecords, statsMetric, userSettings.customMetrics, getVal]);
 
   /* ── 활동 요약 ── */
   const activityRecords = useMemo(() => {
@@ -467,6 +541,19 @@ export default function ChartScreen() {
     if (record.bodyFatMass != null)
       metrics.push({ icon: "체지방량", val: `${record.bodyFatMass} kg` });
 
+    // 영양소 정보 추가
+    const dm = dailyMealMap[record.date];
+    if (dm) {
+      if (dm.kcal > 0)
+        metrics.push({ icon: "🔥", val: `${Math.round(dm.kcal)} kcal` });
+      if (dm.carb > 0)
+        metrics.push({ icon: "탄수", val: `${Math.round(dm.carb)} g` });
+      if (dm.protein > 0)
+        metrics.push({ icon: "단백", val: `${Math.round(dm.protein)} g` });
+      if (dm.fat > 0)
+        metrics.push({ icon: "지방", val: `${Math.round(dm.fat)} g` });
+    }
+
     const fixedTop = 0;
 
     return (
@@ -492,15 +579,54 @@ export default function ChartScreen() {
     );
   };
 
-  /* ── 차트 데코레이터: 세로 점선 (SVG 내부 플롯 영역만) ── */
-  const makeDecorator = (chartHeight: number, dataLen: number) => {
-    if (!tooltipPoint || dataLen < 2) return undefined;
+  /* ── 차트 데코레이터: 세로 점선 + 영양소 권장량 가로 점선 ── */
+  const NUTRITION_TARGET_MAP: Record<string, number | undefined> =
+    dailyNutrition
+      ? {
+          kcal: dailyNutrition.kcal,
+          carb: dailyNutrition.carb,
+          protein: dailyNutrition.protein,
+          fat: dailyNutrition.fat,
+        }
+      : {};
+
+  const makeDecorator = (
+    chartHeight: number,
+    dataLen: number,
+    metricKey?: string,
+    dataValues?: number[]
+  ) => {
+    if (!tooltipPoint && !metricKey) return undefined;
+    if (dataLen < 2) return undefined;
     const CHART_LEFT_PAD = 64;
-    const plotTop = 16; // 차트 내부 상단 패딩
-    const plotBottom = chartHeight - 32; // 하단 X축 라벨 영역 제외
-    const dotX =
-      CHART_LEFT_PAD +
-      (tooltipPoint.index * (CHART_WIDTH - CHART_LEFT_PAD)) / dataLen;
+    const plotTop = 16;
+    const plotBottom = chartHeight - 32;
+    const plotH = plotBottom - plotTop;
+
+    // 영양소 권장량 가로선 Y좌표 계산
+    let targetY: number | null = null;
+    let targetLabel = "";
+    if (
+      metricKey &&
+      NUTRITION_KEYS.has(metricKey) &&
+      dataValues &&
+      dataValues.length > 0
+    ) {
+      const targetVal = NUTRITION_TARGET_MAP[metricKey];
+      if (targetVal != null) {
+        const padFactor = yPadding * 0.01;
+        const dataMin = Math.min(...dataValues) * (1 - padFactor);
+        const dataMax = Math.max(...dataValues) * (1 + padFactor);
+        const range = dataMax - dataMin || 1;
+        // chart-kit은 위가 max, 아래가 min
+        const ratio = (targetVal - dataMin) / range;
+        targetY = plotBottom - ratio * plotH;
+        targetLabel =
+          metricKey === "kcal" ? `권장 ${targetVal}kcal` : `권장 ${targetVal}g`;
+      }
+    }
+
+    // eslint-disable-next-line react/display-name
     return () => (
       <Svg
         width={CHART_WIDTH}
@@ -508,15 +634,46 @@ export default function ChartScreen() {
         style={{ position: "absolute", left: 0, top: 0 }}
         pointerEvents="none"
       >
-        <SvgLine
-          x1={dotX}
-          y1={plotTop}
-          x2={dotX}
-          y2={plotBottom}
-          stroke="#718096"
-          strokeWidth={1}
-          strokeDasharray="4,4"
-        />
+        {tooltipPoint &&
+          (() => {
+            const dotX =
+              CHART_LEFT_PAD +
+              (tooltipPoint.index * (CHART_WIDTH - CHART_LEFT_PAD)) / dataLen;
+            return (
+              <SvgLine
+                x1={dotX}
+                y1={plotTop}
+                x2={dotX}
+                y2={plotBottom}
+                stroke="#718096"
+                strokeWidth={1}
+                strokeDasharray="4,4"
+              />
+            );
+          })()}
+        {targetY != null && targetY >= plotTop && targetY <= plotBottom && (
+          <>
+            <SvgLine
+              x1={CHART_LEFT_PAD}
+              y1={targetY}
+              x2={CHART_WIDTH}
+              y2={targetY}
+              stroke="#E53E3E"
+              strokeWidth={1}
+              strokeDasharray="6,4"
+            />
+            <SvgText
+              x={CHART_WIDTH - 4}
+              y={targetY - 4}
+              fill="#E53E3E"
+              fontSize={9}
+              fontWeight="600"
+              textAnchor="end"
+            >
+              {targetLabel}
+            </SvgText>
+          </>
+        )}
       </Svg>
     );
   };
@@ -533,6 +690,10 @@ export default function ChartScreen() {
     { key: "muscleMass", label: "골격근량", unit: "kg", color: "#2196F3" },
     { key: "bodyFatPercent", label: "체지방률", unit: "%", color: "#E91E63" },
     { key: "bodyFatMass", label: "체지방량", unit: "kg", color: "#9C27B0" },
+    { key: "kcal", label: "칼로리", unit: "kcal", color: "#E53E3E" },
+    { key: "carb", label: "탄수화물", unit: "g", color: "#F6AD55" },
+    { key: "protein", label: "단백질", unit: "g", color: "#FC8181" },
+    { key: "fat", label: "지방", unit: "g", color: "#63B3ED" },
     ...(userSettings.customMetrics ?? []).map((cm) => ({
       key: cm.key,
       label: cm.label,
@@ -821,14 +982,25 @@ export default function ChartScreen() {
                       fill: getMetricInfo(singleChartInfo.key).color,
                     },
                     propsForBackgroundLines: { stroke: "#F0F4F8" },
-                    decimalPlaces: 1,
+                    decimalPlaces: NUTRITION_KEYS.has(singleChartInfo.key)
+                      ? 0
+                      : 1,
                   }}
                   bezier
                   style={s.chart}
                   withVerticalLines={false}
                   withShadow={false}
-                  formatYLabel={(v) => parseFloat(v).toFixed(1)}
-                  decorator={makeDecorator(220, singleChartInfo.values.length)}
+                  formatYLabel={(v) =>
+                    NUTRITION_KEYS.has(singleChartInfo.key)
+                      ? Math.round(parseFloat(v)).toString()
+                      : parseFloat(v).toFixed(1)
+                  }
+                  decorator={makeDecorator(
+                    220,
+                    singleChartInfo.values.length,
+                    singleChartInfo.key,
+                    singleChartInfo.values
+                  )}
                 />
               )}
 
@@ -1005,15 +1177,24 @@ export default function ChartScreen() {
                             propsForBackgroundLines: {
                               stroke: "#F0F4F8",
                             },
-                            decimalPlaces: 1,
+                            decimalPlaces: NUTRITION_KEYS.has(info.key) ? 0 : 1,
                           } as unknown as import("react-native-chart-kit/dist/AbstractChart").AbstractChartConfig
                         }
                         bezier
                         style={s.chart}
                         withVerticalLines={false}
                         withShadow={false}
-                        formatYLabel={(v) => parseFloat(v).toFixed(1)}
-                        decorator={makeDecorator(160, info.values.length)}
+                        formatYLabel={(v) =>
+                          NUTRITION_KEYS.has(info.key)
+                            ? Math.round(parseFloat(v)).toString()
+                            : parseFloat(v).toFixed(1)
+                        }
+                        decorator={makeDecorator(
+                          160,
+                          info.values.length,
+                          info.key,
+                          info.values
+                        )}
                       />
                     ) : (
                       <View style={s.emptyMiniChart}>

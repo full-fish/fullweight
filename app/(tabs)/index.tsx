@@ -97,10 +97,6 @@ export default function HomeScreen() {
   /* 전체 식사 기록 (기록 목록용) */
   const [allMeals, setAllMeals] = useState<MealEntry[]>([]);
 
-  /* 접기/펼치기 상태 */
-  const [recordExpanded, setRecordExpanded] = useState(false);
-  const [mealExpanded, setMealExpanded] = useState(false);
-
   /* 편집 모달 상태 */
   const [showEditModal, setShowEditModal] = useState(false);
   const [editRecord, setEditRecord] = useState<WeightRecord | null>(null);
@@ -346,6 +342,11 @@ export default function HomeScreen() {
     if (!s.height || !s.gender || !s.birthDate || isNaN(w) || w <= 0)
       return null;
 
+    const curMuscleMass = muscleMass ? parseFloat(muscleMass) : undefined;
+    const curBodyFatPct = bodyFatPercent
+      ? parseFloat(bodyFatPercent)
+      : undefined;
+
     // 챌린지가 있고 targetWeight이 설정되어 있으면 챌린지 기준으로 계산
     if (challenge && challenge.targetWeight) {
       const today = getLocalDateString();
@@ -360,6 +361,10 @@ export default function HomeScreen() {
         exerciseFreq: s.exerciseFreq ?? 0,
         exerciseMins: s.exerciseMins ?? 60,
         exerciseIntensity: s.exerciseIntensity ?? 1,
+        muscleMass: curMuscleMass,
+        bodyFatPercent: curBodyFatPct,
+        targetMuscleMass: challenge.targetMuscleMass,
+        targetBodyFatPercent: challenge.targetBodyFatPercent,
       });
     }
 
@@ -374,8 +379,10 @@ export default function HomeScreen() {
       exerciseFreq: s.exerciseFreq ?? 0,
       exerciseMins: s.exerciseMins ?? 60,
       exerciseIntensity: s.exerciseIntensity ?? 1,
+      muscleMass: curMuscleMass,
+      bodyFatPercent: curBodyFatPct,
     });
-  }, [userSettings, weight, challenge]);
+  }, [userSettings, weight, challenge, muscleMass, bodyFatPercent]);
 
   const handleSave = async () => {
     const w = parseFloat(weight);
@@ -603,531 +610,466 @@ export default function HomeScreen() {
         >
           {/* 입력 카드 */}
           <View style={styles.card}>
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() => setRecordExpanded(!recordExpanded)}
-              style={styles.cardTitleRow}
-            >
+            <View style={styles.cardTitleRow}>
               <Text style={styles.cardTitle}>
                 {isToday ? "오늘의 기록" : "기록"}
               </Text>
-              <View
-                style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
-              >
-                {!recordExpanded && weight ? (
-                  <Text style={{ fontSize: 14, color: "#718096" }}>
-                    {weight}kg
-                  </Text>
-                ) : null}
-                <Text style={{ fontSize: 14, color: "#A0AEC0" }}>
-                  {recordExpanded ? "▲" : "▼"}
-                </Text>
-              </View>
-            </TouchableOpacity>
-            {recordExpanded && (
-              <>
-                <View style={[styles.cardTitleRow, { marginTop: 0 }]}>
-                  <View />
-                  <View style={styles.cardDateSelector}>
-                    {!isToday && (
-                      <TouchableOpacity
-                        style={styles.todayLink}
-                        onPress={() => handleDateSelect(getLocalDateString())}
-                      >
-                        <Text style={styles.todayLinkText}>오늘 ↩</Text>
-                      </TouchableOpacity>
-                    )}
-                    <TouchableOpacity
-                      onPress={() => {
-                        const d = new Date(selectedDate);
-                        d.setDate(d.getDate() - 1);
-                        handleDateSelect(getLocalDateString(d));
-                      }}
-                      style={styles.cardDateArrow}
-                    >
-                      <Text style={styles.cardDateArrowText}>◀</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      onPress={() => setShowDatePicker(true)}
-                      style={styles.cardDateTouchable}
-                    >
-                      <Text style={styles.cardDateText}>
-                        {fmtDate(selectedDate)}
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      onPress={() => {
-                        if (!isToday) {
-                          const d = new Date(selectedDate);
-                          d.setDate(d.getDate() + 1);
-                          const next = getLocalDateString(d);
-                          if (next <= getLocalDateString()) {
-                            handleDateSelect(next);
-                          }
-                        }
-                      }}
-                      style={[
-                        styles.cardDateArrow,
-                        isToday && { opacity: 0.3 },
-                      ]}
-                      disabled={isToday}
-                    >
-                      <Text style={styles.cardDateArrowText}>▶</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-
-                <Text style={styles.label}>몸무게</Text>
-                <View style={styles.inputRow}>
+            </View>
+            <View style={[styles.cardTitleRow, { marginTop: 0 }]}>
+              <View />
+              <View style={styles.cardDateSelector}>
+                {!isToday && (
                   <TouchableOpacity
-                    style={styles.stepBtn}
-                    onPress={() => {
-                      const v = parseFloat(weight) || 0;
-                      setWeight(Math.max(0, v - 0.1).toFixed(1));
-                    }}
+                    style={styles.todayLink}
+                    onPress={() => handleDateSelect(getLocalDateString())}
                   >
-                    <Text style={styles.stepBtnText}>▼</Text>
+                    <Text style={styles.todayLinkText}>오늘 ↩</Text>
                   </TouchableOpacity>
+                )}
+                <TouchableOpacity
+                  onPress={() => {
+                    const d = new Date(selectedDate);
+                    d.setDate(d.getDate() - 1);
+                    handleDateSelect(getLocalDateString(d));
+                  }}
+                  style={styles.cardDateArrow}
+                >
+                  <Text style={styles.cardDateArrowText}>◀</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setShowDatePicker(true)}
+                  style={styles.cardDateTouchable}
+                >
+                  <Text style={styles.cardDateText}>
+                    {fmtDate(selectedDate)}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => {
+                    if (!isToday) {
+                      const d = new Date(selectedDate);
+                      d.setDate(d.getDate() + 1);
+                      const next = getLocalDateString(d);
+                      if (next <= getLocalDateString()) {
+                        handleDateSelect(next);
+                      }
+                    }
+                  }}
+                  style={[styles.cardDateArrow, isToday && { opacity: 0.3 }]}
+                  disabled={isToday}
+                >
+                  <Text style={styles.cardDateArrowText}>▶</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <Text style={styles.label}>몸무게</Text>
+            <View style={styles.inputRow}>
+              <TouchableOpacity
+                style={styles.stepBtn}
+                onPress={() => {
+                  const v = parseFloat(weight) || 0;
+                  setWeight(Math.max(0, v - 0.1).toFixed(1));
+                }}
+              >
+                <Text style={styles.stepBtnText}>▼</Text>
+              </TouchableOpacity>
+              <TextInput
+                style={[styles.input, { textAlign: "center" }]}
+                value={weight}
+                onChangeText={setWeight}
+                placeholder="0.0"
+                placeholderTextColor="#aaa"
+                keyboardType="decimal-pad"
+              />
+              <TouchableOpacity
+                style={styles.stepBtn}
+                onPress={() => {
+                  const v = parseFloat(weight) || 0;
+                  setWeight((v + 0.1).toFixed(1));
+                }}
+              >
+                <Text style={styles.stepBtnText}>▲</Text>
+              </TouchableOpacity>
+              <Text style={styles.unit}>kg</Text>
+            </View>
+
+            {userSettings.metricInputVisibility?.waist !== false && (
+              <>
+                <Text style={styles.label}>허리둘레</Text>
+                <View style={styles.inputRow}>
                   <TextInput
-                    style={[styles.input, { textAlign: "center" }]}
-                    value={weight}
-                    onChangeText={setWeight}
+                    style={styles.input}
+                    value={waist}
+                    onChangeText={setWaist}
                     placeholder="0.0"
                     placeholderTextColor="#aaa"
                     keyboardType="decimal-pad"
                   />
-                  <TouchableOpacity
-                    style={styles.stepBtn}
-                    onPress={() => {
-                      const v = parseFloat(weight) || 0;
-                      setWeight((v + 0.1).toFixed(1));
-                    }}
-                  >
-                    <Text style={styles.stepBtnText}>▲</Text>
-                  </TouchableOpacity>
-                  <Text style={styles.unit}>kg</Text>
+                  <Text style={styles.unit}>cm</Text>
                 </View>
-
-                {userSettings.metricInputVisibility?.waist !== false && (
-                  <>
-                    <Text style={styles.label}>허리둘레</Text>
-                    <View style={styles.inputRow}>
-                      <TextInput
-                        style={styles.input}
-                        value={waist}
-                        onChangeText={setWaist}
-                        placeholder="0.0"
-                        placeholderTextColor="#aaa"
-                        keyboardType="decimal-pad"
-                      />
-                      <Text style={styles.unit}>cm</Text>
-                    </View>
-                  </>
-                )}
-
-                {userSettings.metricInputVisibility?.muscleMass !== false && (
-                  <>
-                    <Text style={styles.label}>골격근량</Text>
-                    <View style={styles.inputRow}>
-                      <TextInput
-                        style={styles.input}
-                        value={muscleMass}
-                        onChangeText={setMuscleMass}
-                        placeholder="0.0"
-                        placeholderTextColor="#aaa"
-                        keyboardType="decimal-pad"
-                      />
-                      <Text style={styles.unit}>kg</Text>
-                    </View>
-                  </>
-                )}
-
-                {userSettings.metricInputVisibility?.bodyFatPercent !==
-                  false && (
-                  <>
-                    <Text style={styles.label}>체지방률</Text>
-                    <View style={styles.inputRow}>
-                      <TextInput
-                        style={styles.input}
-                        value={bodyFatPercent}
-                        onChangeText={(v) => {
-                          setBodyFatPercent(v);
-                          const w = parseFloat(weight);
-                          const p = parseFloat(v);
-                          if (w > 0 && p >= 0 && !isNaN(p)) {
-                            setBodyFatMass(((w * p) / 100).toFixed(1));
-                          }
-                        }}
-                        placeholder="0.0"
-                        placeholderTextColor="#aaa"
-                        keyboardType="decimal-pad"
-                      />
-                      <Text style={styles.unit}>%</Text>
-                    </View>
-                  </>
-                )}
-
-                {userSettings.metricInputVisibility?.bodyFatMass !== false && (
-                  <>
-                    <Text style={styles.label}>체지방량</Text>
-                    <View style={styles.inputRow}>
-                      <TextInput
-                        style={styles.input}
-                        value={bodyFatMass}
-                        onChangeText={(v) => {
-                          setBodyFatMass(v);
-                          const w = parseFloat(weight);
-                          const m = parseFloat(v);
-                          if (w > 0 && m >= 0 && !isNaN(m)) {
-                            setBodyFatPercent(((m / w) * 100).toFixed(1));
-                          }
-                        }}
-                        placeholder="0.0"
-                        placeholderTextColor="#aaa"
-                        keyboardType="decimal-pad"
-                      />
-                      <Text style={styles.unit}>kg</Text>
-                    </View>
-                  </>
-                )}
-
-                {/* 사용자 정의 수치 */}
-                {(userSettings.customMetrics ?? [])
-                  .filter(
-                    (cm) =>
-                      userSettings.metricInputVisibility?.[cm.key] !== false
-                  )
-                  .map((cm) => (
-                    <View key={cm.key}>
-                      <Text style={styles.label}>{cm.label}</Text>
-                      <View style={styles.inputRow}>
-                        <TextInput
-                          style={styles.input}
-                          value={customInputs[cm.key] ?? ""}
-                          onChangeText={(v) =>
-                            setCustomInputs((prev) => ({
-                              ...prev,
-                              [cm.key]: v,
-                            }))
-                          }
-                          placeholder="0.0"
-                          placeholderTextColor="#aaa"
-                          keyboardType="decimal-pad"
-                        />
-                        <Text style={styles.unit}>{cm.unit}</Text>
-                      </View>
-                    </View>
-                  ))}
-
-                {/* 사진 */}
-                <Text style={styles.label}>바디 사진</Text>
-                <View style={styles.photoSection}>
-                  {photoUri ? (
-                    <View style={styles.photoPreviewWrap}>
-                      <Image
-                        source={{ uri: photoUri }}
-                        style={styles.photoPreview}
-                      />
-                      <TouchableOpacity
-                        style={styles.photoRemoveBtn}
-                        onPress={async () => {
-                          await deletePhoto(photoUri);
-                          setPhotoUri(undefined);
-                        }}
-                      >
-                        <Text style={styles.photoRemoveText}>✕</Text>
-                      </TouchableOpacity>
-                    </View>
-                  ) : null}
-                  <View style={styles.photoBtnRow}>
-                    <TouchableOpacity
-                      style={styles.photoBtn}
-                      onPress={async () => {
-                        const uri = await takePhoto(
-                          "body",
-                          userSettings.bodyPhotoQuality
-                        );
-                        if (uri) setPhotoUri(uri);
-                      }}
-                    >
-                      <Text style={styles.photoBtnText}>촬영</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.photoBtn}
-                      onPress={async () => {
-                        const uri = await pickPhoto(
-                          "body",
-                          userSettings.bodyPhotoQuality
-                        );
-                        if (uri) setPhotoUri(uri);
-                      }}
-                    >
-                      <Text style={styles.photoBtnText}>갤러리</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-
-                <View style={styles.switchGroup}>
-                  {userSettings.metricInputVisibility?.["exercised"] !==
-                    false && (
-                    <View style={styles.switchRow}>
-                      <Text style={styles.switchLabel}>
-                        🏃 오늘 운동했나요?
-                      </Text>
-                      <Switch
-                        value={exercised}
-                        onValueChange={setExercised}
-                        trackColor={{ true: "#4CAF50", false: "#ddd" }}
-                        thumbColor="#fff"
-                      />
-                    </View>
-                  )}
-                  {userSettings.metricInputVisibility?.["drank"] !== false && (
-                    <View style={styles.switchRow}>
-                      <Text style={styles.switchLabel}>
-                        🍺 오늘 음주했나요?
-                      </Text>
-                      <Switch
-                        value={drank}
-                        onValueChange={setDrank}
-                        trackColor={{ true: "#FF9800", false: "#ddd" }}
-                        thumbColor="#fff"
-                      />
-                    </View>
-                  )}
-                  {(userSettings.customBoolMetrics ?? [])
-                    .filter(
-                      (cbm) =>
-                        userSettings.metricInputVisibility?.[cbm.key] !== false
-                    )
-                    .map((cbm) => (
-                      <View key={cbm.key} style={styles.switchRow}>
-                        <Text style={styles.switchLabel}>
-                          {cbm.emoji ? `${cbm.emoji} ` : ""}오늘 {cbm.label}
-                          했나요?
-                        </Text>
-                        <Switch
-                          value={boolCustomInputs[cbm.key] ?? false}
-                          onValueChange={(v) =>
-                            setBoolCustomInputs((prev) => ({
-                              ...prev,
-                              [cbm.key]: v,
-                            }))
-                          }
-                          trackColor={{ true: cbm.color, false: "#ddd" }}
-                          thumbColor="#fff"
-                        />
-                      </View>
-                    ))}
-                </View>
-
-                <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
-                  <Text style={styles.saveBtnText}>저장하기</Text>
-                </TouchableOpacity>
               </>
             )}
+
+            {userSettings.metricInputVisibility?.muscleMass !== false && (
+              <>
+                <Text style={styles.label}>골격근량</Text>
+                <View style={styles.inputRow}>
+                  <TextInput
+                    style={styles.input}
+                    value={muscleMass}
+                    onChangeText={setMuscleMass}
+                    placeholder="0.0"
+                    placeholderTextColor="#aaa"
+                    keyboardType="decimal-pad"
+                  />
+                  <Text style={styles.unit}>kg</Text>
+                </View>
+              </>
+            )}
+
+            {userSettings.metricInputVisibility?.bodyFatPercent !== false && (
+              <>
+                <Text style={styles.label}>체지방률</Text>
+                <View style={styles.inputRow}>
+                  <TextInput
+                    style={styles.input}
+                    value={bodyFatPercent}
+                    onChangeText={(v) => {
+                      setBodyFatPercent(v);
+                      const w = parseFloat(weight);
+                      const p = parseFloat(v);
+                      if (w > 0 && p >= 0 && !isNaN(p)) {
+                        setBodyFatMass(((w * p) / 100).toFixed(1));
+                      }
+                    }}
+                    placeholder="0.0"
+                    placeholderTextColor="#aaa"
+                    keyboardType="decimal-pad"
+                  />
+                  <Text style={styles.unit}>%</Text>
+                </View>
+              </>
+            )}
+
+            {userSettings.metricInputVisibility?.bodyFatMass !== false && (
+              <>
+                <Text style={styles.label}>체지방량</Text>
+                <View style={styles.inputRow}>
+                  <TextInput
+                    style={styles.input}
+                    value={bodyFatMass}
+                    onChangeText={(v) => {
+                      setBodyFatMass(v);
+                      const w = parseFloat(weight);
+                      const m = parseFloat(v);
+                      if (w > 0 && m >= 0 && !isNaN(m)) {
+                        setBodyFatPercent(((m / w) * 100).toFixed(1));
+                      }
+                    }}
+                    placeholder="0.0"
+                    placeholderTextColor="#aaa"
+                    keyboardType="decimal-pad"
+                  />
+                  <Text style={styles.unit}>kg</Text>
+                </View>
+              </>
+            )}
+
+            {/* 사용자 정의 수치 */}
+            {(userSettings.customMetrics ?? [])
+              .filter(
+                (cm) => userSettings.metricInputVisibility?.[cm.key] !== false
+              )
+              .map((cm) => (
+                <View key={cm.key}>
+                  <Text style={styles.label}>{cm.label}</Text>
+                  <View style={styles.inputRow}>
+                    <TextInput
+                      style={styles.input}
+                      value={customInputs[cm.key] ?? ""}
+                      onChangeText={(v) =>
+                        setCustomInputs((prev) => ({
+                          ...prev,
+                          [cm.key]: v,
+                        }))
+                      }
+                      placeholder="0.0"
+                      placeholderTextColor="#aaa"
+                      keyboardType="decimal-pad"
+                    />
+                    <Text style={styles.unit}>{cm.unit}</Text>
+                  </View>
+                </View>
+              ))}
+
+            {/* 사진 */}
+            <Text style={styles.label}>바디 사진</Text>
+            <View style={styles.photoSection}>
+              {photoUri ? (
+                <View style={styles.photoPreviewWrap}>
+                  <Image
+                    source={{ uri: photoUri }}
+                    style={styles.photoPreview}
+                  />
+                  <TouchableOpacity
+                    style={styles.photoRemoveBtn}
+                    onPress={async () => {
+                      await deletePhoto(photoUri);
+                      setPhotoUri(undefined);
+                    }}
+                  >
+                    <Text style={styles.photoRemoveText}>✕</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : null}
+              <View style={styles.photoBtnRow}>
+                <TouchableOpacity
+                  style={styles.photoBtn}
+                  onPress={async () => {
+                    const uri = await takePhoto(
+                      "body",
+                      userSettings.bodyPhotoQuality
+                    );
+                    if (uri) setPhotoUri(uri);
+                  }}
+                >
+                  <Text style={styles.photoBtnText}>촬영</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.photoBtn}
+                  onPress={async () => {
+                    const uri = await pickPhoto(
+                      "body",
+                      userSettings.bodyPhotoQuality
+                    );
+                    if (uri) setPhotoUri(uri);
+                  }}
+                >
+                  <Text style={styles.photoBtnText}>갤러리</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View style={styles.switchGroup}>
+              {userSettings.metricInputVisibility?.["exercised"] !== false && (
+                <View style={styles.switchRow}>
+                  <Text style={styles.switchLabel}>🏃 오늘 운동했나요?</Text>
+                  <Switch
+                    value={exercised}
+                    onValueChange={setExercised}
+                    trackColor={{ true: "#4CAF50", false: "#ddd" }}
+                    thumbColor="#fff"
+                  />
+                </View>
+              )}
+              {userSettings.metricInputVisibility?.["drank"] !== false && (
+                <View style={styles.switchRow}>
+                  <Text style={styles.switchLabel}>🍺 오늘 음주했나요?</Text>
+                  <Switch
+                    value={drank}
+                    onValueChange={setDrank}
+                    trackColor={{ true: "#FF9800", false: "#ddd" }}
+                    thumbColor="#fff"
+                  />
+                </View>
+              )}
+              {(userSettings.customBoolMetrics ?? [])
+                .filter(
+                  (cbm) =>
+                    userSettings.metricInputVisibility?.[cbm.key] !== false
+                )
+                .map((cbm) => (
+                  <View key={cbm.key} style={styles.switchRow}>
+                    <Text style={styles.switchLabel}>
+                      {cbm.emoji ? `${cbm.emoji} ` : ""}오늘 {cbm.label}
+                      했나요?
+                    </Text>
+                    <Switch
+                      value={boolCustomInputs[cbm.key] ?? false}
+                      onValueChange={(v) =>
+                        setBoolCustomInputs((prev) => ({
+                          ...prev,
+                          [cbm.key]: v,
+                        }))
+                      }
+                      trackColor={{ true: cbm.color, false: "#ddd" }}
+                      thumbColor="#fff"
+                    />
+                  </View>
+                ))}
+            </View>
+
+            <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
+              <Text style={styles.saveBtnText}>저장하기</Text>
+            </TouchableOpacity>
           </View>
 
           {/* ───── 오늘의 식사 섹션 ───── */}
           <View style={mealStyles.section}>
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() => setMealExpanded(!mealExpanded)}
-              style={{
-                flexDirection: "row",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: mealExpanded ? 12 : 0,
-              }}
-            >
-              <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>
-                오늘의 식사
-              </Text>
-              <View
-                style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
-              >
-                {!mealExpanded && meals.length > 0 && (
-                  <Text style={{ fontSize: 14, color: "#718096" }}>
-                    {meals.reduce((s, m) => s + m.kcal, 0)}kcal
-                  </Text>
-                )}
-                <Text style={{ fontSize: 14, color: "#A0AEC0" }}>
-                  {mealExpanded ? "▲" : "▼"}
-                </Text>
-              </View>
-            </TouchableOpacity>
+            <Text style={[styles.sectionTitle, { marginBottom: 12 }]}>
+              오늘의 식사
+            </Text>
 
-            {mealExpanded && (
-              <>
-                {/* 식사 타입별 카드 */}
-                {(["breakfast", "lunch", "dinner", "snack"] as MealType[]).map(
-                  (mealType) => {
-                    const mealItems = meals.filter(
-                      (m) => m.mealType === mealType
-                    );
+            {/* 식사 타입별 카드 */}
+            {(["breakfast", "lunch", "dinner", "snack"] as MealType[]).map(
+              (mealType) => {
+                const mealItems = meals.filter((m) => m.mealType === mealType);
 
-                    return (
-                      <View key={mealType} style={mealStyles.mealCard}>
-                        <View style={mealStyles.mealHeader}>
-                          <Text style={mealStyles.mealTitle}>
-                            {MEAL_LABELS[mealType]}
+                return (
+                  <View key={mealType} style={mealStyles.mealCard}>
+                    <View style={mealStyles.mealHeader}>
+                      <Text style={mealStyles.mealTitle}>
+                        {MEAL_LABELS[mealType]}
+                      </Text>
+                      {mealItems.length > 0 && (
+                        <Text style={mealStyles.mealKcalBadge}>
+                          {mealItems.reduce((sum, m) => sum + m.kcal, 0)} kcal
+                        </Text>
+                      )}
+                    </View>
+
+                    {/* 기록된 음식들 */}
+                    {mealItems.map((meal) => (
+                      <View key={meal.id} style={mealStyles.mealItem}>
+                        {meal.photoUri && (
+                          <TouchableOpacity
+                            onPress={() => setZoomPhotoUri(meal.photoUri!)}
+                          >
+                            <Image
+                              source={{ uri: meal.photoUri }}
+                              style={mealStyles.mealPhoto}
+                            />
+                          </TouchableOpacity>
+                        )}
+                        <View style={mealStyles.mealInfo}>
+                          <Text style={mealStyles.mealDesc} numberOfLines={1}>
+                            {meal.description || "음식"}
                           </Text>
-                          {mealItems.length > 0 && (
-                            <Text style={mealStyles.mealKcalBadge}>
-                              {mealItems.reduce((sum, m) => sum + m.kcal, 0)}{" "}
-                              kcal
-                            </Text>
-                          )}
-                        </View>
-
-                        {/* 기록된 음식들 */}
-                        {mealItems.map((meal) => (
-                          <View key={meal.id} style={mealStyles.mealItem}>
-                            {meal.photoUri && (
-                              <TouchableOpacity
-                                onPress={() => setZoomPhotoUri(meal.photoUri!)}
-                              >
-                                <Image
-                                  source={{ uri: meal.photoUri }}
-                                  style={mealStyles.mealPhoto}
-                                />
-                              </TouchableOpacity>
-                            )}
-                            <View style={mealStyles.mealInfo}>
-                              <Text
-                                style={mealStyles.mealDesc}
-                                numberOfLines={1}
-                              >
-                                {meal.description || "음식"}
-                              </Text>
-                              <View style={mealStyles.macroRow}>
-                                <Text
-                                  style={[
-                                    mealStyles.macroText,
-                                    { color: "#E53E3E" },
-                                  ]}
-                                >
-                                  탄 {meal.carb}g
-                                </Text>
-                                <Text
-                                  style={[
-                                    mealStyles.macroText,
-                                    { color: "#3182CE" },
-                                  ]}
-                                >
-                                  단 {meal.protein}g
-                                </Text>
-                                <Text
-                                  style={[
-                                    mealStyles.macroText,
-                                    { color: "#D69E2E" },
-                                  ]}
-                                >
-                                  지 {meal.fat}g
-                                </Text>
-                                <Text style={mealStyles.macroKcal}>
-                                  {meal.kcal}kcal
-                                </Text>
-                              </View>
-                            </View>
-                            <TouchableOpacity
-                              style={mealStyles.mealDeleteBtn}
-                              onPress={() => handleDeleteMeal(meal)}
+                          <View style={mealStyles.macroRow}>
+                            <Text
+                              style={[
+                                mealStyles.macroText,
+                                { color: "#E53E3E" },
+                              ]}
                             >
-                              <Text style={mealStyles.mealDeleteText}>✕</Text>
-                            </TouchableOpacity>
+                              탄 {meal.carb}g
+                            </Text>
+                            <Text
+                              style={[
+                                mealStyles.macroText,
+                                { color: "#3182CE" },
+                              ]}
+                            >
+                              단 {meal.protein}g
+                            </Text>
+                            <Text
+                              style={[
+                                mealStyles.macroText,
+                                { color: "#D69E2E" },
+                              ]}
+                            >
+                              지 {meal.fat}g
+                            </Text>
+                            <Text style={mealStyles.macroKcal}>
+                              {meal.kcal}kcal
+                            </Text>
                           </View>
-                        ))}
-
-                        {/* 추가 버튼 */}
+                        </View>
                         <TouchableOpacity
-                          style={mealStyles.addBtn}
-                          onPress={() => openMealModal(mealType)}
+                          style={mealStyles.mealDeleteBtn}
+                          onPress={() => handleDeleteMeal(meal)}
                         >
-                          <Text style={mealStyles.addBtnText}>+ 음식 추가</Text>
+                          <Text style={mealStyles.mealDeleteText}>✕</Text>
                         </TouchableOpacity>
                       </View>
-                    );
-                  }
-                )}
+                    ))}
 
-                {/* ───── 섭취량 vs 권장량 비교 ───── */}
-                {dailyNutrition && meals.length > 0 && (
-                  <View style={mealStyles.compCard}>
-                    <Text style={mealStyles.compTitle}>
-                      오늘 섭취 현황
-                      {challenge?.targetWeight ? " (챌린지)" : " (유지)"}
-                    </Text>
-                    <View style={mealStyles.compTotalRow}>
-                      <Text style={mealStyles.compTotalKcal}>
-                        {dailyIntake.kcal}
-                      </Text>
-                      <Text style={mealStyles.compTotalUnit}>
-                        {" "}
-                        / {dailyNutrition.kcal} kcal
-                      </Text>
-                    </View>
-                    {/* 칼로리 진행 바 */}
-                    <View style={mealStyles.barTrack}>
-                      <View
-                        style={[
-                          mealStyles.barFill,
-                          {
-                            width: `${Math.min(100, (dailyIntake.kcal / dailyNutrition.kcal) * 100)}%`,
-                            backgroundColor:
-                              dailyIntake.kcal > dailyNutrition.kcal
-                                ? "#E53E3E"
-                                : "#4CAF50",
-                          },
-                        ]}
-                      />
-                    </View>
-
-                    {/* 탄단지 각각 비교 */}
-                    {(
-                      [
-                        { key: "carb", label: "탄수화물", color: "#E53E3E" },
-                        { key: "protein", label: "단백질", color: "#3182CE" },
-                        { key: "fat", label: "지방", color: "#D69E2E" },
-                      ] as const
-                    ).map(({ key, label, color }) => {
-                      const intake = dailyIntake[key];
-                      const target = dailyNutrition[key];
-                      const pct =
-                        target > 0 ? Math.min(100, (intake / target) * 100) : 0;
-                      return (
-                        <View key={key} style={mealStyles.macroCompRow}>
-                          <View style={mealStyles.macroCompLabel}>
-                            <View
-                              style={[
-                                mealStyles.macroDot,
-                                { backgroundColor: color },
-                              ]}
-                            />
-                            <Text style={mealStyles.macroCompText}>
-                              {label}
-                            </Text>
-                          </View>
-                          <View style={mealStyles.macroBarTrack}>
-                            <View
-                              style={[
-                                mealStyles.macroBarFill,
-                                {
-                                  width: `${pct}%`,
-                                  backgroundColor: color,
-                                },
-                              ]}
-                            />
-                          </View>
-                          <Text style={mealStyles.macroCompValue}>
-                            {intake} / {target}g
-                          </Text>
-                        </View>
-                      );
-                    })}
+                    {/* 추가 버튼 */}
+                    <TouchableOpacity
+                      style={mealStyles.addBtn}
+                      onPress={() => openMealModal(mealType)}
+                    >
+                      <Text style={mealStyles.addBtnText}>+ 음식 추가</Text>
+                    </TouchableOpacity>
                   </View>
-                )}
-              </>
+                );
+              }
+            )}
+
+            {/* ───── 섭취량 vs 권장량 비교 ───── */}
+            {dailyNutrition && meals.length > 0 && (
+              <View style={mealStyles.compCard}>
+                <Text style={mealStyles.compTitle}>
+                  오늘 섭취 현황
+                  {challenge?.targetWeight ? " (챌린지)" : " (유지)"}
+                </Text>
+                <View style={mealStyles.compTotalRow}>
+                  <Text style={mealStyles.compTotalKcal}>
+                    {dailyIntake.kcal}
+                  </Text>
+                  <Text style={mealStyles.compTotalUnit}>
+                    {" "}
+                    / {dailyNutrition.kcal} kcal
+                  </Text>
+                </View>
+                {/* 칼로리 진행 바 */}
+                <View style={mealStyles.barTrack}>
+                  <View
+                    style={[
+                      mealStyles.barFill,
+                      {
+                        width: `${Math.min(100, (dailyIntake.kcal / dailyNutrition.kcal) * 100)}%`,
+                        backgroundColor:
+                          dailyIntake.kcal > dailyNutrition.kcal
+                            ? "#E53E3E"
+                            : "#4CAF50",
+                      },
+                    ]}
+                  />
+                </View>
+
+                {/* 탄단지 각각 비교 */}
+                {(
+                  [
+                    { key: "carb", label: "탄수화물", color: "#E53E3E" },
+                    { key: "protein", label: "단백질", color: "#3182CE" },
+                    { key: "fat", label: "지방", color: "#D69E2E" },
+                  ] as const
+                ).map(({ key, label, color }) => {
+                  const intake = dailyIntake[key];
+                  const target = dailyNutrition[key];
+                  const pct =
+                    target > 0 ? Math.min(100, (intake / target) * 100) : 0;
+                  return (
+                    <View key={key} style={mealStyles.macroCompRow}>
+                      <View style={mealStyles.macroCompLabel}>
+                        <View
+                          style={[
+                            mealStyles.macroDot,
+                            { backgroundColor: color },
+                          ]}
+                        />
+                        <Text style={mealStyles.macroCompText}>{label}</Text>
+                      </View>
+                      <View style={mealStyles.macroBarTrack}>
+                        <View
+                          style={[
+                            mealStyles.macroBarFill,
+                            {
+                              width: `${pct}%`,
+                              backgroundColor: color,
+                            },
+                          ]}
+                        />
+                      </View>
+                      <Text style={mealStyles.macroCompValue}>
+                        {intake} / {target}g
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
             )}
           </View>
 

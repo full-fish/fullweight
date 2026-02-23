@@ -156,8 +156,8 @@ export const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
 /**
  * 운동 빈도·시간·강도 기반 일일 운동 칼로리 소비 산출
  * 공식: 칼로리 = MET × 체중(kg) × 시간(h)
- * @param freq  주당 운동 횟수 (0~7)
- * @param mins  1회 운동 시간(분)
+ * @param freq  주당 운동 일수 (0~7)
+ * @param mins  1일 운동 시간(분)
  * @param intensity 강도 1(가벼움) / 2(보통) / 3(고강도)
  * @param weight 체중(kg)
  * @returns 하루 평균 운동 칼로리 소비량
@@ -195,6 +195,10 @@ export function calcDailyNutrition({
   exerciseFreq = 0,
   exerciseMins = 60,
   exerciseIntensity = 1,
+  muscleMass,
+  bodyFatPercent,
+  targetMuscleMass,
+  targetBodyFatPercent,
 }: {
   weight: number;
   targetWeight: number;
@@ -202,12 +206,20 @@ export function calcDailyNutrition({
   gender: "male" | "female";
   birthDate: string;
   periodDays: number;
-  /** 주당 운동 횟수 (0~7) */
+  /** 주당 운동 일수 (0~7) */
   exerciseFreq?: number;
-  /** 1회 운동 시간(분) */
+  /** 1일 운동 시간(분) */
   exerciseMins?: number;
   /** 강도 1(가벼움) / 2(보통) / 3(고강도) */
   exerciseIntensity?: number;
+  /** 현재 골격근량 (kg) */
+  muscleMass?: number;
+  /** 현재 체지방률 (%) */
+  bodyFatPercent?: number;
+  /** 목표 골격근량 (kg) */
+  targetMuscleMass?: number;
+  /** 목표 체지방률 (%) */
+  targetBodyFatPercent?: number;
 }) {
   // 나이 계산
   const birth = new Date(birthDate);
@@ -220,11 +232,23 @@ export function calcDailyNutrition({
     age--;
   }
 
-  // BMR (Mifflin-St Jeor)
-  const bmr =
-    gender === "male"
-      ? 10 * weight + 6.25 * height - 5 * age + 5
-      : 10 * weight + 6.25 * height - 5 * age - 161;
+  // ── BMR 계산 ──
+  // 체지방률이 있으면 Katch-McArdle (제지방량 기반, 더 정확)
+  // 없으면 Mifflin-St Jeor (체중 기반)
+  let bmr: number;
+  let leanMass: number | undefined; // 제지방량
+
+  if (bodyFatPercent != null && bodyFatPercent > 0 && bodyFatPercent < 100) {
+    leanMass = weight * (1 - bodyFatPercent / 100);
+    // Katch-McArdle: BMR = 370 + 21.6 × LBM(kg)
+    bmr = 370 + 21.6 * leanMass;
+  } else {
+    // Mifflin-St Jeor
+    bmr =
+      gender === "male"
+        ? 10 * weight + 6.25 * height - 5 * age + 5
+        : 10 * weight + 6.25 * height - 5 * age - 161;
+  }
 
   // NEAT(비운동 활동 열생산) = BMR × 0.15
   const neat = bmr * 0.15;
@@ -252,35 +276,68 @@ export function calcDailyNutrition({
   // 하루 권장 칼로리 (최소 1200kcal)
   const kcal = Math.max(1200, Math.round(tdee + safeDelta));
 
-  // ─── 운동량 + 목표에 따른 동적 매크로 ───
+  // ─── 운동량 + 목표 + 체성분에 따른 동적 매크로 ───
   const isLosing = targetWeight < weight;
   const isGaining = targetWeight > weight;
+
+  // 근육 증가 목표 여부
+  const wantsMuscleGain =
+    targetMuscleMass != null &&
+    muscleMass != null &&
+    targetMuscleMass > muscleMass;
+
+  // 체지방 감소 목표 여부
+  const wantsFatLoss =
+    targetBodyFatPercent != null &&
+    bodyFatPercent != null &&
+    targetBodyFatPercent < bodyFatPercent;
 
   // 주당 총 운동 시간(시)
   const weeklyExHours = (exerciseFreq * exerciseMins) / 60;
 
-  // ── 단백질 (g/kg): 운동량에 비례하여 연속적으로 변화 ──
-  // 기본값 + 운동 시간에 따른 보너스
+  // ── 단백질 (g/kg): 운동량 + 체성분 목표에 비례 ──
   let baseProtein: number;
-  if (isLosing) {
-    baseProtein = 1.6; // 감량 기본
+  if (wantsMuscleGain && wantsFatLoss) {
+    // 리컴포지션: 근육↑ 체지방↓ 동시 → 최고 단백질
+    baseProtein = 2.0;
+  } else if (wantsMuscleGain) {
+    // 근육 증가 목표 → 높은 단백질
+    baseProtein = 1.8;
+  } else if (wantsFatLoss || isLosing) {
+    // 체지방 감소 or 체중 감량 → 근손실 방지 위해 높은 단백질
+    baseProtein = 1.6;
   } else if (isGaining) {
-    baseProtein = 1.4; // 증량 기본
+    baseProtein = 1.4;
   } else {
-    baseProtein = 1.2; // 유지 기본
+    baseProtein = 1.2; // 유지
   }
+
   // 운동량 보너스: 주당 운동시간에 비례 (최대 +0.8g/kg)
   // 강도 가중치: 가벼움 0.6, 보통 0.8, 고강도 1.0
   const intensityWeight =
     exerciseIntensity === 3 ? 1.0 : exerciseIntensity === 2 ? 0.8 : 0.6;
   const proteinBonus = Math.min(0.8, weeklyExHours * intensityWeight * 0.08);
-  const proteinPerKg = baseProtein + proteinBonus;
 
-  // ── 지방 비율: 운동 많을수록 약간 낮게 (탄수 비중↑) ──
-  // 기본 25~28% → 고활동 시 20~22%
+  // 근육량이 많으면 (체중 대비) 단백질 추가 보너스
+  let muscleBonus = 0;
+  if (muscleMass != null && weight > 0) {
+    const muscleRatio = muscleMass / weight;
+    // 골격근 비율 40% 이상이면 추가 단백질 (최대 +0.3g/kg)
+    if (muscleRatio > 0.4) {
+      muscleBonus = Math.min(0.3, (muscleRatio - 0.4) * 3);
+    }
+  }
+
+  const proteinPerKg = Math.min(2.8, baseProtein + proteinBonus + muscleBonus);
+
+  // ── 지방 비율: 운동 + 체성분 목표에 따라 조절 ──
   let baseFatRatio: number;
-  if (isLosing) {
-    baseFatRatio = 0.28;
+  if (wantsFatLoss) {
+    baseFatRatio = 0.22; // 체지방 감소 목표 → 지방 비율 낮게
+  } else if (isLosing) {
+    baseFatRatio = 0.25;
+  } else if (wantsMuscleGain) {
+    baseFatRatio = 0.25; // 근육 증가 시 탄수 에너지 확보 위해 지방 약간 낮게
   } else if (isGaining) {
     baseFatRatio = 0.27;
   } else {
@@ -288,11 +345,18 @@ export function calcDailyNutrition({
   }
   // 운동량이 많을수록 지방 비율 감소 (탄수 에너지 필요↑), 최대 -0.08
   const fatReduction = Math.min(0.08, weeklyExHours * 0.008);
-  const fatRatio = Math.max(0.2, baseFatRatio - fatReduction);
+  const fatRatio = Math.max(0.18, baseFatRatio - fatReduction);
 
-  // 단백질(g)
-  const protein = Math.round(weight * proteinPerKg);
-  const proteinCal = protein * 4;
+  // 단백질(g) — 제지방량 기반 계산도 가능하면 활용
+  let proteinG: number;
+  if (leanMass != null && (wantsMuscleGain || wantsFatLoss)) {
+    // 제지방량 기반 단백질: LBM × 보정 계수
+    const lbmProteinPerKg = proteinPerKg * (weight / leanMass);
+    proteinG = Math.round(leanMass * Math.min(3.3, lbmProteinPerKg));
+  } else {
+    proteinG = Math.round(weight * proteinPerKg);
+  }
+  const proteinCal = proteinG * 4;
 
   // 지방(g)
   const fat = Math.round((kcal * fatRatio) / 9);
@@ -303,9 +367,10 @@ export function calcDailyNutrition({
 
   // 안전 보정: 단백질+지방이 총 칼로리 초과 시 비율 재조정
   if (proteinCal + fatCal > kcal) {
-    const pRatio = 0.35;
-    const fRatio = 0.25;
-    const cRatio = 0.4;
+    // 체성분 목표에 따라 안전 비율 다르게
+    const pRatio = wantsMuscleGain ? 0.4 : wantsFatLoss ? 0.38 : 0.35;
+    const fRatio = wantsFatLoss ? 0.22 : 0.25;
+    const cRatio = 1 - pRatio - fRatio;
     return {
       kcal,
       protein: Math.round((kcal * pRatio) / 4),
@@ -318,7 +383,7 @@ export function calcDailyNutrition({
 
   return {
     kcal,
-    protein,
+    protein: proteinG,
     fat,
     carb,
     tdee: Math.round(tdee),

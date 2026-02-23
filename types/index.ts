@@ -169,8 +169,8 @@ export type UserSettings = {
   gender?: "male" | "female";
   swipeEnabled?: boolean; // 좌우 스와이프 탭 전환 (기본 false)
   activityLevel?: number; // (deprecated) 이전 활동량 계수
-  exerciseFreq?: number; // 주당 운동 횟수 (0~7)
-  exerciseMins?: number; // 1회 운동 시간(분)
+  exerciseFreq?: number; // 주당 운동 일수 (0~7)
+  exerciseMins?: number; // 1일 운동 시간(분)
   exerciseIntensity?: number; // 운동 강도 (1 가벼움 / 2 보통 / 3 고강도)
   lockEnabled?: boolean; // 앱 잠금 활성화
   lockPin?: string; // 4자리 PIN

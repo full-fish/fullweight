@@ -442,7 +442,9 @@ export default function SettingsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      loadRecords().then((data) => setRecordCount(data.length));
+      loadRecords().then((data) => {
+        setRecordCount(data.length);
+      });
       loadUserSettings().then((settings) => {
         setHeight(settings.height != null ? String(settings.height) : "");
         setBirthDate(settings.birthDate ?? "");
@@ -1011,7 +1013,7 @@ export default function SettingsScreen() {
           )}
         </View>
 
-        {/* 수치 입력 설정 */}
+        {/* 항목 입력 설정 */}
         <View style={s.card}>
           <TouchableOpacity
             onPress={() => setInputSectionOpen((v) => !v)}
@@ -1022,7 +1024,7 @@ export default function SettingsScreen() {
             }}
             activeOpacity={0.7}
           >
-            <Text style={s.cardTitle}>수치 입력 설정</Text>
+            <Text style={s.cardTitle}>항목 입력 설정</Text>
             <Text style={{ fontSize: 16, color: "#A0AEC0", marginBottom: 2 }}>
               {inputSectionOpen ? "▲" : "▼"}
             </Text>
@@ -1244,7 +1246,7 @@ export default function SettingsScreen() {
           )}
         </View>
 
-        {/* 수치 표시 설정 */}
+        {/* 항목 표시 설정 */}
         <View style={s.card}>
           <TouchableOpacity
             onPress={() => setDisplaySectionOpen((v) => !v)}
@@ -1255,7 +1257,7 @@ export default function SettingsScreen() {
             }}
             activeOpacity={0.7}
           >
-            <Text style={s.cardTitle}>수치 표시 설정</Text>
+            <Text style={s.cardTitle}>항목 표시 설정</Text>
             <Text style={{ fontSize: 16, color: "#A0AEC0", marginBottom: 2 }}>
               {displaySectionOpen ? "▲" : "▼"}
             </Text>
