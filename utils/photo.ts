@@ -1,5 +1,6 @@
 import type { BodyPhotoQuality, FoodPhotoQuality } from "@/types";
 import * as LegacyFileSystem from "expo-file-system/legacy";
+import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
 import * as ImagePicker from "expo-image-picker";
 
 const PHOTO_DIR = `${LegacyFileSystem.documentDirectory}photos/`;
@@ -98,4 +99,59 @@ export async function deletePhoto(uri: string): Promise<void> {
   } catch {
     // ignore
   }
+}
+
+/**
+ * 음식 사진 촬영/선택 — AI용 고화질과 저장용 압축 파일을 분리 반환
+ * - aiUri  : 항상 원본 화질 (AI 분석용, 사용 후 호출부에서 deletePhoto 호출)
+ * - savedUri: 사용자 설정 화질로 압축된 저장 파일
+ */
+export async function captureFoodPhoto(
+  source: "camera" | "gallery",
+  qualitySetting?: FoodPhotoQuality
+): Promise<{ savedUri: string; aiUri: string } | null> {
+  if (source === "camera") {
+    const perm = await ImagePicker.requestCameraPermissionsAsync();
+    if (!perm.granted) return null;
+  } else {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) return null;
+  }
+
+  const result =
+    source === "camera"
+      ? await ImagePicker.launchCameraAsync({
+          quality: 1.0,
+          allowsEditing: true,
+          aspect: [1, 1],
+        })
+      : await ImagePicker.launchImageLibraryAsync({
+          quality: 1.0,
+          allowsEditing: true,
+          aspect: [1, 1],
+        });
+  if (result.canceled || !result.assets[0]) return null;
+
+  const tempUri = result.assets[0].uri;
+  await ensureDir();
+  const ts = Date.now();
+
+  // AI용: 원본 화질 그대로 저장
+  const aiDest = `${PHOTO_DIR}photo_${ts}_ai.jpg`;
+  await LegacyFileSystem.copyAsync({ from: tempUri, to: aiDest });
+
+  // 저장용: 사용자 설정 화질로 압축
+  const quality = getFoodQuality(qualitySetting);
+  const savedDest = `${PHOTO_DIR}photo_${ts}.jpg`;
+  if (quality < 1.0) {
+    const compressed = await manipulateAsync(tempUri, [], {
+      compress: quality,
+      format: SaveFormat.JPEG,
+    });
+    await LegacyFileSystem.copyAsync({ from: compressed.uri, to: savedDest });
+  } else {
+    await LegacyFileSystem.copyAsync({ from: tempUri, to: savedDest });
+  }
+
+  return { savedUri: savedDest, aiUri: aiDest };
 }
