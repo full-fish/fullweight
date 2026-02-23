@@ -28,6 +28,7 @@ import {
   normalizeDateString,
   WEEKDAY_LABELS,
 } from "@/utils/format";
+import { importInBodyCSV } from "@/utils/inbody-import";
 import {
   clearAllRecords,
   loadRecords,
@@ -429,6 +430,7 @@ export default function SettingsScreen() {
     sizeBytes: number;
   } | null>(null);
   const [exportLoading, setExportLoading] = useState(false);
+  const [inbodyLoading, setInbodyLoading] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -713,6 +715,30 @@ export default function SettingsScreen() {
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  /* ── 인바디 가져오기 ── */
+  const handleInBodyImport = async () => {
+    setInbodyLoading(true);
+    try {
+      const result = await importInBodyCSV();
+      Alert.alert(
+        "가져오기 완료",
+        `인바디 데이터 ${result.totalInBody}건 처리\n` +
+          `\u2022 새로 추가: ${result.newCount}건\n` +
+          `\u2022 기존 기록 업데이트: ${result.updatedCount}건`
+      );
+      // 기록 수 새로고침
+      loadRecords().then((data) => setRecordCount(data.length));
+    } catch (e: any) {
+      if (e?.message?.includes("취소")) return; // 사용자 취소는 알림 없음
+      Alert.alert(
+        "가져오기 실패",
+        e?.message ?? "알 수 없는 오류가 발생했습니다."
+      );
+    } finally {
+      setInbodyLoading(false);
+    }
   };
 
   const handleClearAll = () => {
@@ -2367,6 +2393,27 @@ export default function SettingsScreen() {
             onPress={handleOpenExport}
           >
             <Text style={s.backupActionBtnText}>내보내기</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* 인바디 가져오기 */}
+        <View style={s.card}>
+          <Text style={s.cardTitle}>인바디 데이터 가져오기</Text>
+          <Text style={[s.backupDesc, { marginBottom: 12 }]}>
+            InBody 앱에서 내보낸 CSV 파일을 선택하면{"\n"}체중, 골격근량,
+            체지방량/체지방률을 가져옵니다.{"\n"}같은 날짜 기록은 인바디
+            데이터로 업데이트됩니다.
+          </Text>
+          <TouchableOpacity
+            style={[s.backupActionBtn, { backgroundColor: "#ED8936" }]}
+            onPress={handleInBodyImport}
+            disabled={inbodyLoading}
+          >
+            {inbodyLoading ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text style={s.backupActionBtnText}>CSV 파일 선택</Text>
+            )}
           </TouchableOpacity>
         </View>
 

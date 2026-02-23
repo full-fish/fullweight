@@ -7,9 +7,8 @@ import {
   loadUserSettings,
 } from "@/utils/storage";
 import * as LegacyFileSystem from "expo-file-system/legacy";
-import { StorageAccessFramework } from "expo-file-system/legacy";
+import * as Sharing from "expo-sharing";
 import JSZip from "jszip";
-import { Platform, Share } from "react-native";
 
 export type ExportFormat = "json" | "csv" | "zip";
 
@@ -234,15 +233,15 @@ function formatDateForFile(): string {
   const d = String(now.getDate()).padStart(2, "0");
   const h = String(now.getHours()).padStart(2, "0");
   const min = String(now.getMinutes()).padStart(2, "0");
-  return `${y}${m}${d}_${h}${min}`;
+  const sec = String(now.getSeconds()).padStart(2, "0");
+  return `${y}${m}${d}_${h}${min}${sec}`;
 }
 
 /* ───── 메인 내보내기 함수 ───── */
 
 /**
- * 데이터를 내보내고 사용자가 선택한 위치에 저장합니다.
- * - Android: SAF 파일 저장 위치 선택 다이얼로그
- * - iOS: 공유 시트 → "파일에 저장" 선택 가능
+ * 데이터를 내보내고 공유 시트를 통해 저장 위치를 선택합니다.
+ * - Android/iOS: 공유 시트 → "파일에 저장" 선택 가능
  * @returns 저장된 파일명
  */
 export async function exportData(
@@ -265,40 +264,15 @@ export async function exportData(
 
   const fileName = tempPath.split("/").pop()!;
 
-  if (Platform.OS === "android") {
-    // Android: SAF로 저장 위치 선택
-    const perms =
-      await StorageAccessFramework.requestDirectoryPermissionsAsync();
-    if (!perms.granted) {
-      // 사용자가 취소함 → 임시 파일 정리
-      await LegacyFileSystem.deleteAsync(tempPath, { idempotent: true });
-      throw new Error("저장 위치 선택이 취소되었습니다.");
-    }
+  const mimeType = format === "json" ? "application/json" : "application/zip";
 
-    const mimeType = format === "json" ? "application/json" : "application/zip";
+  await Sharing.shareAsync(tempPath, {
+    mimeType,
+    dialogTitle: "내보내기 파일 저장",
+  });
 
-    const destUri = await StorageAccessFramework.createFileAsync(
-      perms.directoryUri,
-      fileName,
-      mimeType
-    );
-
-    // 파일 내용을 base64로 읽어서 SAF URI에 쓰기
-    const base64 = await LegacyFileSystem.readAsStringAsync(tempPath, {
-      encoding: LegacyFileSystem.EncodingType.Base64,
-    });
-    await LegacyFileSystem.writeAsStringAsync(destUri, base64, {
-      encoding: LegacyFileSystem.EncodingType.Base64,
-    });
-
-    // 임시 파일 정리
-    await LegacyFileSystem.deleteAsync(tempPath, { idempotent: true });
-  } else {
-    // iOS: 공유 시트 (파일에 저장 가능)
-    await Share.share({ url: tempPath });
-    // 임시 파일 정리
-    await LegacyFileSystem.deleteAsync(tempPath, { idempotent: true });
-  }
+  // 임시 파일 정리
+  await LegacyFileSystem.deleteAsync(tempPath, { idempotent: true });
 
   return fileName;
 }
