@@ -867,8 +867,8 @@ export default function HomeScreen() {
               {userSettings.metricInputVisibility?.["drank"] !== false && (
                 <View style={styles.switchRow}>
                   <Text style={styles.switchLabel}>
-                    <Ionicons name="beer" size={24} color="black" /> 오늘
-                    음주했나요?
+                    <Ionicons name="beer-outline" size={24} color="black" />{" "}
+                    오늘 음주했나요?
                   </Text>
                   <Switch
                     value={drank}
