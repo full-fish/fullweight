@@ -627,8 +627,10 @@ export default function ChallengeScreen() {
       for (let i = records.length - 1; i >= 0; i--) {
         const r = records[i];
         if (!prefillWeight && r.weight) prefillWeight = r.weight.toFixed(1);
-        if (!prefillMuscle && r.muscleMass) prefillMuscle = r.muscleMass.toFixed(1);
-        if (!prefillFatMass && r.bodyFatMass) prefillFatMass = r.bodyFatMass.toFixed(1);
+        if (!prefillMuscle && r.muscleMass)
+          prefillMuscle = r.muscleMass.toFixed(1);
+        if (!prefillFatMass && r.bodyFatMass)
+          prefillFatMass = r.bodyFatMass.toFixed(1);
         if (prefillWeight && prefillMuscle && prefillFatMass) break;
       }
       setFTargetWeight(prefillWeight);
@@ -874,8 +876,10 @@ export default function ChallengeScreen() {
         exerciseIntensity: exIntensity,
         muscleMass: currentValues?.muscleMass,
         bodyFatPercent: currentValues?.bodyFatPercent,
+        bodyFatMass: currentValues?.bodyFatMass,
         targetMuscleMass: challenge.targetMuscleMass,
         targetBodyFatPercent: challenge.targetBodyFatPercent,
+        targetBodyFatMass: challenge.targetBodyFatMass,
       });
     }
 
@@ -892,8 +896,10 @@ export default function ChallengeScreen() {
       exerciseIntensity: exIntensity,
       muscleMass: currentValues?.muscleMass,
       bodyFatPercent: currentValues?.bodyFatPercent,
+      bodyFatMass: currentValues?.bodyFatMass,
       targetMuscleMass: challenge?.targetMuscleMass,
       targetBodyFatPercent: challenge?.targetBodyFatPercent,
+      targetBodyFatMass: challenge?.targetBodyFatMass,
     });
   }, [challenge, userSettings, currentValues, exFreq, exMins, exIntensity]);
 
@@ -1269,7 +1275,9 @@ export default function ChallengeScreen() {
                         const tw = parseFloat(fTargetWeight);
                         const fm = parseFloat(v);
                         if (!isNaN(tw) && tw > 0 && !isNaN(fm) && fm >= 0) {
-                          setFTargetBodyFatPercent(((fm / tw) * 100).toFixed(1));
+                          setFTargetBodyFatPercent(
+                            ((fm / tw) * 100).toFixed(1)
+                          );
                         } else {
                           setFTargetBodyFatPercent("");
                         }
@@ -1278,15 +1286,34 @@ export default function ChallengeScreen() {
                     />
                   </View>
                   {fTargetBodyFatPercent ? (
-                    <View style={{
-                      marginLeft: 10,
-                      backgroundColor: "#EBF8FF",
-                      paddingHorizontal: 10,
-                      paddingVertical: 8,
-                      borderRadius: 10,
-                      marginBottom: 14,
-                    }}>
-                      <Text style={{ fontSize: 14, fontWeight: "600", color: "#3182CE" }}>
+                    <View
+                      style={{
+                        marginLeft: 10,
+                        backgroundColor: "#EBF8FF",
+                        paddingHorizontal: 10,
+                        paddingVertical: 8,
+                        borderRadius: 10,
+                        marginBottom: 14,
+                        alignItems: "center",
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 10,
+                          fontWeight: "500",
+                          color: "#63B3ED",
+                          marginBottom: 2,
+                        }}
+                      >
+                        체지방률
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 14,
+                          fontWeight: "700",
+                          color: "#3182CE",
+                        }}
+                      >
                         {fTargetBodyFatPercent}%
                       </Text>
                     </View>

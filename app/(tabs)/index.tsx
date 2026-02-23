@@ -31,6 +31,7 @@ import {
   loadUserSettings,
   upsertRecord,
 } from "@/utils/storage";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useFocusEffect } from "@react-navigation/native";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
@@ -865,11 +866,14 @@ export default function HomeScreen() {
               )}
               {userSettings.metricInputVisibility?.["drank"] !== false && (
                 <View style={styles.switchRow}>
-                  <Text style={styles.switchLabel}>🍺 오늘 음주했나요?</Text>
+                  <Text style={styles.switchLabel}>
+                    <Ionicons name="beer" size={24} color="black" /> 오늘
+                    음주했나요?
+                  </Text>
                   <Switch
                     value={drank}
                     onValueChange={setDrank}
-                    trackColor={{ true: "#FF9800", false: "#ddd" }}
+                    trackColor={{ true: "#525150", false: "#ddd" }}
                     thumbColor="#fff"
                   />
                 </View>

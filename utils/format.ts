@@ -197,8 +197,10 @@ export function calcDailyNutrition({
   exerciseIntensity = 1,
   muscleMass,
   bodyFatPercent,
+  bodyFatMass,
   targetMuscleMass,
   targetBodyFatPercent,
+  targetBodyFatMass,
 }: {
   weight: number;
   targetWeight: number;
@@ -216,10 +218,14 @@ export function calcDailyNutrition({
   muscleMass?: number;
   /** 현재 체지방률 (%) */
   bodyFatPercent?: number;
+  /** 현재 체지방량 (kg) */
+  bodyFatMass?: number;
   /** 목표 골격근량 (kg) */
   targetMuscleMass?: number;
   /** 목표 체지방률 (%) */
   targetBodyFatPercent?: number;
+  /** 목표 체지방량 (kg) */
+  targetBodyFatMass?: number;
 }) {
   // 나이 계산
   const birth = new Date(birthDate);
@@ -277,17 +283,44 @@ export function calcDailyNutrition({
   const isLosing = targetWeight < weight;
   const isGaining = targetWeight > weight;
 
-  // 근육 증가 목표 여부 (현재값이 없어도 목표가 설정되면 활성화)
+  // ─── 신체 구성 변화 방향 분석 ───
+
+  // 근육 변화 방향
   const wantsMuscleGain =
     targetMuscleMass != null &&
     (muscleMass == null || targetMuscleMass > muscleMass);
 
-  // 체지방 감소 목표 여부 (현재값이 없어도 목표가 설정되면 활성화)
-  const wantsFatLoss =
-    targetBodyFatPercent != null &&
-    (bodyFatPercent == null || targetBodyFatPercent < bodyFatPercent);
+  // 체지방 변화량 (kg) — 양수 = 증가, 음수 = 감소
+  // 모든 시나리오(벌크·커팅·리컴포·회복)를 양방향으로 대응
+  let fatChangeKg = 0;
+  if (targetBodyFatMass != null && bodyFatMass != null) {
+    // ① 체지방량(kg) 직접 비교 — 가장 정확
+    fatChangeKg = targetBodyFatMass - bodyFatMass;
+  } else if (targetBodyFatMass != null && bodyFatPercent != null) {
+    // ② 현재 체지방률로 현재 체지방량 추정
+    fatChangeKg = targetBodyFatMass - weight * (bodyFatPercent / 100);
+  } else if (targetBodyFatMass != null) {
+    // ③ 현재 체지방량·체지방률 둘 다 없지만 목표 체지방량만 있는 경우
+    // 평균 체지방률(남 20%, 여 28%)로 현재 체지방량 추정
+    const estBfp = gender === "male" ? 20 : 28;
+    fatChangeKg = targetBodyFatMass - weight * (estBfp / 100);
+  } else if (targetBodyFatPercent != null) {
+    // ④ 체지방률(%)만 있는 경우
+    const currentBfp = bodyFatPercent ?? (gender === "male" ? 20 : 28);
+    fatChangeKg = (weight * (targetBodyFatPercent - currentBfp)) / 100;
+  }
 
-  // 근육 증가 목표 시 추가 칼로리 (근합성을 위한 에너지 잉여)
+  const wantsFatLoss = fatChangeKg < -0.1;
+  const wantsFatGain = fatChangeKg > 0.1;
+
+  // ─── 시나리오 판별 (벌크업 / 커팅 / 리컴포지션 / 린매스업 / 회복) ───
+  const isRecomp = wantsMuscleGain && wantsFatLoss; // 리컴포지션: 근육↑ 체지방↓
+  const isBulking = isGaining && wantsMuscleGain && !wantsFatLoss; // 벌크업: 체중↑ 근육↑
+  const isCutting = isLosing && wantsFatLoss && !wantsMuscleGain; // 커팅: 체중↓ 체지방↓
+  const isLeanBulk = wantsMuscleGain && wantsFatLoss && isGaining; // 린매스업
+  const isRecovery = wantsFatGain && !wantsMuscleGain; // 회복: 저체중 회복 등
+
+  // ── 근육 증가 시 추가 칼로리 (근합성 에너지 잉여) ──
   let muscleSurplus = 0;
   if (wantsMuscleGain) {
     if (muscleMass != null && targetMuscleMass != null) {
@@ -301,40 +334,50 @@ export function calcDailyNutrition({
     }
   }
 
-  // 체지방 감소 목표 시 칼로리 적자 (체지방 감량분에 비례)
-  let fatDeficit = 0;
-  if (wantsFatLoss && targetBodyFatPercent != null) {
-    // 현재 체지방률 → 목표 체지방률까지 감량할 체지방(kg)
-    const currentBfp = bodyFatPercent ?? (isLosing ? 25 : 20); // 미입력 시 추정
-    const fatLossKg = (weight * (currentBfp - targetBodyFatPercent)) / 100;
-    if (fatLossKg > 0 && periodDays > 0) {
-      // 지방 1kg = 7700kcal, 기간 내 분산
-      const dailyFatDeficit = (fatLossKg * 7700) / periodDays;
-      // 안전 범위 제한 (최대 500kcal/일)
-      fatDeficit = Math.min(500, Math.max(0, Math.round(dailyFatDeficit)));
+  // ── 체지방 변화에 따른 칼로리 조정 (양방향) ──
+  // δ_fat: 감소 시 적자(−), 증가 시 잉여(+)
+  let fatCalAdjust = 0;
+  if (Math.abs(fatChangeKg) > 0.1 && periodDays > 0) {
+    const dailyFatCal = (Math.abs(fatChangeKg) * 7700) / periodDays;
+    if (wantsFatLoss) {
+      // 체지방 감소 → 칼로리 적자 (최대 −500kcal/일)
+      fatCalAdjust = -Math.min(500, Math.round(dailyFatCal));
+    } else if (wantsFatGain) {
+      // 체지방 증가 허용 → 추가 잉여 (최대 +300kcal/일, 회복·벌크용)
+      fatCalAdjust = Math.min(300, Math.round(dailyFatCal));
     }
   }
 
-  // 하루 권장 칼로리 (최소 1200kcal)
+  // ── 하루 권장 칼로리 ──
+  // kcal = max(1200, TDEE + Δ_weight + δ_muscle + δ_fat)
   const kcal = Math.max(
     1200,
-    Math.round(tdee + safeDelta + muscleSurplus - fatDeficit)
+    Math.round(tdee + safeDelta + muscleSurplus + fatCalAdjust)
   );
 
   // 주당 총 운동 시간(시)
   const weeklyExHours = (exerciseFreq * exerciseMins) / 60;
 
-  // ── 단백질 (g/kg): 운동량 + 체성분 목표에 비례 ──
+  // ── 단백질 (g/kg): 시나리오 + 운동량에 따라 동적 배분 ──
+  // Protein_g = Weight × (Base + Bonus_exercise + Bonus_muscle)
   let baseProtein: number;
-  if (wantsMuscleGain && wantsFatLoss) {
-    // 리컴포지션: 근육↑ 체지방↓ 동시 → 최고 단백질
+  if (isRecomp || isLeanBulk) {
+    // 리컴포지션/린매스업: 근육↑ 체지방↓ 동시 → 최고 단백질
+    baseProtein = 2.2;
+  } else if (isCutting) {
+    // 커팅: 근손실 최소화 → 높은 단백질
+    baseProtein = 1.8;
+  } else if (wantsMuscleGain && wantsFatLoss) {
     baseProtein = 2.0;
-  } else if (wantsMuscleGain) {
-    // 근육 증가 목표 → 높은 단백질
+  } else if (isBulking) {
+    // 벌크업: 근육 성장 에너지 → 높은 단백질
     baseProtein = 1.8;
   } else if (wantsFatLoss || isLosing) {
-    // 체지방 감소 or 체중 감량 → 근손실 방지 위해 높은 단백질
+    // 체지방 감소 or 체중 감량
     baseProtein = 1.6;
+  } else if (isRecovery) {
+    // 회복: 적당한 단백질
+    baseProtein = 1.4;
   } else if (isGaining) {
     baseProtein = 1.4;
   } else {
@@ -347,11 +390,10 @@ export function calcDailyNutrition({
     exerciseIntensity === 3 ? 1.0 : exerciseIntensity === 2 ? 0.8 : 0.6;
   const proteinBonus = Math.min(0.8, weeklyExHours * intensityWeight * 0.08);
 
-  // 근육량이 많으면 (체중 대비) 단백질 추가 보너스
+  // 골격근 비율 보너스 (체중 대비 40% 이상이면, 최대 +0.3g/kg)
   let muscleBonus = 0;
   if (muscleMass != null && weight > 0) {
     const muscleRatio = muscleMass / weight;
-    // 골격근 비율 40% 이상이면 추가 단백질 (최대 +0.3g/kg)
     if (muscleRatio > 0.4) {
       muscleBonus = Math.min(0.3, (muscleRatio - 0.4) * 3);
     }
@@ -359,27 +401,33 @@ export function calcDailyNutrition({
 
   const proteinPerKg = Math.min(2.8, baseProtein + proteinBonus + muscleBonus);
 
-  // ── 지방 비율: 운동 + 체성분 목표에 따라 조절 ──
+  // ── 지방 비율: 시나리오별 동적 조절 ──
   let baseFatRatio: number;
-  if (wantsFatLoss) {
-    baseFatRatio = 0.22; // 체지방 감소 목표 → 지방 비율 낮게
-  } else if (isLosing) {
-    baseFatRatio = 0.25;
+  if (isCutting) {
+    baseFatRatio = 0.2; // 커팅 → 지방 최소, 단백질·탄수 극대화
+  } else if (isRecomp || isLeanBulk) {
+    baseFatRatio = 0.22; // 리컴포/린매스 → 지방 낮게
+  } else if (wantsFatLoss) {
+    baseFatRatio = 0.22;
+  } else if (isBulking) {
+    baseFatRatio = 0.25; // 벌크 → 탄수 에너지 확보 위해 지방 약간 낮게
+  } else if (isRecovery) {
+    baseFatRatio = 0.28; // 회복 → 호르몬 합성 위해 지방 넉넉히
   } else if (wantsMuscleGain) {
-    baseFatRatio = 0.25; // 근육 증가 시 탄수 에너지 확보 위해 지방 약간 낮게
+    baseFatRatio = 0.25;
   } else if (isGaining) {
     baseFatRatio = 0.27;
   } else {
-    baseFatRatio = 0.3;
+    baseFatRatio = 0.3; // 유지
   }
-  // 운동량이 많을수록 지방 비율 감소 (탄수 에너지 필요↑), 최대 -0.08
+  // 운동량이 많을수록 지방 비율 감소 (탄수 에너지 필요↑), 최대 −0.08
   const fatReduction = Math.min(0.08, weeklyExHours * 0.008);
   const fatRatio = Math.max(0.18, baseFatRatio - fatReduction);
 
-  // 단백질(g) — 제지방량 기반 계산도 가능하면 활용
+  // ── 단백질(g) — 제지방량 기반 계산 가능 시 활용 ──
   let proteinG: number;
   if (leanMass != null && (wantsMuscleGain || wantsFatLoss)) {
-    // 제지방량 기반 단백질: LBM × 보정 계수
+    // 제지방량(LBM) 기반 단백질: LBM × 보정 계수
     const lbmProteinPerKg = proteinPerKg * (weight / leanMass);
     proteinG = Math.round(leanMass * Math.min(3.3, lbmProteinPerKg));
   } else {
@@ -396,9 +444,14 @@ export function calcDailyNutrition({
 
   // 안전 보정: 단백질+지방이 총 칼로리 초과 시 비율 재조정
   if (proteinCal + fatCal > kcal) {
-    // 체성분 목표에 따라 안전 비율 다르게
-    const pRatio = wantsMuscleGain ? 0.4 : wantsFatLoss ? 0.38 : 0.35;
-    const fRatio = wantsFatLoss ? 0.22 : 0.25;
+    const pRatio = isRecomp
+      ? 0.42
+      : wantsMuscleGain
+        ? 0.4
+        : wantsFatLoss
+          ? 0.38
+          : 0.35;
+    const fRatio = isCutting ? 0.2 : wantsFatLoss ? 0.22 : 0.25;
     const cRatio = 1 - pRatio - fRatio;
     return {
       kcal,

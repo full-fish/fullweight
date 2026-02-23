@@ -1,13 +1,9 @@
+import { Ionicons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
 import React from "react";
-import { Text } from "react-native";
 
 import { HapticTab } from "@/components/haptic-tab";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-
-function EmojiIcon({ emoji }: { emoji: string }) {
-  return <Text style={{ fontSize: 22 }}>{emoji}</Text>;
-}
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
@@ -30,42 +26,54 @@ export default function TabLayout() {
         name="index"
         options={{
           title: "기록",
-          tabBarIcon: () => <EmojiIcon emoji="📝" />,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="create-outline" size={size} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="explore"
         options={{
           title: "그래프",
-          tabBarIcon: () => <EmojiIcon emoji="📊" />,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="bar-chart-outline" size={size} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="calendar"
         options={{
           title: "캘린더",
-          tabBarIcon: () => <EmojiIcon emoji="📅" />,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="calendar-outline" size={size} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="challenge"
         options={{
           title: "챌린지",
-          tabBarIcon: () => <EmojiIcon emoji="🏆" />,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="trophy-outline" size={size} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="photos"
         options={{
           title: "눈바디",
-          tabBarIcon: () => <EmojiIcon emoji="📸" />,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="camera-outline" size={size} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
           title: "설정",
-          tabBarIcon: () => <EmojiIcon emoji="⚙️" />,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="settings-outline" size={size} color={color} />
+          ),
         }}
       />
     </Tabs>
