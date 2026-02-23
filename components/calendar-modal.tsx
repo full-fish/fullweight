@@ -23,9 +23,20 @@ type Props = {
   value: string;
   onChange: (v: string) => void;
   onClose: () => void;
+  /** 선택 가능한 최소 날짜 (YYYY-MM-DD) */
+  minDate?: string;
+  /** 선택 가능한 최대 날짜 (YYYY-MM-DD) */
+  maxDate?: string;
 };
 
-export function CalendarModal({ visible, value, onChange, onClose }: Props) {
+export function CalendarModal({
+  visible,
+  value,
+  onChange,
+  onClose,
+  minDate,
+  maxDate,
+}: Props) {
   const now = new Date();
   const parsed = value ? new Date(value) : now;
   const initY = !isNaN(parsed.getTime())
@@ -80,6 +91,8 @@ export function CalendarModal({ visible, value, onChange, onClose }: Props) {
 
   const handleTextConfirm = () => {
     if (/^\d{4}-\d{2}-\d{2}$/.test(textDate)) {
+      if (minDate && textDate < minDate) return;
+      if (maxDate && textDate > maxDate) return;
       onChange(textDate);
       onClose();
     }
@@ -274,17 +287,30 @@ export function CalendarModal({ visible, value, onChange, onClose }: Props) {
                       return <View key={di} style={cpS.dayCell} />;
                     const dateStr = `${cYear}-${pad2(cMonth + 1)}-${pad2(day)}`;
                     const isSelected = dateStr === value;
+                    const isDisabled =
+                      (minDate != null && dateStr < minDate) ||
+                      (maxDate != null && dateStr > maxDate);
                     return (
                       <TouchableOpacity
                         key={di}
-                        style={[cpS.dayCell, isSelected && cpS.dayCellSelected]}
+                        style={[
+                          cpS.dayCell,
+                          isSelected && cpS.dayCellSelected,
+                          isDisabled && cpS.dayCellDisabled,
+                        ]}
                         onPress={() => {
+                          if (isDisabled) return;
                           onChange(dateStr);
                           onClose();
                         }}
+                        activeOpacity={isDisabled ? 1 : 0.7}
                       >
                         <Text
-                          style={[cpS.dayText, isSelected && { color: "#fff" }]}
+                          style={[
+                            cpS.dayText,
+                            isSelected && { color: "#fff" },
+                            isDisabled && cpS.dayTextDisabled,
+                          ]}
                         >
                           {day}
                         </Text>
@@ -343,5 +369,7 @@ const cpS = StyleSheet.create({
     borderRadius: CP_DAY / 2,
   },
   dayCellSelected: { backgroundColor: "#4CAF50" },
+  dayCellDisabled: { opacity: 0.35 },
   dayText: { fontSize: 13, fontWeight: "500", color: "#2D3748" },
+  dayTextDisabled: { color: "#718096" },
 });

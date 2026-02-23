@@ -17,9 +17,17 @@ type Props = {
   label: string;
   value: string;
   onChange: (v: string) => void;
+  minDate?: string;
+  maxDate?: string;
 };
 
-export function DatePickerRow({ label, value, onChange }: Props) {
+export function DatePickerRow({
+  label,
+  value,
+  onChange,
+  minDate,
+  maxDate,
+}: Props) {
   const [showCal, setShowCal] = useState(false);
 
   return (
@@ -49,6 +57,8 @@ export function DatePickerRow({ label, value, onChange }: Props) {
         value={value}
         onChange={onChange}
         onClose={() => setShowCal(false)}
+        minDate={minDate}
+        maxDate={maxDate}
       />
     </>
   );

@@ -47,6 +47,9 @@ const NUTRITION_COLORS: Record<string, string> = {
 /* ───── MAIN ───── */
 
 export default function ChartScreen() {
+  const _now = new Date();
+  const todayStr = `${_now.getFullYear()}-${String(_now.getMonth() + 1).padStart(2, "0")}-${String(_now.getDate()).padStart(2, "0")}`;
+
   const [allRecords, setAllRecords] = useState<WeightRecord[]>([]);
   const [userSettings, setUserSettings] = useState<UserSettings>({});
   const [selectedMetrics, setSelectedMetrics] = useState<string[]>(["weight"]);
@@ -905,12 +908,18 @@ export default function ChartScreen() {
             <DatePickerRow
               label="시작일"
               value={customStart}
-              onChange={setCustomStart}
+              onChange={(v) => {
+                setCustomStart(v);
+                if (customEnd && v > customEnd) setCustomEnd(v);
+              }}
+              maxDate={todayStr}
             />
             <DatePickerRow
               label="종료일"
               value={customEnd}
               onChange={setCustomEnd}
+              minDate={customStart || undefined}
+              maxDate={todayStr}
             />
           </View>
         )}
@@ -1499,8 +1508,12 @@ export default function ChartScreen() {
         <CalendarModal
           visible={showStatsCal}
           value={statsStart}
-          onChange={setStatsStart}
+          onChange={(v) => {
+            setStatsStart(v);
+            if (statsEnd && v > statsEnd) setStatsEnd(v);
+          }}
           onClose={() => setShowStatsCal(false)}
+          maxDate={todayStr}
         />
 
         {/* 통계 끝 캘린더 팝업 */}
@@ -1509,14 +1522,20 @@ export default function ChartScreen() {
           value={statsEnd}
           onChange={setStatsEnd}
           onClose={() => setShowStatsEndCal(false)}
+          minDate={statsStart || undefined}
+          maxDate={todayStr}
         />
 
         {/* 활동 요약 시작 캘린더 팝업 */}
         <CalendarModal
           visible={showActivityCal}
           value={activityStart}
-          onChange={setActivityStart}
+          onChange={(v) => {
+            setActivityStart(v);
+            if (activityEnd && v > activityEnd) setActivityEnd(v);
+          }}
           onClose={() => setShowActivityCal(false)}
+          maxDate={todayStr}
         />
 
         {/* 활동 요약 끝 캘린더 팝업 */}
@@ -1525,6 +1544,8 @@ export default function ChartScreen() {
           value={activityEnd}
           onChange={setActivityEnd}
           onClose={() => setShowActivityEndCal(false)}
+          minDate={activityStart || undefined}
+          maxDate={todayStr}
         />
       </ScrollView>
     </View>
