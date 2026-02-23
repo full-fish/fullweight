@@ -87,6 +87,12 @@ export default function HomeScreen() {
   const [mealKcal, setMealKcal] = useState("");
   const [aiAnalyzing, setAiAnalyzing] = useState(false);
 
+  /* 사진 확대 모달 */
+  const [zoomPhotoUri, setZoomPhotoUri] = useState<string | null>(null);
+
+  /* 전체 식사 기록 (기록 목록용) */
+  const [allMeals, setAllMeals] = useState<MealEntry[]>([]);
+
   /* 편집 모달 상태 */
   const [showEditModal, setShowEditModal] = useState(false);
   const [editRecord, setEditRecord] = useState<WeightRecord | null>(null);
@@ -171,6 +177,7 @@ export default function HomeScreen() {
       loadUserSettings().then(setUserSettings);
       loadChallenge().then(setChallenge);
       loadMeals(selectedDate).then(setMeals);
+      loadMeals().then(setAllMeals);
     }, [selectedDate, loadAndSetRecords, populateForm])
   );
 
@@ -282,6 +289,7 @@ export default function HomeScreen() {
     };
     const updated = await addMeal(entry);
     setMeals(updated.filter((m) => m.date === selectedDate));
+    loadMeals().then(setAllMeals);
     setShowMealModal(false);
   };
 
@@ -298,6 +306,7 @@ export default function HomeScreen() {
             if (meal.photoUri) await deletePhoto(meal.photoUri);
             const updated = await deleteMeal(meal.id);
             setMeals(updated.filter((m) => m.date === selectedDate));
+            loadMeals().then(setAllMeals);
           },
         },
       ]
@@ -823,10 +832,14 @@ export default function HomeScreen() {
                     {mealItems.map((meal) => (
                       <View key={meal.id} style={mealStyles.mealItem}>
                         {meal.photoUri && (
-                          <Image
-                            source={{ uri: meal.photoUri }}
-                            style={mealStyles.mealPhoto}
-                          />
+                          <TouchableOpacity
+                            onPress={() => setZoomPhotoUri(meal.photoUri!)}
+                          >
+                            <Image
+                              source={{ uri: meal.photoUri }}
+                              style={mealStyles.mealPhoto}
+                            />
+                          </TouchableOpacity>
                         )}
                         <View style={mealStyles.mealInfo}>
                           <Text style={mealStyles.mealDesc} numberOfLines={1}>
@@ -1097,6 +1110,40 @@ export default function HomeScreen() {
                     </View>
                   )}
                 </View>
+                {/* 해당 날짜 식사 기록 */}
+                {(() => {
+                  const dayMeals = allMeals.filter(
+                    (m) => m.date === record.date
+                  );
+                  if (dayMeals.length === 0) return null;
+                  return (
+                    <View style={styles.recordMealsSection}>
+                      <Text style={styles.recordMealsTitle}>
+                        🍽️ 식사 {dayMeals.reduce((s, m) => s + m.kcal, 0)}kcal
+                      </Text>
+                      {dayMeals.map((meal) => (
+                        <View key={meal.id} style={styles.recordMealItem}>
+                          {meal.photoUri && (
+                            <TouchableOpacity
+                              onPress={() => setZoomPhotoUri(meal.photoUri!)}
+                            >
+                              <Image
+                                source={{ uri: meal.photoUri }}
+                                style={styles.recordMealPhoto}
+                              />
+                            </TouchableOpacity>
+                          )}
+                          <Text style={styles.recordMealDesc} numberOfLines={1}>
+                            {meal.description || "음식"}
+                          </Text>
+                          <Text style={styles.recordMealKcal}>
+                            {meal.kcal}kcal
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  );
+                })()}
               </View>
             ))
           )}
@@ -1588,9 +1635,44 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </Modal>
       </KeyboardAvoidingView>
+
+      {/* 사진 확대 모달 */}
+      <Modal
+        visible={!!zoomPhotoUri}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setZoomPhotoUri(null)}
+      >
+        <TouchableOpacity
+          style={zoomStyles.overlay}
+          activeOpacity={1}
+          onPress={() => setZoomPhotoUri(null)}
+        >
+          {zoomPhotoUri && (
+            <Image
+              source={{ uri: zoomPhotoUri }}
+              style={zoomStyles.image}
+              resizeMode="contain"
+            />
+          )}
+        </TouchableOpacity>
+      </Modal>
     </SwipeableTab>
   );
 }
+
+const zoomStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.9)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  image: {
+    width: width,
+    height: width,
+  },
+});
 
 const editModalStyles = StyleSheet.create({
   overlay: {
@@ -2174,6 +2256,39 @@ const styles = StyleSheet.create({
   badgeExercise: { backgroundColor: "#E8F5E9" },
   badgeDrank: { backgroundColor: "#FFF3E0" },
   badgeText: { fontSize: 12, fontWeight: "500", color: "#4A5568" },
+  recordMealsSection: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: "#F0F4F8",
+  },
+  recordMealsTitle: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#4A5568",
+    marginBottom: 6,
+  },
+  recordMealItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 4,
+    gap: 8,
+  },
+  recordMealPhoto: {
+    width: 32,
+    height: 32,
+    borderRadius: 6,
+  },
+  recordMealDesc: {
+    flex: 1,
+    fontSize: 13,
+    color: "#2D3748",
+  },
+  recordMealKcal: {
+    fontSize: 12,
+    color: "#718096",
+    fontWeight: "500",
+  },
   stepBtn: {
     width: 40,
     height: 48,

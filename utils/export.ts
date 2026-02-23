@@ -7,8 +7,8 @@ import {
   loadUserSettings,
 } from "@/utils/storage";
 import * as LegacyFileSystem from "expo-file-system/legacy";
-import * as Sharing from "expo-sharing";
 import JSZip from "jszip";
+import { Platform } from "react-native";
 
 export type ExportFormat = "json" | "csv" | "zip";
 
@@ -240,8 +240,9 @@ function formatDateForFile(): string {
 /* ───── 메인 내보내기 함수 ───── */
 
 /**
- * 데이터를 내보내고 공유 시트를 통해 저장 위치를 선택합니다.
- * - Android/iOS: 공유 시트 → "파일에 저장" 선택 가능
+ * 데이터를 내보내고 Downloads 폴더에 저장합니다.
+ * - Android: MediaStore API로 다운로드 폴더에 직접 저장
+ * - iOS: 공유 시트 → "파일에 저장" 선택 가능
  * @returns 저장된 파일명
  */
 export async function exportData(
@@ -264,15 +265,21 @@ export async function exportData(
 
   const fileName = tempPath.split("/").pop()!;
 
-  const mimeType = format === "json" ? "application/json" : "application/zip";
+  if (Platform.OS === "android") {
+    const mimeType = format === "json" ? "application/json" : "application/zip";
 
-  await Sharing.shareAsync(tempPath, {
-    mimeType,
-    dialogTitle: "내보내기 파일 저장",
-  });
-
-  // 임시 파일 정리
-  await LegacyFileSystem.deleteAsync(tempPath, { idempotent: true });
+    const { saveToDownloads } = await import("@/modules/expo-downloads");
+    await saveToDownloads(tempPath, fileName, mimeType);
+    await LegacyFileSystem.deleteAsync(tempPath, { idempotent: true });
+  } else {
+    // iOS: 공유 시트 (파일에 저장 가능)
+    const Sharing = await import("expo-sharing");
+    await Sharing.shareAsync(tempPath, {
+      mimeType: format === "json" ? "application/json" : "application/zip",
+      dialogTitle: "내보내기 파일 저장",
+    });
+    await LegacyFileSystem.deleteAsync(tempPath, { idempotent: true });
+  }
 
   return fileName;
 }

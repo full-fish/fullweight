@@ -20,7 +20,7 @@ function getFoodQuality(setting?: FoodPhotoQuality): number {
     case "original":
       return 1.0;
     case "low":
-      return 0.3;
+      return 0.1;
     case "compressed":
     default:
       return 0.7;

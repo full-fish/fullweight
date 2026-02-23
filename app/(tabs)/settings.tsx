@@ -712,9 +712,10 @@ export default function SettingsScreen() {
       setShowExportModal(false);
       Alert.alert(
         "저장 완료 ✅",
-        `${fileName}\n\n파일이 로컬에 저장되었습니다.`
+        `${fileName}\n\n다운로드 폴더에 저장되었습니다.`
       );
     } catch (e: any) {
+      if (e?.message === "CANCELED") return; // 사용자 취소 → 알림 없음
       Alert.alert(
         "내보내기 실패",
         e?.message ?? "알 수 없는 오류가 발생했습니다."
@@ -2480,8 +2481,7 @@ export default function SettingsScreen() {
                 paddingVertical: 12,
                 borderRadius: 10,
                 alignItems: "center",
-                backgroundColor:
-                  aiModel === "gpt-4o" ? "#667EEA" : "#EDF2F7",
+                backgroundColor: aiModel === "gpt-4o" ? "#667EEA" : "#EDF2F7",
               }}
               onPress={async () => {
                 setAiModel("gpt-4o");
@@ -2550,8 +2550,7 @@ export default function SettingsScreen() {
                 style={{
                   fontSize: 13,
                   fontWeight: "700",
-                  color:
-                    bodyPhotoQuality === "compressed" ? "#fff" : "#2D3748",
+                  color: bodyPhotoQuality === "compressed" ? "#fff" : "#2D3748",
                 }}
               >
                 압축 화질
@@ -2589,8 +2588,7 @@ export default function SettingsScreen() {
                 style={{
                   fontSize: 13,
                   fontWeight: "700",
-                  color:
-                    bodyPhotoQuality === "original" ? "#fff" : "#2D3748",
+                  color: bodyPhotoQuality === "original" ? "#fff" : "#2D3748",
                 }}
               >
                 원본 화질
@@ -2680,8 +2678,7 @@ export default function SettingsScreen() {
                 style={{
                   fontSize: 13,
                   fontWeight: "700",
-                  color:
-                    foodPhotoQuality === "compressed" ? "#fff" : "#2D3748",
+                  color: foodPhotoQuality === "compressed" ? "#fff" : "#2D3748",
                 }}
               >
                 압축 화질
@@ -2719,8 +2716,7 @@ export default function SettingsScreen() {
                 style={{
                   fontSize: 13,
                   fontWeight: "700",
-                  color:
-                    foodPhotoQuality === "original" ? "#fff" : "#2D3748",
+                  color: foodPhotoQuality === "original" ? "#fff" : "#2D3748",
                 }}
               >
                 원본 화질
