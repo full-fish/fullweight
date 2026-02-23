@@ -150,7 +150,9 @@ export default function ChartScreen() {
     (r: WeightRecord, key: string): number | null => {
       if (NUTRITION_KEYS.has(key)) {
         // 주/월별 집계 레코드의 경우 _nutritionAvg 사용
-        const aggRec = r as WeightRecord & { _nutritionAvg?: Record<string, number | null> };
+        const aggRec = r as WeightRecord & {
+          _nutritionAvg?: Record<string, number | null>;
+        };
         if (aggRec._nutritionAvg) {
           return aggRec._nutritionAvg[key] ?? null;
         }
@@ -204,9 +206,10 @@ export default function ChartScreen() {
           const vals = recs
             .map((r) => dailyMealMap[r.date]?.[nk] ?? null)
             .filter((v): v is number => v !== null && v > 0);
-          nutAvg[nk] = vals.length > 0
-            ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length)
-            : null;
+          nutAvg[nk] =
+            vals.length > 0
+              ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length)
+              : null;
         });
 
         const rec = {
@@ -973,9 +976,10 @@ export default function ChartScreen() {
                         const tgt = NUTRITION_KEYS.has(singleChartInfo.key)
                           ? NUTRITION_TARGET_MAP[singleChartInfo.key]
                           : undefined;
-                        const allV = tgt != null
-                          ? [...singleChartInfo.values, tgt]
-                          : singleChartInfo.values;
+                        const allV =
+                          tgt != null
+                            ? [...singleChartInfo.values, tgt]
+                            : singleChartInfo.values;
                         const pad = yPadding * 0.01;
                         return [
                           {
@@ -1166,9 +1170,10 @@ export default function ChartScreen() {
                               const tgt = NUTRITION_KEYS.has(info.key)
                                 ? NUTRITION_TARGET_MAP[info.key]
                                 : undefined;
-                              const allV = tgt != null
-                                ? [...info.values, tgt]
-                                : info.values;
+                              const allV =
+                                tgt != null
+                                  ? [...info.values, tgt]
+                                  : info.values;
                               const pad = yPadding * 0.01;
                               return [
                                 {

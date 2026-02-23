@@ -620,10 +620,28 @@ export default function ChallengeScreen() {
       setFTargetBodyFatPercent(existing.targetBodyFatPercent?.toString() ?? "");
       setFEndDate(existing.endDate);
     } else {
-      setFTargetWeight("");
-      setFTargetMuscleMass("");
-      setFTargetBodyFatMass("");
-      setFTargetBodyFatPercent("");
+      // 최근 기록에서 각 수치의 가장 최근 유효값을 가져옴
+      let prefillWeight = "";
+      let prefillMuscle = "";
+      let prefillFatMass = "";
+      for (let i = records.length - 1; i >= 0; i--) {
+        const r = records[i];
+        if (!prefillWeight && r.weight) prefillWeight = r.weight.toFixed(1);
+        if (!prefillMuscle && r.muscleMass) prefillMuscle = r.muscleMass.toFixed(1);
+        if (!prefillFatMass && r.bodyFatMass) prefillFatMass = r.bodyFatMass.toFixed(1);
+        if (prefillWeight && prefillMuscle && prefillFatMass) break;
+      }
+      setFTargetWeight(prefillWeight);
+      setFTargetMuscleMass(prefillMuscle);
+      setFTargetBodyFatMass(prefillFatMass);
+      // 체지방률 자동 계산
+      const tw = parseFloat(prefillWeight);
+      const fm = parseFloat(prefillFatMass);
+      if (!isNaN(tw) && tw > 0 && !isNaN(fm) && fm >= 0) {
+        setFTargetBodyFatPercent(((fm / tw) * 100).toFixed(1));
+      } else {
+        setFTargetBodyFatPercent("");
+      }
       const d = new Date();
       d.setMonth(d.getMonth() + 3);
       setFEndDate(getLocalDateString(d));
@@ -1241,27 +1259,39 @@ export default function ChallengeScreen() {
                 />
 
                 <Text style={st.formLabel}>목표 체지방량 (kg)</Text>
-                <StepInput
-                  value={fTargetBodyFatMass}
-                  onChangeText={(v) => {
-                    setFTargetBodyFatMass(v);
-                    // 목표 몸무게가 있으면 체지방률 자동 계산
-                    const tw = parseFloat(fTargetWeight);
-                    const fm = parseFloat(v);
-                    if (!isNaN(tw) && tw > 0 && !isNaN(fm) && fm >= 0) {
-                      setFTargetBodyFatPercent(((fm / tw) * 100).toFixed(1));
-                    }
-                  }}
-                  placeholder="예: 12.0"
-                />
-
-                <Text style={st.formLabel}>목표 체지방률 (%) — 자동 계산</Text>
-                <StepInput
-                  value={fTargetBodyFatPercent}
-                  onChangeText={() => {}}
-                  placeholder="체지방량÷몸무게 자동 계산"
-                  editable={false}
-                />
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  <View style={{ flex: 1 }}>
+                    <StepInput
+                      value={fTargetBodyFatMass}
+                      onChangeText={(v) => {
+                        setFTargetBodyFatMass(v);
+                        // 목표 몸무게가 있으면 체지방률 자동 계산
+                        const tw = parseFloat(fTargetWeight);
+                        const fm = parseFloat(v);
+                        if (!isNaN(tw) && tw > 0 && !isNaN(fm) && fm >= 0) {
+                          setFTargetBodyFatPercent(((fm / tw) * 100).toFixed(1));
+                        } else {
+                          setFTargetBodyFatPercent("");
+                        }
+                      }}
+                      placeholder="예: 12.0"
+                    />
+                  </View>
+                  {fTargetBodyFatPercent ? (
+                    <View style={{
+                      marginLeft: 10,
+                      backgroundColor: "#EBF8FF",
+                      paddingHorizontal: 10,
+                      paddingVertical: 8,
+                      borderRadius: 10,
+                      marginBottom: 14,
+                    }}>
+                      <Text style={{ fontSize: 14, fontWeight: "600", color: "#3182CE" }}>
+                        {fTargetBodyFatPercent}%
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
 
                 <DateCalendarPicker
                   label="목표 종료일"

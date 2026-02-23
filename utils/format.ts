@@ -292,7 +292,10 @@ export function calcDailyNutrition({
   if (wantsMuscleGain) {
     if (muscleMass != null && targetMuscleMass != null) {
       // 목표 근육량 증가분에 비례 (kg당 100kcal, 최대 300kcal)
-      muscleSurplus = Math.min(300, Math.round((targetMuscleMass - muscleMass) * 100));
+      muscleSurplus = Math.min(
+        300,
+        Math.round((targetMuscleMass - muscleMass) * 100)
+      );
     } else {
       muscleSurplus = 150; // 현재 근육량 미기록 시 기본 보너스
     }
@@ -303,7 +306,7 @@ export function calcDailyNutrition({
   if (wantsFatLoss && targetBodyFatPercent != null) {
     // 현재 체지방률 → 목표 체지방률까지 감량할 체지방(kg)
     const currentBfp = bodyFatPercent ?? (isLosing ? 25 : 20); // 미입력 시 추정
-    const fatLossKg = weight * (currentBfp - targetBodyFatPercent) / 100;
+    const fatLossKg = (weight * (currentBfp - targetBodyFatPercent)) / 100;
     if (fatLossKg > 0 && periodDays > 0) {
       // 지방 1kg = 7700kcal, 기간 내 분산
       const dailyFatDeficit = (fatLossKg * 7700) / periodDays;
@@ -313,7 +316,10 @@ export function calcDailyNutrition({
   }
 
   // 하루 권장 칼로리 (최소 1200kcal)
-  const kcal = Math.max(1200, Math.round(tdee + safeDelta + muscleSurplus - fatDeficit));
+  const kcal = Math.max(
+    1200,
+    Math.round(tdee + safeDelta + muscleSurplus - fatDeficit)
+  );
 
   // 주당 총 운동 시간(시)
   const weeklyExHours = (exerciseFreq * exerciseMins) / 60;
