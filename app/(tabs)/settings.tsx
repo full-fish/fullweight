@@ -19,6 +19,7 @@ import {
   shouldAutoBackup,
   signOut,
 } from "@/utils/backup";
+import { estimatePhotoSize, exportData, ExportFormat } from "@/utils/export";
 import {
   calcAge,
   getDaysInMonth,
@@ -420,6 +421,15 @@ export default function SettingsScreen() {
   const [devTapCount, setDevTapCount] = useState(0);
   const [showDevTools, setShowDevTools] = useState(false);
 
+  // ── 내보내기 상태 ──
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportIncludePhotos, setExportIncludePhotos] = useState(false);
+  const [exportPhotoInfo, setExportPhotoInfo] = useState<{
+    count: number;
+    sizeBytes: number;
+  } | null>(null);
+  const [exportLoading, setExportLoading] = useState(false);
+
   useFocusEffect(
     useCallback(() => {
       loadRecords().then((data) => setRecordCount(data.length));
@@ -666,6 +676,43 @@ export default function SettingsScreen() {
         },
       ]
     );
+  };
+
+  /* ── 내보내기 ── */
+  const handleOpenExport = async () => {
+    setShowExportModal(true);
+    setExportIncludePhotos(false);
+    try {
+      const info = await estimatePhotoSize();
+      setExportPhotoInfo(info);
+    } catch {
+      setExportPhotoInfo({ count: 0, sizeBytes: 0 });
+    }
+  };
+
+  const handleExport = async (format: ExportFormat) => {
+    setExportLoading(true);
+    try {
+      const fileName = await exportData(format, exportIncludePhotos);
+      setShowExportModal(false);
+      Alert.alert(
+        "저장 완료 ✅",
+        `${fileName}\n\n파일이 로컬에 저장되었습니다.`
+      );
+    } catch (e: any) {
+      Alert.alert(
+        "내보내기 실패",
+        e?.message ?? "알 수 없는 오류가 발생했습니다."
+      );
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
+  const formatBytes = (bytes: number): string => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
   const handleClearAll = () => {
@@ -2308,6 +2355,161 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </Modal>
 
+        {/* 데이터 내보내기 */}
+        <View style={s.card}>
+          <Text style={s.cardTitle}>데이터 내보내기</Text>
+          <Text style={[s.backupDesc, { marginBottom: 12 }]}>
+            기록 데이터를 다양한 형식으로 로컬에 저장하거나{"\n"}다른 앱으로
+            공유할 수 있습니다.
+          </Text>
+          <TouchableOpacity
+            style={[s.backupActionBtn, { backgroundColor: "#667EEA" }]}
+            onPress={handleOpenExport}
+          >
+            <Text style={s.backupActionBtnText}>내보내기</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* 내보내기 모달 */}
+        <Modal
+          visible={showExportModal}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowExportModal(false)}
+        >
+          <TouchableOpacity
+            style={s.pinModalOverlay}
+            activeOpacity={1}
+            onPress={() => !exportLoading && setShowExportModal(false)}
+          >
+            <View
+              style={[s.pinModalCard, { width: SCREEN_WIDTH * 0.9 }]}
+              onStartShouldSetResponder={() => true}
+            >
+              <Text style={[s.pinModalTitle, { marginBottom: 16 }]}>
+                내보내기 형식 선택
+              </Text>
+
+              {/* 형식 버튼들 */}
+              <View style={{ gap: 10 }}>
+                <TouchableOpacity
+                  style={[s.exportFormatBtn, { backgroundColor: "#4299E1" }]}
+                  onPress={() => handleExport("json")}
+                  disabled={exportLoading}
+                >
+                  {exportLoading ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <View style={{ alignItems: "center" }}>
+                      <Text style={s.exportFormatBtnText}>JSON</Text>
+                      <Text style={s.exportFormatBtnDesc}>
+                        전체 데이터 · 다른 앱에서 재사용 가능
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[s.exportFormatBtn, { backgroundColor: "#48BB78" }]}
+                  onPress={() => handleExport("csv")}
+                  disabled={exportLoading}
+                >
+                  {exportLoading ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <View style={{ alignItems: "center" }}>
+                      <Text style={s.exportFormatBtnText}>CSV</Text>
+                      <Text style={s.exportFormatBtnDesc}>
+                        엑셀 호환 · 체중/식사 기록 스프레드시트
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[s.exportFormatBtn, { backgroundColor: "#667EEA" }]}
+                  onPress={() => handleExport("zip")}
+                  disabled={exportLoading}
+                >
+                  {exportLoading ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <View style={{ alignItems: "center" }}>
+                      <Text style={s.exportFormatBtnText}>ZIP (전체 백업)</Text>
+                      <Text style={s.exportFormatBtnDesc}>
+                        JSON + CSV + 사진 · 완전한 백업
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </View>
+
+              {/* 사진 포함 토글 (ZIP 전용) */}
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  paddingVertical: 12,
+                  paddingHorizontal: 4,
+                  marginTop: 12,
+                  borderTopWidth: 1,
+                  borderTopColor: "#F0F4F8",
+                }}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      fontWeight: "600",
+                      color: "#2D3748",
+                    }}
+                  >
+                    ZIP에 사진 포함
+                  </Text>
+                  {exportPhotoInfo && exportPhotoInfo.count > 0 ? (
+                    <Text
+                      style={{ fontSize: 11, color: "#A0AEC0", marginTop: 2 }}
+                    >
+                      사진 {exportPhotoInfo.count}장 ·{" "}
+                      {formatBytes(exportPhotoInfo.sizeBytes)}
+                    </Text>
+                  ) : (
+                    <Text
+                      style={{ fontSize: 11, color: "#A0AEC0", marginTop: 2 }}
+                    >
+                      저장된 사진이 없습니다
+                    </Text>
+                  )}
+                </View>
+                <Switch
+                  value={exportIncludePhotos}
+                  onValueChange={setExportIncludePhotos}
+                  disabled={!exportPhotoInfo || exportPhotoInfo.count === 0}
+                  trackColor={{ false: "#E2E8F0", true: "#90CDF4" }}
+                  thumbColor={exportIncludePhotos ? "#4299E1" : "#fff"}
+                />
+              </View>
+
+              <TouchableOpacity
+                style={{
+                  marginTop: 16,
+                  alignItems: "center",
+                  paddingVertical: 10,
+                }}
+                onPress={() => setShowExportModal(false)}
+                disabled={exportLoading}
+              >
+                <Text
+                  style={{ fontSize: 14, fontWeight: "600", color: "#718096" }}
+                >
+                  닫기
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </Modal>
+
         {/* 개발자 도구 */}
         <View style={s.card}>
           <TouchableOpacity
@@ -2652,6 +2854,22 @@ const s = StyleSheet.create({
     color: "#fff",
     fontSize: 14,
     fontWeight: "600",
+  },
+  exportFormatBtn: {
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+  exportFormatBtnText: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  exportFormatBtnDesc: {
+    color: "rgba(255,255,255,0.8)",
+    fontSize: 11,
+    fontWeight: "400",
+    marginTop: 2,
   },
   signOutBtn: {
     marginTop: 12,
