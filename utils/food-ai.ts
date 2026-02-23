@@ -1,3 +1,4 @@
+import type { AiModelOption } from "@/types";
 import * as LegacyFileSystem from "expo-file-system/legacy";
 
 export type FoodAnalysisResult = {
@@ -23,7 +24,8 @@ const ANALYZE_API_URL = "https://fullweight.vercel.app/api/analyze-food";
  * - API 키는 Vercel 서버에만 존재 → 앱 번들에 노출 없음
  */
 export async function analyzeFood(
-  photoUri: string
+  photoUri: string,
+  model: AiModelOption = "gpt-4o-mini"
 ): Promise<FoodAnalysisResult> {
   const base64 = await LegacyFileSystem.readAsStringAsync(photoUri, {
     encoding: LegacyFileSystem.EncodingType.Base64,
@@ -32,7 +34,7 @@ export async function analyzeFood(
   const res = await fetch(ANALYZE_API_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ base64 }),
+    body: JSON.stringify({ base64, model }),
   });
 
   if (!res.ok) {

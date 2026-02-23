@@ -231,13 +231,16 @@ export default function HomeScreen() {
   };
 
   const handleMealPhotoSelect = async (source: "camera" | "gallery") => {
-    const uri = source === "camera" ? await takePhoto() : await pickPhoto();
+    const uri =
+      source === "camera"
+        ? await takePhoto("food", userSettings.foodPhotoQuality)
+        : await pickPhoto("food", userSettings.foodPhotoQuality);
     if (!uri) return;
     setMealPhotoUri(uri);
     // AI 자동 분석 시도
     setAiAnalyzing(true);
     try {
-      const result = await analyzeFood(uri);
+      const result = await analyzeFood(uri, userSettings.aiModel);
       setMealDesc(result.description);
       setMealCarb(String(result.carb));
       setMealProtein(String(result.protein));
@@ -717,7 +720,10 @@ export default function HomeScreen() {
                 <TouchableOpacity
                   style={styles.photoBtn}
                   onPress={async () => {
-                    const uri = await takePhoto();
+                    const uri = await takePhoto(
+                      "body",
+                      userSettings.bodyPhotoQuality
+                    );
                     if (uri) setPhotoUri(uri);
                   }}
                 >
@@ -726,7 +732,10 @@ export default function HomeScreen() {
                 <TouchableOpacity
                   style={styles.photoBtn}
                   onPress={async () => {
-                    const uri = await pickPhoto();
+                    const uri = await pickPhoto(
+                      "body",
+                      userSettings.bodyPhotoQuality
+                    );
                     if (uri) setPhotoUri(uri);
                   }}
                 >
@@ -1463,7 +1472,10 @@ export default function HomeScreen() {
                         alignItems: "center",
                       }}
                       onPress={async () => {
-                        const uri = await takePhoto();
+                        const uri = await takePhoto(
+                          "body",
+                          userSettings.bodyPhotoQuality
+                        );
                         if (uri) setEmPhotoUri(uri);
                       }}
                     >
@@ -1486,7 +1498,10 @@ export default function HomeScreen() {
                         alignItems: "center",
                       }}
                       onPress={async () => {
-                        const uri = await pickPhoto();
+                        const uri = await pickPhoto(
+                          "body",
+                          userSettings.bodyPhotoQuality
+                        );
                         if (uri) setEmPhotoUri(uri);
                       }}
                     >

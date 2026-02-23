@@ -1,10 +1,13 @@
 import { SwipeableTab } from "@/components/swipeable-tab";
 import {
+  AiModelOption,
+  BodyPhotoQuality,
   BUILTIN_OPTIONAL_METRICS,
   CUSTOM_BOOL_COLORS,
   CUSTOM_METRIC_COLORS,
   CustomBoolMetric,
   CustomMetric,
+  FoodPhotoQuality,
 } from "@/types";
 import {
   getBackupIntervalDays,
@@ -432,6 +435,13 @@ export default function SettingsScreen() {
   const [exportLoading, setExportLoading] = useState(false);
   const [inbodyLoading, setInbodyLoading] = useState(false);
 
+  // ── AI 모델 & 사진 화질 설정 ──
+  const [aiModel, setAiModel] = useState<AiModelOption>("gpt-4o-mini");
+  const [bodyPhotoQuality, setBodyPhotoQuality] =
+    useState<BodyPhotoQuality>("compressed");
+  const [foodPhotoQuality, setFoodPhotoQuality] =
+    useState<FoodPhotoQuality>("compressed");
+
   useFocusEffect(
     useCallback(() => {
       loadRecords().then((data) => setRecordCount(data.length));
@@ -446,6 +456,9 @@ export default function SettingsScreen() {
         setMetricDisplayVisibility(settings.metricDisplayVisibility ?? {});
         setCustomMetrics(settings.customMetrics ?? []);
         setCustomBoolMetrics(settings.customBoolMetrics ?? []);
+        setAiModel(settings.aiModel ?? "gpt-4o-mini");
+        setBodyPhotoQuality(settings.bodyPhotoQuality ?? "compressed");
+        setFoodPhotoQuality(settings.foodPhotoQuality ?? "compressed");
       });
 
       // Google 로그인 상태 & 마지막 백업 시간 불러오기
@@ -2415,6 +2428,315 @@ export default function SettingsScreen() {
               <Text style={s.backupActionBtnText}>CSV 파일 선택</Text>
             )}
           </TouchableOpacity>
+        </View>
+
+        {/* AI 모델 설정 */}
+        <View style={s.card}>
+          <Text style={s.cardTitle}>AI 음식 분석 모델</Text>
+          <Text style={[s.backupDesc, { marginBottom: 12 }]}>
+            음식 사진 분석 시 사용할 AI 모델을 선택합니다.
+          </Text>
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            <TouchableOpacity
+              style={{
+                flex: 1,
+                paddingVertical: 12,
+                borderRadius: 10,
+                alignItems: "center",
+                backgroundColor:
+                  aiModel === "gpt-4o-mini" ? "#4299E1" : "#EDF2F7",
+              }}
+              onPress={async () => {
+                setAiModel("gpt-4o-mini");
+                const settings = await loadUserSettings();
+                await saveUserSettings({
+                  ...settings,
+                  aiModel: "gpt-4o-mini",
+                });
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontWeight: "700",
+                  color: aiModel === "gpt-4o-mini" ? "#fff" : "#2D3748",
+                }}
+              >
+                저성능 모델
+              </Text>
+              <Text
+                style={{
+                  fontSize: 10,
+                  color: aiModel === "gpt-4o-mini" ? "#BEE3F8" : "#A0AEC0",
+                  marginTop: 2,
+                }}
+              >
+                gpt-4o-mini
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={{
+                flex: 1,
+                paddingVertical: 12,
+                borderRadius: 10,
+                alignItems: "center",
+                backgroundColor:
+                  aiModel === "gpt-4o" ? "#667EEA" : "#EDF2F7",
+              }}
+              onPress={async () => {
+                setAiModel("gpt-4o");
+                const settings = await loadUserSettings();
+                await saveUserSettings({ ...settings, aiModel: "gpt-4o" });
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontWeight: "700",
+                  color: aiModel === "gpt-4o" ? "#fff" : "#2D3748",
+                }}
+              >
+                고성능 모델
+              </Text>
+              <Text
+                style={{
+                  fontSize: 10,
+                  color: aiModel === "gpt-4o" ? "#C3DAFE" : "#A0AEC0",
+                  marginTop: 2,
+                }}
+              >
+                gpt-4o
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* 사진 화질 설정 */}
+        <View style={s.card}>
+          <Text style={s.cardTitle}>사진 화질 설정</Text>
+
+          {/* 눈바디 사진 */}
+          <Text
+            style={{
+              fontSize: 13,
+              fontWeight: "600",
+              color: "#4A5568",
+              marginTop: 8,
+              marginBottom: 8,
+            }}
+          >
+            눈바디 사진
+          </Text>
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            <TouchableOpacity
+              style={{
+                flex: 1,
+                paddingVertical: 10,
+                borderRadius: 10,
+                alignItems: "center",
+                backgroundColor:
+                  bodyPhotoQuality === "compressed" ? "#48BB78" : "#EDF2F7",
+              }}
+              onPress={async () => {
+                setBodyPhotoQuality("compressed");
+                const settings = await loadUserSettings();
+                await saveUserSettings({
+                  ...settings,
+                  bodyPhotoQuality: "compressed",
+                });
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontWeight: "700",
+                  color:
+                    bodyPhotoQuality === "compressed" ? "#fff" : "#2D3748",
+                }}
+              >
+                압축 화질
+              </Text>
+              <Text
+                style={{
+                  fontSize: 10,
+                  color:
+                    bodyPhotoQuality === "compressed" ? "#C6F6D5" : "#A0AEC0",
+                  marginTop: 2,
+                }}
+              >
+                ~700KB
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={{
+                flex: 1,
+                paddingVertical: 10,
+                borderRadius: 10,
+                alignItems: "center",
+                backgroundColor:
+                  bodyPhotoQuality === "original" ? "#ED8936" : "#EDF2F7",
+              }}
+              onPress={async () => {
+                setBodyPhotoQuality("original");
+                const settings = await loadUserSettings();
+                await saveUserSettings({
+                  ...settings,
+                  bodyPhotoQuality: "original",
+                });
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontWeight: "700",
+                  color:
+                    bodyPhotoQuality === "original" ? "#fff" : "#2D3748",
+                }}
+              >
+                원본 화질
+              </Text>
+              <Text
+                style={{
+                  fontSize: 10,
+                  color:
+                    bodyPhotoQuality === "original" ? "#FEEBC8" : "#A0AEC0",
+                  marginTop: 2,
+                }}
+              >
+                용량 큼
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* 음식 사진 */}
+          <Text
+            style={{
+              fontSize: 13,
+              fontWeight: "600",
+              color: "#4A5568",
+              marginTop: 16,
+              marginBottom: 8,
+            }}
+          >
+            음식 사진
+          </Text>
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            <TouchableOpacity
+              style={{
+                flex: 1,
+                paddingVertical: 10,
+                borderRadius: 10,
+                alignItems: "center",
+                backgroundColor:
+                  foodPhotoQuality === "low" ? "#4299E1" : "#EDF2F7",
+              }}
+              onPress={async () => {
+                setFoodPhotoQuality("low");
+                const settings = await loadUserSettings();
+                await saveUserSettings({
+                  ...settings,
+                  foodPhotoQuality: "low",
+                });
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontWeight: "700",
+                  color: foodPhotoQuality === "low" ? "#fff" : "#2D3748",
+                }}
+              >
+                저화질
+              </Text>
+              <Text
+                style={{
+                  fontSize: 10,
+                  color: foodPhotoQuality === "low" ? "#BEE3F8" : "#A0AEC0",
+                  marginTop: 2,
+                }}
+              >
+                썸네일 수준
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={{
+                flex: 1,
+                paddingVertical: 10,
+                borderRadius: 10,
+                alignItems: "center",
+                backgroundColor:
+                  foodPhotoQuality === "compressed" ? "#48BB78" : "#EDF2F7",
+              }}
+              onPress={async () => {
+                setFoodPhotoQuality("compressed");
+                const settings = await loadUserSettings();
+                await saveUserSettings({
+                  ...settings,
+                  foodPhotoQuality: "compressed",
+                });
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontWeight: "700",
+                  color:
+                    foodPhotoQuality === "compressed" ? "#fff" : "#2D3748",
+                }}
+              >
+                압축 화질
+              </Text>
+              <Text
+                style={{
+                  fontSize: 10,
+                  color:
+                    foodPhotoQuality === "compressed" ? "#C6F6D5" : "#A0AEC0",
+                  marginTop: 2,
+                }}
+              >
+                ~700KB
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={{
+                flex: 1,
+                paddingVertical: 10,
+                borderRadius: 10,
+                alignItems: "center",
+                backgroundColor:
+                  foodPhotoQuality === "original" ? "#ED8936" : "#EDF2F7",
+              }}
+              onPress={async () => {
+                setFoodPhotoQuality("original");
+                const settings = await loadUserSettings();
+                await saveUserSettings({
+                  ...settings,
+                  foodPhotoQuality: "original",
+                });
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontWeight: "700",
+                  color:
+                    foodPhotoQuality === "original" ? "#fff" : "#2D3748",
+                }}
+              >
+                원본 화질
+              </Text>
+              <Text
+                style={{
+                  fontSize: 10,
+                  color:
+                    foodPhotoQuality === "original" ? "#FEEBC8" : "#A0AEC0",
+                  marginTop: 2,
+                }}
+              >
+                용량 큼
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* 내보내기 모달 */}

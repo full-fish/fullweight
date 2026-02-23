@@ -187,4 +187,19 @@ export type UserSettings = {
   backupIntervalDays?: number;
   /** OpenAI API 키 (음식 사진 분석용) */
   openaiApiKey?: string;
+  /** AI 분석 모델 (기본: gpt-4o-mini) */
+  aiModel?: AiModelOption;
+  /** 눈바디 사진 화질 (기본: compressed) */
+  bodyPhotoQuality?: BodyPhotoQuality;
+  /** 음식 사진 화질 (기본: compressed) */
+  foodPhotoQuality?: FoodPhotoQuality;
 };
+
+/** AI 모델 옵션 */
+export type AiModelOption = "gpt-4o-mini" | "gpt-4o";
+
+/** 눈바디 사진 화질: compressed(현재 ~700KB) / original(원본) */
+export type BodyPhotoQuality = "compressed" | "original";
+
+/** 음식 사진 화질: low(썸네일) / compressed(현재 ~700KB) / original(원본) */
+export type FoodPhotoQuality = "low" | "compressed" | "original";

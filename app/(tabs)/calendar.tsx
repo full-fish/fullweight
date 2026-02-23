@@ -1352,7 +1352,10 @@ export default function CalendarScreen() {
                     <TouchableOpacity
                       style={s.photoActionBtn}
                       onPress={async () => {
-                        const uri = await takePhoto();
+                        const uri = await takePhoto(
+                          "body",
+                          userSettings.bodyPhotoQuality
+                        );
                         if (uri) setEPhotoUri(uri);
                       }}
                     >
@@ -1361,7 +1364,10 @@ export default function CalendarScreen() {
                     <TouchableOpacity
                       style={s.photoActionBtn}
                       onPress={async () => {
-                        const uri = await pickPhoto();
+                        const uri = await pickPhoto(
+                          "body",
+                          userSettings.bodyPhotoQuality
+                        );
                         if (uri) setEPhotoUri(uri);
                       }}
                     >
@@ -1590,7 +1596,10 @@ export default function CalendarScreen() {
                   <TouchableOpacity
                     style={s.photoActionBtn}
                     onPress={async () => {
-                      const uri = await takePhoto();
+                      const uri = await takePhoto(
+                        "body",
+                        userSettings.bodyPhotoQuality
+                      );
                       if (uri) setEPhotoUri(uri);
                     }}
                   >
@@ -1599,7 +1608,10 @@ export default function CalendarScreen() {
                   <TouchableOpacity
                     style={s.photoActionBtn}
                     onPress={async () => {
-                      const uri = await pickPhoto();
+                      const uri = await pickPhoto(
+                        "body",
+                        userSettings.bodyPhotoQuality
+                      );
                       if (uri) setEPhotoUri(uri);
                     }}
                   >

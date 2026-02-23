@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 
 /**
  * POST /api/analyze-food
- * Body: { base64: string }   (JPEG base64, no data:... prefix)
+ * Body: { base64: string, model?: string }   (JPEG base64, no data:... prefix)
  * Response: { description, kcal, carb, protein, fat }
  *
  * Deploy to Vercel:
@@ -11,8 +11,9 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
  *      OPENAI_API_KEY = sk-... 추가
  *   3) vercel deploy
  *
- * 비용 참고 (gpt-4o-mini, low-detail):
- *   이미지 1장 ≈ $0.003~0.005 → 사용자 100명 × 5회/일 ≈ $1.5~2.5/일
+ * 비용 참고:
+ *   gpt-4o-mini + high: 이미지 1장 ≈ $0.01~0.02
+ *   gpt-4o + high:      이미지 1장 ≈ $0.04~0.08
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS
@@ -31,10 +32,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .json({ error: "서버에 OPENAI_API_KEY가 설정되지 않았습니다." });
   }
 
-  const { base64 } = req.body ?? {};
+  const { base64, model } = req.body ?? {};
   if (!base64 || typeof base64 !== "string") {
     return res.status(400).json({ error: "base64 필드가 필요합니다." });
   }
+
+  const useModel = model === "gpt-4o" ? "gpt-4o" : "gpt-4o-mini";
 
   try {
     const openaiRes = await fetch(
@@ -46,12 +49,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          model: "gpt-4o-mini",
+          model: useModel,
           messages: [
             {
               role: "system",
               content:
-                '당신은 음식 영양소 분석 전문가입니다. 음식 사진을 보고 다음 JSON만 출력하세요. 다른 말은 하지 마세요.\n{"description":"음식 이름","kcal":숫자,"carb":숫자,"protein":숫자,"fat":숫자}\n- kcal: 칼로리, carb: 탄수화물(g), protein: 단백질(g), fat: 지방(g)\n사진에 보이는 양 기준으로 추정하세요.',
+                '당신은 음식 영양소 분석 전문가입니다. 음식 사진을 보고 다음 JSON만 출력하세요. 다른 말은 하지 마세요.\n{"description":"음식 이름","kcal":숫자,"carb":숫자,"protein":숫자,"fat":숫자}\n- kcal: 칼로리, carb: 탄수화물(g), protein: 단백질(g), fat: 지방(g)\n\n분석 규칙:\n1. 먼저 음식 종류를 파악하세요.\n2. 그릇, 접시, 손 등 대비 실제 양(인분 수, 조각 수, 무게)을 추정하세요.\n3. 일반적인 성인 1인분 기준으로 칼로리를 계산하되, 사진에 보이는 양이 1인분보다 많으면 실제 보이는 양으로 계산하세요.\n4. 예: 피자 한 판(8조각) ≈ 1800-2200kcal, 피자 1조각 ≈ 250-300kcal, 치킨 한 마리 ≈ 250-350kcal, 밥 한 공기 ≈ 300kcal',
             },
             {
               role: "user",
@@ -60,7 +63,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                   type: "image_url",
                   image_url: {
                     url: `data:image/jpeg;base64,${base64}`,
-                    detail: "low",
+                    detail: "high",
                   },
                 },
                 { type: "text", text: "이 음식의 영양소를 분석해주세요." },
