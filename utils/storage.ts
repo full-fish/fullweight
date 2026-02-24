@@ -1,6 +1,7 @@
 import {
   Challenge,
   ChallengeHistory,
+  DailyToggles,
   MealEntry,
   MealType,
   UserSettings,
@@ -13,6 +14,7 @@ const CHALLENGE_KEY = "weight_challenge_v1";
 const CHALLENGE_HISTORY_KEY = "weight_challenge_history_v1";
 const USER_SETTINGS_KEY = "user_settings_v1";
 const MEAL_STORAGE_KEY = "meal_entries_v1";
+const TOGGLES_KEY = "daily_toggles_v1";
 
 /** 로컬 날짜를 YYYY-MM-DD 형식으로 반환 */
 export function getLocalDateString(date: Date = new Date()): string {
@@ -692,4 +694,32 @@ export async function deleteMeal(id: string): Promise<MealEntry[]> {
   const filtered = all.filter((m) => m.id !== id);
   await saveMeals(filtered);
   return filtered;
+}
+
+/* ───── 일별 토글 (운동/음주/체크항목 — 체중 기록 없는 날용) ───── */
+
+export async function loadAllToggles(): Promise<Record<string, DailyToggles>> {
+  try {
+    const data = await AsyncStorage.getItem(TOGGLES_KEY);
+    return data ? JSON.parse(data) : {};
+  } catch {
+    return {};
+  }
+}
+
+export async function loadToggle(date: string): Promise<DailyToggles | null> {
+  const all = await loadAllToggles();
+  return all[date] ?? null;
+}
+
+export async function saveToggle(toggle: DailyToggles): Promise<void> {
+  const all = await loadAllToggles();
+  all[toggle.date] = toggle;
+  await AsyncStorage.setItem(TOGGLES_KEY, JSON.stringify(all));
+}
+
+export async function deleteToggle(date: string): Promise<void> {
+  const all = await loadAllToggles();
+  delete all[date];
+  await AsyncStorage.setItem(TOGGLES_KEY, JSON.stringify(all));
 }

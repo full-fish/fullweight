@@ -1,5 +1,6 @@
 import { useKeyboardOffset } from "@/hooks/use-keyboard-offset";
 import {
+  DailyToggles,
   MEAL_LABELS,
   MealEntry,
   MealType,
@@ -25,6 +26,7 @@ import {
   addMeal,
   deleteMeal,
   deleteRecord,
+  loadAllToggles,
   loadMeals,
   loadRecords,
   loadUserSettings,
@@ -109,12 +111,16 @@ export default function CalendarScreen() {
   const [aiAnalyzing, setAiAnalyzing] = useState(false);
   const [mealModalDate, setMealModalDate] = useState("");
   const [zoomPhotoUri, setZoomPhotoUri] = useState<string | null>(null);
+  const [allToggles, setAllToggles] = useState<Record<string, DailyToggles>>(
+    {}
+  );
 
   useFocusEffect(
     useCallback(() => {
       loadRecords().then(setRecords);
       loadUserSettings().then(setUserSettings);
       loadMeals().then(setAllMeals);
+      loadAllToggles().then(setAllToggles);
     }, [])
   );
 
@@ -1113,6 +1119,7 @@ export default function CalendarScreen() {
                   const isToday = dateStr === todayStr;
                   const dayOfWeek = (firstDay + day - 1) % 7;
                   const isFuture = dateStr > todayStr;
+                  const hasMeal = allMeals.some((m) => m.date === dateStr);
 
                   return (
                     <TouchableOpacity
@@ -1121,9 +1128,8 @@ export default function CalendarScreen() {
                         s.dayCell,
                         isToday && s.dayCellToday,
                         rec && s.dayCellHasRecord,
-                        !rec &&
-                          allMeals.some((m) => m.date === dateStr) &&
-                          s.dayCellMealOnly,
+                        rec && hasMeal && s.dayCellBothRecords,
+                        !rec && hasMeal && s.dayCellMealOnly,
                       ]}
                       onPress={() => {
                         if (rec) {
@@ -1144,42 +1150,76 @@ export default function CalendarScreen() {
                       >
                         {day}
                       </Text>
-                      {rec && (
-                        <View style={s.dotRow}>
-                          {userSettings.metricDisplayVisibility?.exercised !==
+                      {(() => {
+                        const toggleData = rec
+                          ? {
+                              exercised: rec.exercised,
+                              drank: rec.drank,
+                              customBoolValues: rec.customBoolValues,
+                            }
+                          : allToggles[dateStr]
+                            ? {
+                                exercised: allToggles[dateStr].exercised,
+                                drank: allToggles[dateStr].drank,
+                                customBoolValues:
+                                  allToggles[dateStr].customBoolValues,
+                              }
+                            : null;
+                        if (!toggleData) return null;
+                        const dots: React.ReactNode[] = [];
+                        if (
+                          userSettings.metricDisplayVisibility?.exercised !==
                             false &&
-                            rec.exercised && (
-                              <View
-                                style={[
-                                  s.miniDot,
-                                  { backgroundColor: "#4CAF50" },
-                                ]}
-                              />
-                            )}
-                          {userSettings.metricDisplayVisibility?.drank !==
+                          toggleData.exercised
+                        ) {
+                          dots.push(
+                            <View
+                              key="ex"
+                              style={[
+                                s.miniDot,
+                                { backgroundColor: "#4CAF50" },
+                              ]}
+                            />
+                          );
+                        }
+                        if (
+                          userSettings.metricDisplayVisibility?.drank !==
                             false &&
-                            rec.drank && (
-                              <View
-                                style={[
-                                  s.miniDot,
-                                  { backgroundColor: "#FF9800" },
-                                ]}
-                              />
-                            )}
-                          {(userSettings.customBoolMetrics ?? []).map((cbm) =>
-                            userSettings.metricDisplayVisibility?.[cbm.key] !==
-                              false && rec.customBoolValues?.[cbm.key] ? (
-                              <View
-                                key={cbm.key}
-                                style={[
-                                  s.miniDot,
-                                  { backgroundColor: cbm.color },
-                                ]}
-                              />
-                            ) : null
-                          )}
-                        </View>
-                      )}
+                          toggleData.drank
+                        ) {
+                          dots.push(
+                            <View
+                              key="dr"
+                              style={[
+                                s.miniDot,
+                                { backgroundColor: "#FF9800" },
+                              ]}
+                            />
+                          );
+                        }
+                        (userSettings.customBoolMetrics ?? []).forEach(
+                          (cbm) => {
+                            if (
+                              userSettings.metricDisplayVisibility?.[
+                                cbm.key
+                              ] !== false &&
+                              toggleData.customBoolValues?.[cbm.key]
+                            ) {
+                              dots.push(
+                                <View
+                                  key={cbm.key}
+                                  style={[
+                                    s.miniDot,
+                                    { backgroundColor: cbm.color },
+                                  ]}
+                                />
+                              );
+                            }
+                          }
+                        );
+                        if (dots.length === 0) return null;
+                        return <View style={s.dotRow}>{dots}</View>;
+                      })()}
                     </TouchableOpacity>
                   );
                 })}
@@ -2680,6 +2720,7 @@ const s = StyleSheet.create({
   dayCellToday: { borderWidth: 2, borderColor: "#4CAF50" },
   dayCellHasRecord: { backgroundColor: "#F0FFF4" },
   dayCellMealOnly: { backgroundColor: "#FEFCE8" },
+  dayCellBothRecords: { borderWidth: 2, borderColor: "#FCD34D" },
   dayText: { fontSize: 14, fontWeight: "500", color: "#2D3748" },
   dayTextToday: { fontWeight: "700", color: "#4CAF50" },
   dotRow: { flexDirection: "row", gap: 2, marginTop: 2 },

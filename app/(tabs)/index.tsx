@@ -2,6 +2,7 @@ import { MiniCalendar } from "@/components/mini-calendar";
 import { useKeyboardOffset } from "@/hooks/use-keyboard-offset";
 import {
   Challenge,
+  DailyToggles,
   MEAL_LABELS,
   MealEntry,
   MealType,
@@ -25,12 +26,16 @@ import {
   addMeal,
   deleteMeal,
   deleteRecord,
+  deleteToggle,
   getLocalDateString,
+  loadAllToggles,
   loadChallenge,
   loadMeals,
   loadRecords,
+  loadToggle,
   loadUserSettings,
   saveMeals,
+  saveToggle,
   upsertRecord,
 } from "@/utils/storage";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
@@ -78,6 +83,9 @@ export default function HomeScreen() {
     Record<string, boolean>
   >({});
 
+  const [allToggles, setAllToggles] = useState<Record<string, DailyToggles>>(
+    {}
+  );
   const [userSettings, setUserSettings] = useState<UserSettings>({});
   const [challenge, setChallenge] = useState<Challenge | null>(null);
 
@@ -136,7 +144,7 @@ export default function HomeScreen() {
 
   // 선택된 날짜의 기록 불러오기
   const populateForm = useCallback(
-    (date: string, allRecords: WeightRecord[]) => {
+    async (date: string, allRecords: WeightRecord[]) => {
       const existing = allRecords.find((r) => r.date === date);
       if (existing) {
         setWeight(existing.weight.toString());
@@ -175,11 +183,19 @@ export default function HomeScreen() {
         setMuscleMass("");
         setBodyFatPercent("");
         setBodyFatMass("");
-        setExercised(false);
-        setDrank(false);
         setPhotoUri(undefined);
         setCustomInputs({});
-        setBoolCustomInputs({});
+        // 토글은 별도 스토리지에서 로드
+        const toggle = await loadToggle(date);
+        if (toggle) {
+          setExercised(toggle.exercised);
+          setDrank(toggle.drank);
+          setBoolCustomInputs(toggle.customBoolValues ?? {});
+        } else {
+          setExercised(false);
+          setDrank(false);
+          setBoolCustomInputs({});
+        }
       }
     },
     []
@@ -197,20 +213,22 @@ export default function HomeScreen() {
         loadUserSettings(),
         loadChallenge(),
         loadMeals(),
-      ]).then(([data, settings, ch, allMealsData]) => {
+        loadAllToggles(),
+      ]).then(([data, settings, ch, allMealsData, toggles]) => {
         populateForm(d, data);
         setUserSettings(settings);
         setChallenge(ch);
         setAllMeals(allMealsData);
         setMeals(allMealsData.filter((m) => m.date === d));
+        setAllToggles(toggles);
       });
     }, [loadAndSetRecords, populateForm])
   );
 
-  const handleDateSelect = (date: string) => {
+  const handleDateSelect = async (date: string) => {
     setSelectedDate(date);
     setShowDatePicker(false);
-    populateForm(date, records);
+    await populateForm(date, records);
     // 메모리에서 식사 필터링 (AsyncStorage 재호출 없음)
     setMeals(allMeals.filter((m) => m.date === date));
   };
@@ -369,19 +387,23 @@ export default function HomeScreen() {
     });
   }, [userSettings, weight, challenge, muscleMass, bodyFatPercent]);
 
-  /** 기록 목록: 체중 기록 + 식사만 있는 날짜 통합 (날짜 내림차순) */
+  /** 기록 목록: 체중 기록 + 식사만/토글만 있는 날짜 통합 (날짜 내림차순) */
   const recordListItems = useMemo(() => {
     const recordDates = new Set(records.map((r) => r.date));
-    const mealOnlyDates = [...new Set(allMeals.map((m) => m.date))].filter(
-      (d) => !recordDates.has(d)
-    );
+    const extraDates = new Set<string>();
+    allMeals.forEach((m) => {
+      if (!recordDates.has(m.date)) extraDates.add(m.date);
+    });
+    Object.keys(allToggles).forEach((d) => {
+      if (!recordDates.has(d)) extraDates.add(d);
+    });
     const items: { date: string; record?: WeightRecord }[] = records.map(
       (r) => ({ date: r.date, record: r })
     );
-    mealOnlyDates.forEach((d) => items.push({ date: d }));
+    extraDates.forEach((d) => items.push({ date: d }));
     items.sort((a, b) => b.date.localeCompare(a.date));
     return items;
-  }, [records, allMeals]);
+  }, [records, allMeals, allToggles]);
 
   const handleSave = async () => {
     const w = parseFloat(weight);
@@ -414,7 +436,84 @@ export default function HomeScreen() {
     };
     const updated = await upsertRecord(record);
     setRecords([...updated].sort((a, b) => b.date.localeCompare(a.date)));
+    // 체중 기록이 생겼으므로 토글 스토리지에서 제거 (record에 포함됨)
+    await deleteToggle(selectedDate);
+    setAllToggles((prev) => {
+      const next = { ...prev };
+      delete next[selectedDate];
+      return next;
+    });
     Alert.alert("저장 완료", `${fmtDate(selectedDate)} 기록이 저장되었습니다.`);
+  };
+
+  /* ───── 토글 즉시 저장 핸들러 ───── */
+  const handleToggleExercised = async (value: boolean) => {
+    setExercised(value);
+    const existing = records.find((r) => r.date === selectedDate);
+    if (existing) {
+      const updatedRec = { ...existing, exercised: value };
+      const updated = await upsertRecord(updatedRec);
+      setRecords([...updated].sort((a, b) => b.date.localeCompare(a.date)));
+    } else {
+      const prev = await loadToggle(selectedDate);
+      const toggle: DailyToggles = {
+        date: selectedDate,
+        exercised: value,
+        drank: prev?.drank ?? drank,
+        customBoolValues: prev?.customBoolValues ?? { ...boolCustomInputs },
+      };
+      await saveToggle(toggle);
+      setAllToggles((p) => ({ ...p, [selectedDate]: toggle }));
+    }
+  };
+
+  const handleToggleDrank = async (value: boolean) => {
+    setDrank(value);
+    const existing = records.find((r) => r.date === selectedDate);
+    if (existing) {
+      const updatedRec = { ...existing, drank: value };
+      const updated = await upsertRecord(updatedRec);
+      setRecords([...updated].sort((a, b) => b.date.localeCompare(a.date)));
+    } else {
+      const prev = await loadToggle(selectedDate);
+      const toggle: DailyToggles = {
+        date: selectedDate,
+        exercised: prev?.exercised ?? exercised,
+        drank: value,
+        customBoolValues: prev?.customBoolValues ?? { ...boolCustomInputs },
+      };
+      await saveToggle(toggle);
+      setAllToggles((p) => ({ ...p, [selectedDate]: toggle }));
+    }
+  };
+
+  const handleToggleBool = async (key: string, value: boolean) => {
+    setBoolCustomInputs((prev) => ({ ...prev, [key]: value }));
+    const existing = records.find((r) => r.date === selectedDate);
+    if (existing) {
+      const updatedRec = {
+        ...existing,
+        customBoolValues: {
+          ...(existing.customBoolValues ?? {}),
+          [key]: value,
+        },
+      };
+      const updated = await upsertRecord(updatedRec);
+      setRecords([...updated].sort((a, b) => b.date.localeCompare(a.date)));
+    } else {
+      const prev = await loadToggle(selectedDate);
+      const toggle: DailyToggles = {
+        date: selectedDate,
+        exercised: prev?.exercised ?? exercised,
+        drank: prev?.drank ?? drank,
+        customBoolValues: {
+          ...(prev?.customBoolValues ?? { ...boolCustomInputs }),
+          [key]: value,
+        },
+      };
+      await saveToggle(toggle);
+      setAllToggles((p) => ({ ...p, [selectedDate]: toggle }));
+    }
   };
 
   const handleDelete = (date: string) => {
@@ -856,6 +955,10 @@ export default function HomeScreen() {
               </View>
             </View>
 
+            <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
+              <Text style={styles.saveBtnText}>저장하기</Text>
+            </TouchableOpacity>
+
             <View style={styles.switchGroup}>
               {userSettings.metricInputVisibility?.["exercised"] !== false && (
                 <View style={styles.switchRow}>
@@ -873,7 +976,7 @@ export default function HomeScreen() {
                   </View>
                   <Switch
                     value={exercised}
-                    onValueChange={setExercised}
+                    onValueChange={handleToggleExercised}
                     trackColor={{ true: "#4CAF50", false: "#ddd" }}
                     thumbColor="#fff"
                   />
@@ -895,7 +998,7 @@ export default function HomeScreen() {
                   </View>
                   <Switch
                     value={drank}
-                    onValueChange={setDrank}
+                    onValueChange={handleToggleDrank}
                     trackColor={{ true: "#e6e02d", false: "#ddd" }}
                     thumbColor="#fff"
                   />
@@ -942,22 +1045,13 @@ export default function HomeScreen() {
                     </View>
                     <Switch
                       value={boolCustomInputs[cbm.key] ?? false}
-                      onValueChange={(v) =>
-                        setBoolCustomInputs((prev) => ({
-                          ...prev,
-                          [cbm.key]: v,
-                        }))
-                      }
+                      onValueChange={(v) => handleToggleBool(cbm.key, v)}
                       trackColor={{ true: cbm.color, false: "#ddd" }}
                       thumbColor="#fff"
                     />
                   </View>
                 ))}
             </View>
-
-            <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
-              <Text style={styles.saveBtnText}>저장하기</Text>
-            </TouchableOpacity>
           </View>
 
           {/* ───── 오늘의 식사 섹션 ───── */}
