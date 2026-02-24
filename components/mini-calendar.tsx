@@ -1,5 +1,6 @@
 import { getDaysInMonth, getFirstDayOfWeek, pad2 } from "@/utils/format";
 import { getLocalDateString } from "@/utils/storage";
+import { useKeyboardOffset } from "@/hooks/use-keyboard-offset";
 import React, { useState } from "react";
 import {
   Alert,
@@ -28,6 +29,7 @@ export function MiniCalendar({
   onClose: () => void;
 }) {
   const now = new Date();
+  const kbOffset = useKeyboardOffset();
   const [cYear, setCYear] = useState(now.getFullYear());
   const [cMonth, setCMonth] = useState(now.getMonth());
   const [pickerMode, setPickerMode] = useState<
@@ -124,7 +126,7 @@ export function MiniCalendar({
       onRequestClose={onClose}
     >
       <TouchableOpacity style={cs.overlay} activeOpacity={1} onPress={onClose}>
-        <View style={cs.card} onStartShouldSetResponder={() => true}>
+        <View style={[cs.card, { transform: [{ translateY: kbOffset }] }]} onStartShouldSetResponder={() => true}>
           {/* 텍스트 입력 */}
           <View style={cs.textInputRow}>
             <TextInput

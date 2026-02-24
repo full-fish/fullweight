@@ -31,6 +31,7 @@ import {
   upsertRecord,
 } from "@/utils/storage";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { useKeyboardOffset } from "@/hooks/use-keyboard-offset";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useFocusEffect } from "@react-navigation/native";
 import React, { useCallback, useMemo, useRef, useState } from "react";
@@ -54,6 +55,7 @@ const DAY_SIZE = Math.floor((width - 56) / 7);
 
 export default function CalendarScreen() {
   const now = new Date();
+  const kbOffset = useKeyboardOffset();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());
   const [records, setRecords] = useState<WeightRecord[]>([]);
@@ -1211,7 +1213,7 @@ export default function CalendarScreen() {
                 activeOpacity={1}
                 onPress={closeModal}
               />
-              <View style={s.modalCard}>
+              <View style={[s.modalCard, { transform: [{ translateY: kbOffset }] }]}>
                 {selectedRecord && !editMode && (
                   <ScrollView
                     showsVerticalScrollIndicator={false}
@@ -1794,9 +1796,17 @@ export default function CalendarScreen() {
                         >
                           {cbm.iconName ? (
                             cbm.iconLibrary === "mci" ? (
-                              <MaterialCommunityIcons name={cbm.iconName as any} size={16} color={cbm.iconColor || cbm.color} />
+                              <MaterialCommunityIcons
+                                name={cbm.iconName as any}
+                                size={16}
+                                color={cbm.iconColor || cbm.color}
+                              />
                             ) : (
-                              <Ionicons name={cbm.iconName as any} size={16} color={cbm.iconColor || cbm.color} />
+                              <Ionicons
+                                name={cbm.iconName as any}
+                                size={16}
+                                color={cbm.iconColor || cbm.color}
+                              />
                             )
                           ) : (
                             <View
@@ -2197,7 +2207,7 @@ export default function CalendarScreen() {
                   setAddDate("");
                 }}
               />
-              <View style={s.modalCard}>
+              <View style={[s.modalCard, { transform: [{ translateY: kbOffset }] }]}>
                 <ScrollView
                   showsVerticalScrollIndicator={false}
                   bounces={false}
@@ -2385,9 +2395,17 @@ export default function CalendarScreen() {
                       >
                         {cbm.iconName ? (
                           cbm.iconLibrary === "mci" ? (
-                            <MaterialCommunityIcons name={cbm.iconName as any} size={16} color={cbm.iconColor || cbm.color} />
+                            <MaterialCommunityIcons
+                              name={cbm.iconName as any}
+                              size={16}
+                              color={cbm.iconColor || cbm.color}
+                            />
                           ) : (
-                            <Ionicons name={cbm.iconName as any} size={16} color={cbm.iconColor || cbm.color} />
+                            <Ionicons
+                              name={cbm.iconName as any}
+                              size={16}
+                              color={cbm.iconColor || cbm.color}
+                            />
                           )
                         ) : (
                           <View

@@ -25,6 +25,7 @@ import {
   saveUserSettings,
 } from "@/utils/storage";
 import { useFocusEffect } from "@react-navigation/native";
+import { useKeyboardOffset } from "@/hooks/use-keyboard-offset";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
   Alert,
@@ -165,6 +166,7 @@ function DateCalendarPicker({
   label: string;
 }) {
   const [showCal, setShowCal] = useState(false);
+  const kbOffset = useKeyboardOffset();
   const [textDate, setTextDate] = useState(value);
   const [pickerMode, setPickerMode] = useState<"calendar" | "year" | "month">(
     "calendar"
@@ -265,7 +267,7 @@ function DateCalendarPicker({
           activeOpacity={1}
           onPress={() => setShowCal(false)}
         >
-          <View style={dcpS.card} onStartShouldSetResponder={() => true}>
+          <View style={[dcpS.card, { transform: [{ translateY: kbOffset }] }]} onStartShouldSetResponder={() => true}>
             {/* 텍스트 입력 */}
             <View
               style={{
@@ -555,6 +557,7 @@ const dcpS = StyleSheet.create({
 /* ───── MAIN ───── */
 
 export default function ChallengeScreen() {
+  const kbOffset = useKeyboardOffset();
   const [challenge, setChallenge] = useState<Challenge | null>(null);
   const [records, setRecords] = useState<WeightRecord[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -1237,7 +1240,7 @@ export default function ChallengeScreen() {
             onRequestClose={() => setShowForm(false)}
           >
             <View style={st.formOverlay}>
-              <View style={st.formCard}>
+              <View style={[st.formCard, { transform: [{ translateY: kbOffset }] }]}>
                 <ScrollView showsVerticalScrollIndicator={false}>
                   <Text style={st.formTitle}>
                     {challenge ? "챌린지 수정" : "새 챌린지"}

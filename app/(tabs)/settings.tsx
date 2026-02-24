@@ -38,6 +38,7 @@ import {
   saveUserSettings,
   seedDummyData,
 } from "@/utils/storage";
+import { useKeyboardOffset } from "@/hooks/use-keyboard-offset";
 import Entypo from "@expo/vector-icons/Entypo";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
@@ -487,6 +488,7 @@ export default function SettingsScreen() {
     undefined
   );
   const [calendarVisible, setCalendarVisible] = useState(false);
+  const kbOffset = useKeyboardOffset();
   const [isEditing, setIsEditing] = useState(false);
   const [lockEnabled, setLockEnabled] = useState(false);
   const [lockBiometric, setLockBiometric] = useState(false);
@@ -1926,7 +1928,7 @@ export default function SettingsScreen() {
                 activeOpacity={1}
                 onPress={() => setShowAddBoolMetric(false)}
               />
-              <View style={[s.pinModalCard, { maxHeight: "85%" }]}>
+              <View style={[s.pinModalCard, { maxHeight: "85%", transform: [{ translateY: kbOffset }] }]}>
                 <ScrollView
                   style={{ width: "100%" }}
                   showsVerticalScrollIndicator={false}
@@ -2125,7 +2127,9 @@ export default function SettingsScreen() {
                         setNewBoolColor(hex);
                         setNewHexInput(hex.slice(1));
                         const [r0, g0, b0] = hexToRgb(hex);
-                        setNewRInput(String(r0)); setNewGInput(String(g0)); setNewBInput(String(b0));
+                        setNewRInput(String(r0));
+                        setNewGInput(String(g0));
+                        setNewBInput(String(b0));
                       }}
                       onResponderMove={(e) => {
                         const { locationX, locationY } = e.nativeEvent;
@@ -2141,7 +2145,9 @@ export default function SettingsScreen() {
                         setNewBoolColor(hex);
                         setNewHexInput(hex.slice(1));
                         const [r0, g0, b0] = hexToRgb(hex);
-                        setNewRInput(String(r0)); setNewGInput(String(g0)); setNewBInput(String(b0));
+                        setNewRInput(String(r0));
+                        setNewGInput(String(g0));
+                        setNewBInput(String(b0));
                       }}
                     >
                       <Svg width={CP_W} height={SV_H}>
@@ -2216,7 +2222,9 @@ export default function SettingsScreen() {
                         setNewBoolColor(hex);
                         setNewHexInput(hex.slice(1));
                         const [r0, g0, b0] = hexToRgb(hex);
-                        setNewRInput(String(r0)); setNewGInput(String(g0)); setNewBInput(String(b0));
+                        setNewRInput(String(r0));
+                        setNewGInput(String(g0));
+                        setNewBInput(String(b0));
                       }}
                       onResponderMove={(e) => {
                         const h2 = Math.max(
@@ -2229,7 +2237,9 @@ export default function SettingsScreen() {
                         setNewBoolColor(hex);
                         setNewHexInput(hex.slice(1));
                         const [r0, g0, b0] = hexToRgb(hex);
-                        setNewRInput(String(r0)); setNewGInput(String(g0)); setNewBInput(String(b0));
+                        setNewRInput(String(r0));
+                        setNewGInput(String(g0));
+                        setNewBInput(String(b0));
                       }}
                     >
                       <Svg width={CP_W} height={HUE_H}>
@@ -2282,7 +2292,14 @@ export default function SettingsScreen() {
                       </Svg>
                     </View>
                     {/* 미리보기 + Hex + RGB 입력 */}
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 8,
+                        marginBottom: 8,
+                      }}
+                    >
                       <View
                         style={{
                           width: 36,
@@ -2305,7 +2322,15 @@ export default function SettingsScreen() {
                           width: 100,
                         }}
                       >
-                        <Text style={{ fontSize: 13, color: "#718096", fontFamily: "monospace" }}>#</Text>
+                        <Text
+                          style={{
+                            fontSize: 13,
+                            color: "#718096",
+                            fontFamily: "monospace",
+                          }}
+                        >
+                          #
+                        </Text>
                         <TextInput
                           style={{
                             flex: 1,
@@ -2317,7 +2342,9 @@ export default function SettingsScreen() {
                           }}
                           value={newHexInput}
                           onChangeText={(text) => {
-                            const cleaned = text.replace(/[^0-9A-Fa-f]/g, "").slice(0, 6);
+                            const cleaned = text
+                              .replace(/[^0-9A-Fa-f]/g, "")
+                              .slice(0, 6);
                             setNewHexInput(cleaned);
                             if (/^[0-9A-Fa-f]{6}$/.test(cleaned)) {
                               const full = "#" + cleaned;
@@ -2328,10 +2355,14 @@ export default function SettingsScreen() {
                               setNewBoolIconColor(full.toUpperCase());
                               setNewBoolColor(full.toUpperCase());
                               const [r0, g0, b0] = hexToRgb(full);
-                              setNewRInput(String(r0)); setNewGInput(String(g0)); setNewBInput(String(b0));
+                              setNewRInput(String(r0));
+                              setNewGInput(String(g0));
+                              setNewBInput(String(b0));
                             }
                           }}
-                          onBlur={() => setNewHexInput(newBoolIconColor.slice(1))}
+                          onBlur={() =>
+                            setNewHexInput(newBoolIconColor.slice(1))
+                          }
                           placeholder="RRGGBB"
                           placeholderTextColor="#A0AEC0"
                           autoCapitalize="characters"
@@ -2340,13 +2371,46 @@ export default function SettingsScreen() {
                       </View>
                     </View>
                     <View style={{ flexDirection: "row", gap: 8 }}>
-                      {([
-                        { label: "R", val: newRInput, set: setNewRInput, ch: 0 },
-                        { label: "G", val: newGInput, set: setNewGInput, ch: 1 },
-                        { label: "B", val: newBInput, set: setNewBInput, ch: 2 },
-                      ] as { label: string; val: string; set: (v: string) => void; ch: number }[]).map(({ label, val, set, ch }) => (
-                        <View key={label} style={{ flex: 1, alignItems: "center" }}>
-                          <Text style={{ fontSize: 11, color: "#718096", marginBottom: 2 }}>{label}</Text>
+                      {(
+                        [
+                          {
+                            label: "R",
+                            val: newRInput,
+                            set: setNewRInput,
+                            ch: 0,
+                          },
+                          {
+                            label: "G",
+                            val: newGInput,
+                            set: setNewGInput,
+                            ch: 1,
+                          },
+                          {
+                            label: "B",
+                            val: newBInput,
+                            set: setNewBInput,
+                            ch: 2,
+                          },
+                        ] as {
+                          label: string;
+                          val: string;
+                          set: (v: string) => void;
+                          ch: number;
+                        }[]
+                      ).map(({ label, val, set, ch }) => (
+                        <View
+                          key={label}
+                          style={{ flex: 1, alignItems: "center" }}
+                        >
+                          <Text
+                            style={{
+                              fontSize: 11,
+                              color: "#718096",
+                              marginBottom: 2,
+                            }}
+                          >
+                            {label}
+                          </Text>
                           <TextInput
                             style={{
                               width: "100%",
@@ -2372,14 +2436,20 @@ export default function SettingsScreen() {
                                 if (rgb.every((v) => !isNaN(v))) {
                                   const hex = rgbToHex(rgb[0], rgb[1], rgb[2]);
                                   const [h, s2, v2] = hexToHsv(hex);
-                                  setNewPickerHue(h); setNewPickerSat(s2); setNewPickerVal(v2);
-                                  setNewBoolIconColor(hex); setNewBoolColor(hex); setNewHexInput(hex.slice(1).slice(1));
+                                  setNewPickerHue(h);
+                                  setNewPickerSat(s2);
+                                  setNewPickerVal(v2);
+                                  setNewBoolIconColor(hex);
+                                  setNewBoolColor(hex);
+                                  setNewHexInput(hex.slice(1).slice(1));
                                 }
                               }
                             }}
                             onBlur={() => {
                               const [r0, g0, b0] = hexToRgb(newBoolIconColor);
-                              setNewRInput(String(r0)); setNewGInput(String(g0)); setNewBInput(String(b0));
+                              setNewRInput(String(r0));
+                              setNewGInput(String(g0));
+                              setNewBInput(String(b0));
                             }}
                             keyboardType="number-pad"
                             maxLength={3}
@@ -2476,7 +2546,7 @@ export default function SettingsScreen() {
                 activeOpacity={1}
                 onPress={() => setEditingBoolEmojiKey(null)}
               />
-              <View style={[s.pinModalCard, { maxHeight: "85%" }]}>
+              <View style={[s.pinModalCard, { maxHeight: "85%", transform: [{ translateY: kbOffset }] }]}>
                 <ScrollView
                   style={{ width: "100%" }}
                   showsVerticalScrollIndicator={false}
@@ -2682,7 +2752,9 @@ export default function SettingsScreen() {
                         setEditBoolColor(hex);
                         setEditHexInput(hex.slice(1));
                         const [r0, g0, b0] = hexToRgb(hex);
-                        setEditRInput(String(r0)); setEditGInput(String(g0)); setEditBInput(String(b0));
+                        setEditRInput(String(r0));
+                        setEditGInput(String(g0));
+                        setEditBInput(String(b0));
                       }}
                       onResponderMove={(e) => {
                         const { locationX, locationY } = e.nativeEvent;
@@ -2698,7 +2770,9 @@ export default function SettingsScreen() {
                         setEditBoolColor(hex);
                         setEditHexInput(hex.slice(1));
                         const [r0, g0, b0] = hexToRgb(hex);
-                        setEditRInput(String(r0)); setEditGInput(String(g0)); setEditBInput(String(b0));
+                        setEditRInput(String(r0));
+                        setEditGInput(String(g0));
+                        setEditBInput(String(b0));
                       }}
                     >
                       <Svg width={CP_W} height={SV_H}>
@@ -2773,7 +2847,9 @@ export default function SettingsScreen() {
                         setEditBoolColor(hex);
                         setEditHexInput(hex.slice(1));
                         const [r0, g0, b0] = hexToRgb(hex);
-                        setEditRInput(String(r0)); setEditGInput(String(g0)); setEditBInput(String(b0));
+                        setEditRInput(String(r0));
+                        setEditGInput(String(g0));
+                        setEditBInput(String(b0));
                       }}
                       onResponderMove={(e) => {
                         const h2 = Math.max(
@@ -2786,7 +2862,9 @@ export default function SettingsScreen() {
                         setEditBoolColor(hex);
                         setEditHexInput(hex.slice(1));
                         const [r0, g0, b0] = hexToRgb(hex);
-                        setEditRInput(String(r0)); setEditGInput(String(g0)); setEditBInput(String(b0));
+                        setEditRInput(String(r0));
+                        setEditGInput(String(g0));
+                        setEditBInput(String(b0));
                       }}
                     >
                       <Svg width={CP_W} height={HUE_H}>
@@ -2839,7 +2917,14 @@ export default function SettingsScreen() {
                       </Svg>
                     </View>
                     {/* 미리보기 + Hex + RGB 입력 */}
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 8,
+                        marginBottom: 8,
+                      }}
+                    >
                       <View
                         style={{
                           width: 36,
@@ -2862,7 +2947,15 @@ export default function SettingsScreen() {
                           width: 100,
                         }}
                       >
-                        <Text style={{ fontSize: 13, color: "#718096", fontFamily: "monospace" }}>#</Text>
+                        <Text
+                          style={{
+                            fontSize: 13,
+                            color: "#718096",
+                            fontFamily: "monospace",
+                          }}
+                        >
+                          #
+                        </Text>
                         <TextInput
                           style={{
                             flex: 1,
@@ -2874,7 +2967,9 @@ export default function SettingsScreen() {
                           }}
                           value={editHexInput}
                           onChangeText={(text) => {
-                            const cleaned = text.replace(/[^0-9A-Fa-f]/g, "").slice(0, 6);
+                            const cleaned = text
+                              .replace(/[^0-9A-Fa-f]/g, "")
+                              .slice(0, 6);
                             setEditHexInput(cleaned);
                             if (/^[0-9A-Fa-f]{6}$/.test(cleaned)) {
                               const full = "#" + cleaned;
@@ -2885,10 +2980,14 @@ export default function SettingsScreen() {
                               setEditBoolIconColor(full.toUpperCase());
                               setEditBoolColor(full.toUpperCase());
                               const [r0, g0, b0] = hexToRgb(full);
-                              setEditRInput(String(r0)); setEditGInput(String(g0)); setEditBInput(String(b0));
+                              setEditRInput(String(r0));
+                              setEditGInput(String(g0));
+                              setEditBInput(String(b0));
                             }
                           }}
-                          onBlur={() => setEditHexInput(editBoolIconColor.slice(1))}
+                          onBlur={() =>
+                            setEditHexInput(editBoolIconColor.slice(1))
+                          }
                           placeholder="RRGGBB"
                           placeholderTextColor="#A0AEC0"
                           autoCapitalize="characters"
@@ -2897,13 +2996,46 @@ export default function SettingsScreen() {
                       </View>
                     </View>
                     <View style={{ flexDirection: "row", gap: 8 }}>
-                      {([
-                        { label: "R", val: editRInput, set: setEditRInput, ch: 0 },
-                        { label: "G", val: editGInput, set: setEditGInput, ch: 1 },
-                        { label: "B", val: editBInput, set: setEditBInput, ch: 2 },
-                      ] as { label: string; val: string; set: (v: string) => void; ch: number }[]).map(({ label, val, set, ch }) => (
-                        <View key={label} style={{ flex: 1, alignItems: "center" }}>
-                          <Text style={{ fontSize: 11, color: "#718096", marginBottom: 2 }}>{label}</Text>
+                      {(
+                        [
+                          {
+                            label: "R",
+                            val: editRInput,
+                            set: setEditRInput,
+                            ch: 0,
+                          },
+                          {
+                            label: "G",
+                            val: editGInput,
+                            set: setEditGInput,
+                            ch: 1,
+                          },
+                          {
+                            label: "B",
+                            val: editBInput,
+                            set: setEditBInput,
+                            ch: 2,
+                          },
+                        ] as {
+                          label: string;
+                          val: string;
+                          set: (v: string) => void;
+                          ch: number;
+                        }[]
+                      ).map(({ label, val, set, ch }) => (
+                        <View
+                          key={label}
+                          style={{ flex: 1, alignItems: "center" }}
+                        >
+                          <Text
+                            style={{
+                              fontSize: 11,
+                              color: "#718096",
+                              marginBottom: 2,
+                            }}
+                          >
+                            {label}
+                          </Text>
                           <TextInput
                             style={{
                               width: "100%",
@@ -2929,14 +3061,20 @@ export default function SettingsScreen() {
                                 if (rgb.every((v) => !isNaN(v))) {
                                   const hex = rgbToHex(rgb[0], rgb[1], rgb[2]);
                                   const [h, s2, v2] = hexToHsv(hex);
-                                  setEditPickerHue(h); setEditPickerSat(s2); setEditPickerVal(v2);
-                                  setEditBoolIconColor(hex); setEditBoolColor(hex); setEditHexInput(hex.slice(1).slice(1));
+                                  setEditPickerHue(h);
+                                  setEditPickerSat(s2);
+                                  setEditPickerVal(v2);
+                                  setEditBoolIconColor(hex);
+                                  setEditBoolColor(hex);
+                                  setEditHexInput(hex.slice(1).slice(1));
                                 }
                               }
                             }}
                             onBlur={() => {
                               const [r0, g0, b0] = hexToRgb(editBoolIconColor);
-                              setEditRInput(String(r0)); setEditGInput(String(g0)); setEditBInput(String(b0));
+                              setEditRInput(String(r0));
+                              setEditGInput(String(g0));
+                              setEditBInput(String(b0));
                             }}
                             keyboardType="number-pad"
                             maxLength={3}
@@ -3019,7 +3157,7 @@ export default function SettingsScreen() {
               onPress={() => setShowAddMetric(false)}
             >
               <View
-                style={s.pinModalCard}
+                style={[s.pinModalCard, { transform: [{ translateY: kbOffset }] }]}
                 onStartShouldSetResponder={() => true}
               >
                 <Text style={s.pinModalTitle}>수치 추가</Text>

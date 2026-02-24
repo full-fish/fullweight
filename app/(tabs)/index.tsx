@@ -34,6 +34,7 @@ import {
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
+import { useKeyboardOffset } from "@/hooks/use-keyboard-offset";
 import { useFocusEffect } from "@react-navigation/native";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
@@ -59,6 +60,7 @@ const { width } = Dimensions.get("window");
 
 export default function HomeScreen() {
   const [selectedDate, setSelectedDate] = useState(() => getLocalDateString());
+  const kbOffset = useKeyboardOffset();
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [records, setRecords] = useState<WeightRecord[]>([]);
   const [weight, setWeight] = useState("");
@@ -895,12 +897,22 @@ export default function HomeScreen() {
                       <View style={{ width: 32, alignItems: "center" }}>
                         {cbm.iconName ? (
                           cbm.iconLibrary === "mci" ? (
-                            <MaterialCommunityIcons name={cbm.iconName as any} size={24} color={cbm.iconColor || cbm.color} />
+                            <MaterialCommunityIcons
+                              name={cbm.iconName as any}
+                              size={24}
+                              color={cbm.iconColor || cbm.color}
+                            />
                           ) : (
-                            <Ionicons name={cbm.iconName as any} size={24} color={cbm.iconColor || cbm.color} />
+                            <Ionicons
+                              name={cbm.iconName as any}
+                              size={24}
+                              color={cbm.iconColor || cbm.color}
+                            />
                           )
                         ) : (
-                          <Text style={{ fontSize: 22 }}>{cbm.emoji || ""}</Text>
+                          <Text style={{ fontSize: 22 }}>
+                            {cbm.emoji || ""}
+                          </Text>
                         )}
                       </View>
                       <Text style={styles.switchLabel}>
@@ -1385,11 +1397,7 @@ export default function HomeScreen() {
             onRequestClose={() => setShowMealModal(false)}
           >
             <View style={mealModalStyles.overlay}>
-              <KeyboardAvoidingView
-                behavior={Platform.OS === "ios" ? "padding" : undefined}
-                style={{ width: "100%" }}
-              >
-                <View style={mealModalStyles.sheet}>
+                <View style={[mealModalStyles.sheet, { transform: [{ translateY: kbOffset }] }]}>
                   {/* 헤더 */}
                   <View style={mealModalStyles.header}>
                     <Text style={mealModalStyles.title}>
@@ -1555,7 +1563,6 @@ export default function HomeScreen() {
                     </TouchableOpacity>
                   </ScrollView>
                 </View>
-              </KeyboardAvoidingView>
             </View>
           </Modal>
         )}
@@ -1580,7 +1587,7 @@ export default function HomeScreen() {
                   setEditRecord(null);
                 }}
               />
-              <View style={editModalStyles.card}>
+              <View style={[editModalStyles.card, { transform: [{ translateY: kbOffset }] }]}>
                 <ScrollView
                   showsVerticalScrollIndicator={false}
                   keyboardShouldPersistTaps="handled"
@@ -1828,19 +1835,32 @@ export default function HomeScreen() {
                     )
                     .map((cbm) => (
                       <View key={cbm.key} style={editModalStyles.switchRow}>
-                        <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flex: 1 }}>
+                        <View
+                          style={{
+                            flexDirection: "row",
+                            alignItems: "center",
+                            gap: 6,
+                            flex: 1,
+                          }}
+                        >
                           {cbm.iconName ? (
                             cbm.iconLibrary === "mci" ? (
-                              <MaterialCommunityIcons name={cbm.iconName as any} size={20} color={cbm.iconColor || cbm.color} />
+                              <MaterialCommunityIcons
+                                name={cbm.iconName as any}
+                                size={20}
+                                color={cbm.iconColor || cbm.color}
+                              />
                             ) : (
-                              <Ionicons name={cbm.iconName as any} size={20} color={cbm.iconColor || cbm.color} />
+                              <Ionicons
+                                name={cbm.iconName as any}
+                                size={20}
+                                color={cbm.iconColor || cbm.color}
+                              />
                             )
                           ) : cbm.emoji ? (
                             <Text style={{ fontSize: 18 }}>{cbm.emoji}</Text>
                           ) : null}
-                          <Text style={editModalStyles.label}>
-                            {cbm.label}
-                          </Text>
+                          <Text style={editModalStyles.label}>{cbm.label}</Text>
                         </View>
                         <Switch
                           value={emBoolCustomInputs[cbm.key] ?? false}

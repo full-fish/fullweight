@@ -2,6 +2,7 @@
  * CalendarModal — 날짜 선택 캘린더 팝업
  * explore.tsx의 기간 선택, 통계/활동 기간 선택 등에서 공통 사용
  */
+import { useKeyboardOffset } from "@/hooks/use-keyboard-offset";
 import { getDaysInMonth, getFirstDayOfWeek, pad2 } from "@/utils/format";
 import React, { useEffect, useState } from "react";
 import {
@@ -44,6 +45,7 @@ export function CalendarModal({
     : now.getFullYear();
   const initM = !isNaN(parsed.getTime()) ? parsed.getMonth() : now.getMonth();
   const [cYear, setCYear] = useState(initY);
+  const kbOffset = useKeyboardOffset();
   const [cMonth, setCMonth] = useState(initM);
   const [textDate, setTextDate] = useState(value);
   const [pickerMode, setPickerMode] = useState<"calendar" | "year" | "month">(
@@ -106,7 +108,7 @@ export function CalendarModal({
       onRequestClose={onClose}
     >
       <TouchableOpacity style={cpS.overlay} activeOpacity={1} onPress={onClose}>
-        <View style={cpS.card} onStartShouldSetResponder={() => true}>
+        <View style={[cpS.card, { transform: [{ translateY: kbOffset }] }]} onStartShouldSetResponder={() => true}>
           {/* 직접 입력 */}
           <View
             style={{
