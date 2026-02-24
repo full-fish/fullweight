@@ -1,13 +1,10 @@
+import { MealCardList } from "@/components/meal-card-list";
+import { MealInputModal } from "@/components/meal-input-modal";
+import { PhotoZoomModal } from "@/components/photo-zoom-modal";
+import { memoStyles } from "@/constants/common-styles";
 import { useKeyboardOffset } from "@/hooks/use-keyboard-offset";
-import {
-  DailyToggles,
-  MEAL_LABELS,
-  MealEntry,
-  MealType,
-  UserSettings,
-  WeightRecord,
-} from "@/types";
-import { analyzeFood } from "@/utils/food-ai";
+import { useMealInputModal, useMealListEditor } from "@/hooks/use-meal-editor";
+import { DailyToggles, MealEntry, UserSettings, WeightRecord } from "@/types";
 import {
   fmtDate,
   getBmiInfo,
@@ -16,15 +13,8 @@ import {
   pad2,
   WEEKDAY_LABELS,
 } from "@/utils/format";
+import { pickPhoto, takePhoto } from "@/utils/photo";
 import {
-  captureFoodPhoto,
-  deletePhoto,
-  pickPhoto,
-  takePhoto,
-} from "@/utils/photo";
-import {
-  addMeal,
-  deleteMeal,
   deleteRecord,
   loadAllToggles,
   loadMeals,
@@ -38,7 +28,6 @@ import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useFocusEffect } from "@react-navigation/native";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   Dimensions,
   Image,
@@ -97,20 +86,12 @@ export default function CalendarScreen() {
 
   /* 식사 기록 */
   const [allMeals, setAllMeals] = useState<MealEntry[]>([]);
-  /* 편집/추가 모드 식사 편집용 state */
-  const [eMeals, setEMeals] = useState<MealEntry[]>([]);
-  const [showMealInput, setShowMealInput] = useState(false);
-  const [mealInputType, setMealInputType] = useState<MealType>("breakfast");
-  const [mealDesc, setMealDesc] = useState("");
-  const [mealCarb, setMealCarb] = useState("");
-  const [mealProtein, setMealProtein] = useState("");
-  const [mealFat, setMealFat] = useState("");
-  const [mealKcal, setMealKcal] = useState("");
-  const [mealPhotoUri, setMealPhotoUri] = useState<string | undefined>(
-    undefined
-  );
-  const [aiAnalyzing, setAiAnalyzing] = useState(false);
-  const [mealModalDate, setMealModalDate] = useState("");
+  /* 편집/추가 모드 식사 편집용 hook */
+  const eMealEditor = useMealListEditor();
+  const mealModal = useMealInputModal({
+    aiModel: userSettings.aiModel,
+    foodPhotoQuality: userSettings.foodPhotoQuality,
+  });
   const [zoomPhotoUri, setZoomPhotoUri] = useState<string | null>(null);
   const [allToggles, setAllToggles] = useState<Record<string, DailyToggles>>(
     {}
@@ -268,10 +249,13 @@ export default function CalendarScreen() {
     };
   }, [records, year, month, summaryMode, userSettings]);
 
-  const calendarCells: (number | null)[] = [];
-  for (let i = 0; i < firstDay; i++) calendarCells.push(null);
-  for (let d = 1; d <= daysInMonth; d++) calendarCells.push(d);
-  while (calendarCells.length % 7 !== 0) calendarCells.push(null);
+  const calendarCells = useMemo(() => {
+    const cells: (number | null)[] = [];
+    for (let i = 0; i < firstDay; i++) cells.push(null);
+    for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+    while (cells.length % 7 !== 0) cells.push(null);
+    return cells;
+  }, [firstDay, daysInMonth]);
 
   const todayStr = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(
     now.getDate()
@@ -309,119 +293,8 @@ export default function CalendarScreen() {
       }
     }
     setEBoolCustomInputs(bi);
-    loadMeals(selectedRecord.date).then(setEMeals);
+    eMealEditor.load(selectedRecord.date);
     setEditMode(true);
-  };
-
-  /* 식사 편집 헬퍼 */
-  const handleDeleteEMeal = (meal: MealEntry) => {
-    Alert.alert(
-      "삭제",
-      `${MEAL_LABELS[meal.mealType]} - ${meal.description ?? "음식"}을 삭제할까요?`,
-      [
-        { text: "취소", style: "cancel" },
-        {
-          text: "삭제",
-          style: "destructive",
-          onPress: async () => {
-            if (meal.photoUri) await deletePhoto(meal.photoUri);
-            const updated = await deleteMeal(meal.id);
-            const dateStr = selectedRecord?.date ?? addDate;
-            setEMeals(updated.filter((m) => m.date === dateStr));
-            loadMeals().then(setAllMeals);
-          },
-        },
-      ]
-    );
-  };
-
-  const handleEditMealField = (
-    mealId: string,
-    field: keyof MealEntry,
-    value: string
-  ) => {
-    setEMeals((prev) =>
-      prev.map((m) => {
-        if (m.id !== mealId) return m;
-        if (field === "description") return { ...m, description: value };
-        const num = parseFloat(value) || 0;
-        const updated = { ...m, [field]: num };
-        if (field === "carb" || field === "protein" || field === "fat") {
-          updated.kcal = Math.round(
-            updated.carb * 4 + updated.protein * 4 + updated.fat * 9
-          );
-        }
-        return updated;
-      })
-    );
-  };
-
-  const saveEMeals = async (dateStr: string) => {
-    const all = await loadMeals();
-    const otherMeals = all.filter((m) => m.date !== dateStr);
-    await saveMeals([...otherMeals, ...eMeals]);
-    loadMeals().then(setAllMeals);
-  };
-
-  const handleAddMealEntry = async (dateStr: string) => {
-    if (!mealDesc.trim()) {
-      Alert.alert("입력 오류", "음식 이름을 입력해주세요.");
-      return;
-    }
-    const carb = parseFloat(mealCarb) || 0;
-    const protein = parseFloat(mealProtein) || 0;
-    const fat = parseFloat(mealFat) || 0;
-    const kcal =
-      parseFloat(mealKcal) || Math.round(carb * 4 + protein * 4 + fat * 9);
-    const entry: MealEntry = {
-      id: `${dateStr}_${mealInputType}_${Date.now()}`,
-      date: dateStr,
-      mealType: mealInputType,
-      description: mealDesc.trim(),
-      carb,
-      protein,
-      fat,
-      kcal,
-      photoUri: mealPhotoUri,
-      createdAt: new Date().toISOString(),
-    };
-    const updated = await addMeal(entry);
-    setEMeals(updated.filter((m) => m.date === dateStr));
-    loadMeals().then(setAllMeals);
-    setShowMealInput(false);
-    setMealDesc("");
-    setMealCarb("");
-    setMealProtein("");
-    setMealFat("");
-    setMealKcal("");
-    setMealPhotoUri(undefined);
-  };
-
-  const handleMealPhoto = async (mode: "camera" | "gallery") => {
-    const captured = await captureFoodPhoto(
-      mode,
-      userSettings.foodPhotoQuality
-    );
-    if (!captured) return;
-    setMealPhotoUri(captured.savedUri);
-    setAiAnalyzing(true);
-    try {
-      const result = await analyzeFood(captured.aiUri, userSettings.aiModel);
-      setMealDesc(result.description);
-      setMealCarb(String(result.carb));
-      setMealProtein(String(result.protein));
-      setMealFat(String(result.fat));
-      setMealKcal(String(result.kcal));
-    } catch (err: any) {
-      Alert.alert(
-        "AI 분석 실패",
-        (err.message || "서버 연결에 실패했습니다.") +
-          "\n\n음식 이름과 영양소를 직접 입력해주세요."
-      );
-    } finally {
-      deletePhoto(captured.aiUri).catch(() => {});
-      setAiAnalyzing(false);
-    }
   };
 
   /* 저장 */
@@ -458,7 +331,8 @@ export default function CalendarScreen() {
     const newRecords = await upsertRecord(updated);
     setRecords(newRecords);
     setSelectedRecord(updated);
-    await saveEMeals(selectedRecord.date);
+    await eMealEditor.saveAll(selectedRecord.date);
+    loadMeals().then(setAllMeals);
     setEditMode(false);
     Alert.alert("저장 완료", "기록이 수정되었습니다.");
   };
@@ -509,8 +383,7 @@ export default function CalendarScreen() {
     setEBoolCustomInputs({});
     // 해당 날짜에 이미 식사 기록이 있으면 불러오기
     const existingMeals = allMeals.filter((m) => m.date === dateStr);
-    setEMeals(existingMeals);
-    setShowMealInput(false);
+    eMealEditor.setMeals(existingMeals);
     setAddMode(true);
   };
 
@@ -546,8 +419,9 @@ export default function CalendarScreen() {
     };
     const newRecords = await upsertRecord(newRec);
     setRecords(newRecords);
-    if (eMeals.length > 0) {
-      await saveEMeals(addDate);
+    if (eMealEditor.meals.length > 0) {
+      await eMealEditor.saveAll(addDate);
+      loadMeals().then(setAllMeals);
     }
     setAddMode(false);
     setAddDate("");
@@ -1467,222 +1341,23 @@ export default function CalendarScreen() {
                         0
                       );
                       return (
-                        <View
-                          style={{
-                            marginTop: 12,
-                            borderTopWidth: 1,
-                            borderTopColor: "#F0F4F8",
-                            paddingTop: 10,
-                          }}
-                        >
-                          <Text
-                            style={{
-                              fontSize: 14,
-                              fontWeight: "600",
-                              color: "#2D3748",
-                              marginBottom: 6,
-                            }}
-                          >
+                        <View style={memoStyles.section}>
+                          <Text style={memoStyles.sectionTitle}>
                             식사 {totalKcal}kcal
                           </Text>
-                          {(
-                            [
-                              "breakfast",
-                              "lunch",
-                              "dinner",
-                              "snack",
-                            ] as MealType[]
-                          ).map((mealType) => {
-                            const items = dayMeals.filter(
-                              (m) => m.mealType === mealType
-                            );
-                            if (items.length === 0) return null;
-                            return (
-                              <View
-                                key={mealType}
-                                style={{
-                                  backgroundColor: "#fff",
-                                  borderRadius: 12,
-                                  padding: 10,
-                                  marginBottom: 8,
-                                  borderWidth: 1,
-                                  borderColor: "#E2E8F0",
-                                  shadowColor: "#000",
-                                  shadowOffset: { width: 0, height: 1 },
-                                  shadowOpacity: 0.05,
-                                  shadowRadius: 4,
-                                  elevation: 2,
-                                }}
-                              >
-                                <View
-                                  style={{
-                                    flexDirection: "row",
-                                    justifyContent: "space-between",
-                                    alignItems: "center",
-                                    marginBottom: 6,
-                                  }}
-                                >
-                                  <Text
-                                    style={{
-                                      fontSize: 14,
-                                      fontWeight: "600",
-                                      color: "#2D3748",
-                                    }}
-                                  >
-                                    {MEAL_LABELS[mealType]}
-                                  </Text>
-                                  <Text
-                                    style={{
-                                      fontSize: 12,
-                                      fontWeight: "600",
-                                      color: "#4CAF50",
-                                      backgroundColor: "#E8F5E9",
-                                      paddingHorizontal: 8,
-                                      paddingVertical: 2,
-                                      borderRadius: 8,
-                                    }}
-                                  >
-                                    {items.reduce((s2, m) => s2 + m.kcal, 0)}{" "}
-                                    kcal
-                                  </Text>
-                                </View>
-                                {items.map((meal) => (
-                                  <View
-                                    key={meal.id}
-                                    style={{
-                                      flexDirection: "row",
-                                      alignItems: "center",
-                                      backgroundColor: "#F7FAFC",
-                                      borderRadius: 10,
-                                      padding: 8,
-                                      marginBottom: 4,
-                                      gap: 8,
-                                    }}
-                                  >
-                                    {meal.photoUri && (
-                                      <TouchableOpacity
-                                        onPress={() =>
-                                          setZoomPhotoUri(meal.photoUri!)
-                                        }
-                                      >
-                                        <Image
-                                          source={{ uri: meal.photoUri }}
-                                          style={{
-                                            width: 44,
-                                            height: 44,
-                                            borderRadius: 8,
-                                            flexShrink: 0,
-                                          }}
-                                          resizeMode="cover"
-                                        />
-                                      </TouchableOpacity>
-                                    )}
-                                    <View style={{ flex: 1 }}>
-                                      <Text
-                                        style={{
-                                          fontSize: 13,
-                                          fontWeight: "600",
-                                          color: "#2D3748",
-                                          marginBottom: 2,
-                                        }}
-                                        numberOfLines={1}
-                                      >
-                                        {meal.description || "음식"}
-                                      </Text>
-                                      <View
-                                        style={{
-                                          flexDirection: "row",
-                                          gap: 6,
-                                          alignItems: "center",
-                                        }}
-                                      >
-                                        <Text
-                                          style={{
-                                            fontSize: 11,
-                                            color: "#E53E3E",
-                                            fontWeight: "500",
-                                          }}
-                                        >
-                                          탄 {meal.carb}g
-                                        </Text>
-                                        <Text
-                                          style={{
-                                            fontSize: 11,
-                                            color: "#3182CE",
-                                            fontWeight: "500",
-                                          }}
-                                        >
-                                          단 {meal.protein}g
-                                        </Text>
-                                        <Text
-                                          style={{
-                                            fontSize: 11,
-                                            color: "#D69E2E",
-                                            fontWeight: "500",
-                                          }}
-                                        >
-                                          지 {meal.fat}g
-                                        </Text>
-                                        <Text
-                                          style={{
-                                            fontSize: 11,
-                                            color: "#718096",
-                                            fontWeight: "500",
-                                          }}
-                                        >
-                                          {meal.kcal}kcal
-                                        </Text>
-                                      </View>
-                                    </View>
-                                  </View>
-                                ))}
-                              </View>
-                            );
-                          })}
+                          <MealCardList
+                            meals={dayMeals}
+                            onPhotoPress={setZoomPhotoUri}
+                          />
                         </View>
                       );
                     })()}
 
                     {selectedRecord.memo && (
-                      <View
-                        style={{
-                          marginTop: 12,
-                          borderTopWidth: 1,
-                          borderTopColor: "#F0F4F8",
-                          paddingTop: 10,
-                        }}
-                      >
-                        <Text
-                          style={{
-                            fontSize: 14,
-                            fontWeight: "600",
-                            color: "#2D3748",
-                            marginBottom: 6,
-                          }}
-                        >
-                          메모
-                        </Text>
-                        <View
-                          style={{
-                            backgroundColor: "#fff",
-                            borderRadius: 12,
-                            padding: 10,
-                            borderWidth: 1,
-                            borderColor: "#E2E8F0",
-                            shadowColor: "#000",
-                            shadowOffset: { width: 0, height: 1 },
-                            shadowOpacity: 0.05,
-                            shadowRadius: 4,
-                            elevation: 2,
-                          }}
-                        >
-                          <Text
-                            style={{
-                              fontSize: 13,
-                              color: "#4A5568",
-                              lineHeight: 18,
-                            }}
-                          >
+                      <View style={memoStyles.section}>
+                        <Text style={memoStyles.sectionTitle}>메모</Text>
+                        <View style={memoStyles.card}>
+                          <Text style={memoStyles.cardText}>
                             {selectedRecord.memo}
                           </Text>
                         </View>
@@ -1978,115 +1653,18 @@ export default function CalendarScreen() {
                     >
                       식사 기록
                     </Text>
-                    {(
-                      ["breakfast", "lunch", "dinner", "snack"] as MealType[]
-                    ).map((mealType) => {
-                      const mealItems = eMeals.filter(
-                        (m) => m.mealType === mealType
-                      );
-                      return (
-                        <View key={mealType} style={mealStyles.mealCard}>
-                          <View style={mealStyles.mealHeader}>
-                            <Text style={mealStyles.mealTitle}>
-                              {MEAL_LABELS[mealType]}
-                            </Text>
-                            {mealItems.length > 0 && (
-                              <Text style={mealStyles.mealKcalBadge}>
-                                {mealItems.reduce((sum, m) => sum + m.kcal, 0)}{" "}
-                                kcal
-                              </Text>
-                            )}
-                          </View>
-                          {mealItems.map((meal) => (
-                            <View key={meal.id} style={mealStyles.mealItem}>
-                              {meal.photoUri && (
-                                <TouchableOpacity
-                                  onPress={() =>
-                                    setZoomPhotoUri(meal.photoUri!)
-                                  }
-                                >
-                                  <Image
-                                    source={{ uri: meal.photoUri }}
-                                    style={mealStyles.mealPhoto}
-                                  />
-                                </TouchableOpacity>
-                              )}
-                              <View style={mealStyles.mealInfo}>
-                                <TextInput
-                                  style={[
-                                    mealStyles.mealDesc,
-                                    { padding: 0, marginBottom: 2 },
-                                  ]}
-                                  value={meal.description ?? ""}
-                                  onChangeText={(v) =>
-                                    handleEditMealField(
-                                      meal.id,
-                                      "description",
-                                      v
-                                    )
-                                  }
-                                  placeholder="음식 이름"
-                                  placeholderTextColor="#CBD5E0"
-                                />
-                                <View style={mealStyles.macroRow}>
-                                  <Text
-                                    style={[
-                                      mealStyles.macroText,
-                                      { color: "#E53E3E" },
-                                    ]}
-                                  >
-                                    탄 {meal.carb}g
-                                  </Text>
-                                  <Text
-                                    style={[
-                                      mealStyles.macroText,
-                                      { color: "#3182CE" },
-                                    ]}
-                                  >
-                                    단 {meal.protein}g
-                                  </Text>
-                                  <Text
-                                    style={[
-                                      mealStyles.macroText,
-                                      { color: "#D69E2E" },
-                                    ]}
-                                  >
-                                    지 {meal.fat}g
-                                  </Text>
-                                  <Text style={mealStyles.macroKcal}>
-                                    {meal.kcal}kcal
-                                  </Text>
-                                </View>
-                              </View>
-                              <TouchableOpacity
-                                style={mealStyles.mealDeleteBtn}
-                                onPress={() => handleDeleteEMeal(meal)}
-                              >
-                                <Text style={mealStyles.mealDeleteText}>✕</Text>
-                              </TouchableOpacity>
-                            </View>
-                          ))}
-                          <TouchableOpacity
-                            style={mealStyles.addBtn}
-                            onPress={() => {
-                              setMealInputType(mealType);
-                              setMealDesc("");
-                              setMealCarb("");
-                              setMealProtein("");
-                              setMealFat("");
-                              setMealKcal("");
-                              setMealPhotoUri(undefined);
-                              setMealModalDate(selectedRecord!.date);
-                              setShowMealInput(true);
-                            }}
-                          >
-                            <Text style={mealStyles.addBtnText}>
-                              + 음식 추가
-                            </Text>
-                          </TouchableOpacity>
-                        </View>
-                      );
-                    })}
+                    <MealCardList
+                      meals={eMealEditor.meals}
+                      editable
+                      showDelete
+                      onDelete={eMealEditor.handleDelete}
+                      showAdd
+                      onAdd={(mealType) => {
+                        mealModal.open(mealType);
+                      }}
+                      onFieldEdit={eMealEditor.handleFieldEdit}
+                      onPhotoPress={setZoomPhotoUri}
+                    />
 
                     <View style={s.modalActionRow}>
                       <TouchableOpacity
@@ -2391,107 +1969,18 @@ export default function CalendarScreen() {
                   >
                     식사 기록
                   </Text>
-                  {(
-                    ["breakfast", "lunch", "dinner", "snack"] as MealType[]
-                  ).map((mealType) => {
-                    const mealItems = eMeals.filter(
-                      (m) => m.mealType === mealType
-                    );
-                    return (
-                      <View key={mealType} style={mealStyles.mealCard}>
-                        <View style={mealStyles.mealHeader}>
-                          <Text style={mealStyles.mealTitle}>
-                            {MEAL_LABELS[mealType]}
-                          </Text>
-                          {mealItems.length > 0 && (
-                            <Text style={mealStyles.mealKcalBadge}>
-                              {mealItems.reduce((sum, m) => sum + m.kcal, 0)}{" "}
-                              kcal
-                            </Text>
-                          )}
-                        </View>
-                        {mealItems.map((meal) => (
-                          <View key={meal.id} style={mealStyles.mealItem}>
-                            {meal.photoUri && (
-                              <TouchableOpacity
-                                onPress={() => setZoomPhotoUri(meal.photoUri!)}
-                              >
-                                <Image
-                                  source={{ uri: meal.photoUri }}
-                                  style={mealStyles.mealPhoto}
-                                />
-                              </TouchableOpacity>
-                            )}
-                            <View style={mealStyles.mealInfo}>
-                              <TextInput
-                                style={[
-                                  mealStyles.mealDesc,
-                                  { padding: 0, marginBottom: 2 },
-                                ]}
-                                value={meal.description ?? ""}
-                                onChangeText={(v) =>
-                                  handleEditMealField(meal.id, "description", v)
-                                }
-                                placeholder="음식 이름"
-                                placeholderTextColor="#CBD5E0"
-                              />
-                              <View style={mealStyles.macroRow}>
-                                <Text
-                                  style={[
-                                    mealStyles.macroText,
-                                    { color: "#E53E3E" },
-                                  ]}
-                                >
-                                  탄 {meal.carb}g
-                                </Text>
-                                <Text
-                                  style={[
-                                    mealStyles.macroText,
-                                    { color: "#3182CE" },
-                                  ]}
-                                >
-                                  단 {meal.protein}g
-                                </Text>
-                                <Text
-                                  style={[
-                                    mealStyles.macroText,
-                                    { color: "#D69E2E" },
-                                  ]}
-                                >
-                                  지 {meal.fat}g
-                                </Text>
-                                <Text style={mealStyles.macroKcal}>
-                                  {meal.kcal}kcal
-                                </Text>
-                              </View>
-                            </View>
-                            <TouchableOpacity
-                              style={mealStyles.mealDeleteBtn}
-                              onPress={() => handleDeleteEMeal(meal)}
-                            >
-                              <Text style={mealStyles.mealDeleteText}>✕</Text>
-                            </TouchableOpacity>
-                          </View>
-                        ))}
-                        <TouchableOpacity
-                          style={mealStyles.addBtn}
-                          onPress={() => {
-                            setMealInputType(mealType);
-                            setMealDesc("");
-                            setMealCarb("");
-                            setMealProtein("");
-                            setMealFat("");
-                            setMealKcal("");
-                            setMealPhotoUri(undefined);
-                            setMealModalDate(addDate);
-                            setShowMealInput(true);
-                          }}
-                        >
-                          <Text style={mealStyles.addBtnText}>+ 음식 추가</Text>
-                        </TouchableOpacity>
-                      </View>
-                    );
-                  })}
+                  <MealCardList
+                    meals={eMealEditor.meals}
+                    editable
+                    showDelete
+                    onDelete={eMealEditor.handleDelete}
+                    showAdd
+                    onAdd={(mealType) => {
+                      mealModal.open(mealType);
+                    }}
+                    onFieldEdit={eMealEditor.handleFieldEdit}
+                    onPhotoPress={setZoomPhotoUri}
+                  />
 
                   <View style={s.modalActionRow}>
                     <TouchableOpacity
@@ -2516,216 +2005,38 @@ export default function CalendarScreen() {
           </Modal>
         )}
 
-        {/* 식사 입력 모달 (bottom-sheet) */}
-        {showMealInput && (
-          <Modal
-            visible
-            transparent
-            animationType="slide"
-            onRequestClose={() => setShowMealInput(false)}
-          >
-            <View style={mealModalStyles.overlay}>
-              <View
-                style={[
-                  mealModalStyles.sheet,
-                  { transform: [{ translateY: kbOffset }] },
-                ]}
-              >
-                {/* 헤더 */}
-                <View style={mealModalStyles.header}>
-                  <Text style={mealModalStyles.title}>
-                    {MEAL_LABELS[mealInputType]} 추가
-                  </Text>
-                  <TouchableOpacity onPress={() => setShowMealInput(false)}>
-                    <Text style={mealModalStyles.closeBtn}>✕</Text>
-                  </TouchableOpacity>
-                </View>
-
-                <ScrollView
-                  showsVerticalScrollIndicator={false}
-                  keyboardShouldPersistTaps="handled"
-                  contentContainerStyle={{ paddingBottom: 45 }}
-                >
-                  {/* 사진 선택 */}
-                  <View style={mealModalStyles.photoRow}>
-                    {mealPhotoUri ? (
-                      <View style={{ position: "relative" }}>
-                        <Image
-                          source={{ uri: mealPhotoUri }}
-                          style={mealModalStyles.photoPreview}
-                        />
-                        {aiAnalyzing && (
-                          <View style={mealModalStyles.photoAnalyzingOverlay}>
-                            <ActivityIndicator size="large" color="#fff" />
-                            <Text style={mealModalStyles.photoAnalyzingText}>
-                              AI 분석 중...
-                            </Text>
-                          </View>
-                        )}
-                        <TouchableOpacity
-                          style={mealModalStyles.photoRemove}
-                          onPress={() => setMealPhotoUri(undefined)}
-                        >
-                          <Text
-                            style={{
-                              color: "#fff",
-                              fontSize: 12,
-                              fontWeight: "700",
-                            }}
-                          >
-                            ✕
-                          </Text>
-                        </TouchableOpacity>
-                      </View>
-                    ) : (
-                      <>
-                        <TouchableOpacity
-                          style={mealModalStyles.photoBtn}
-                          onPress={() => handleMealPhoto("camera")}
-                        >
-                          <Text style={mealModalStyles.photoBtnText}>촬영</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={mealModalStyles.photoBtn}
-                          onPress={() => handleMealPhoto("gallery")}
-                        >
-                          <Text style={mealModalStyles.photoBtnText}>
-                            갤러리
-                          </Text>
-                        </TouchableOpacity>
-                      </>
-                    )}
-                  </View>
-
-                  {/* 음식 이름 */}
-                  <Text style={mealModalStyles.label}>음식 이름 *</Text>
-                  <TextInput
-                    style={mealModalStyles.input}
-                    value={mealDesc}
-                    onChangeText={setMealDesc}
-                    placeholder="예: 닭가슴살 볶음밥"
-                    placeholderTextColor="#CBD5E0"
-                  />
-
-                  {/* 영양소 입력 */}
-                  <Text style={mealModalStyles.label}>
-                    영양소 (먹은 양 전체)
-                  </Text>
-                  <View style={mealModalStyles.macroGrid}>
-                    {(
-                      [
-                        {
-                          label: "탄수화물(g)",
-                          value: mealCarb,
-                          key: "carb",
-                          color: "#E53E3E",
-                        },
-                        {
-                          label: "단백질(g)",
-                          value: mealProtein,
-                          key: "protein",
-                          color: "#3182CE",
-                        },
-                        {
-                          label: "지방(g)",
-                          value: mealFat,
-                          key: "fat",
-                          color: "#D69E2E",
-                        },
-                      ] as const
-                    ).map(({ label, value, key, color }) => (
-                      <View key={label} style={mealModalStyles.macroField}>
-                        <Text style={[mealModalStyles.macroLabel, { color }]}>
-                          {label}
-                        </Text>
-                        <TextInput
-                          style={mealModalStyles.macroInput}
-                          value={value}
-                          onChangeText={(v) => {
-                            const c = key === "carb" ? v : mealCarb;
-                            const p = key === "protein" ? v : mealProtein;
-                            const f = key === "fat" ? v : mealFat;
-                            if (key === "carb") setMealCarb(v);
-                            if (key === "protein") setMealProtein(v);
-                            if (key === "fat") setMealFat(v);
-                            const auto = Math.round(
-                              (parseFloat(c) || 0) * 4 +
-                                (parseFloat(p) || 0) * 4 +
-                                (parseFloat(f) || 0) * 9
-                            );
-                            setMealKcal(auto > 0 ? String(auto) : "");
-                          }}
-                          keyboardType="numeric"
-                          placeholder="0"
-                          placeholderTextColor="#CBD5E0"
-                        />
-                      </View>
-                    ))}
-                    <View style={mealModalStyles.macroField}>
-                      <Text
-                        style={[
-                          mealModalStyles.macroLabel,
-                          { color: "#718096" },
-                        ]}
-                      >
-                        칼로리(kcal)
-                      </Text>
-                      <TextInput
-                        style={[
-                          mealModalStyles.macroInput,
-                          { backgroundColor: "#F0F4F8" },
-                        ]}
-                        value={mealKcal}
-                        editable={false}
-                        placeholder="자동 계산"
-                        placeholderTextColor="#CBD5E0"
-                      />
-                    </View>
-                  </View>
-                  <Text style={mealModalStyles.kcalHint}>
-                    * 칼로리는 탄단지 입력 시 자동 계산됩니다
-                  </Text>
-
-                  <TouchableOpacity
-                    style={mealModalStyles.saveBtn}
-                    onPress={() => handleAddMealEntry(mealModalDate)}
-                  >
-                    <Text style={mealModalStyles.saveBtnText}>저장</Text>
-                  </TouchableOpacity>
-                </ScrollView>
-              </View>
-            </View>
-          </Modal>
-        )}
+        {/* 식사 입력 모달 (공용 컴포넌트) */}
+        <MealInputModal
+          visible={mealModal.visible}
+          mealType={mealModal.mealType}
+          photoUri={mealModal.photoUri}
+          desc={mealModal.desc}
+          carb={mealModal.carb}
+          protein={mealModal.protein}
+          fat={mealModal.fat}
+          kcal={mealModal.kcal}
+          aiAnalyzing={mealModal.aiAnalyzing}
+          kbOffset={kbOffset}
+          onClose={mealModal.close}
+          onPhotoSelect={mealModal.handlePhotoSelect}
+          onRemovePhoto={() => mealModal.setPhotoUri(undefined)}
+          onChangeDesc={mealModal.setDesc}
+          onChangeMacro={mealModal.updateMacro}
+          onSave={async () => {
+            const dateStr = selectedRecord?.date ?? addDate;
+            const allUpdated = await mealModal.save(dateStr);
+            if (allUpdated) {
+              eMealEditor.addToList(allUpdated, dateStr);
+              loadMeals().then(setAllMeals);
+            }
+          }}
+        />
 
         {/* 사진 확대 모달 */}
-        {zoomPhotoUri && (
-          <Modal
-            visible
-            transparent
-            animationType="fade"
-            onRequestClose={() => setZoomPhotoUri(null)}
-          >
-            <TouchableOpacity
-              style={{
-                flex: 1,
-                backgroundColor: "rgba(0,0,0,0.9)",
-                justifyContent: "center",
-                alignItems: "center",
-              }}
-              activeOpacity={1}
-              onPress={() => setZoomPhotoUri(null)}
-            >
-              {zoomPhotoUri && (
-                <Image
-                  source={{ uri: zoomPhotoUri }}
-                  style={{ width: width, height: width }}
-                  resizeMode="contain"
-                />
-              )}
-            </TouchableOpacity>
-          </Modal>
-        )}
+        <PhotoZoomModal
+          uri={zoomPhotoUri}
+          onClose={() => setZoomPhotoUri(null)}
+        />
       </ScrollView>
     </View>
   );
@@ -2990,180 +2301,4 @@ const s = StyleSheet.create({
     borderRadius: 10,
   },
   modalCloseText: { fontSize: 15, fontWeight: "600", color: "#4A5568" },
-});
-
-const mealModalStyles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    justifyContent: "flex-end",
-  },
-  sheet: {
-    backgroundColor: "#fff",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-    maxHeight: "90%",
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  title: { fontSize: 18, fontWeight: "700", color: "#2D3748" },
-  closeBtn: { fontSize: 18, color: "#718096", padding: 4 },
-  photoRow: { flexDirection: "row", gap: 10, marginBottom: 16 },
-  photoPreview: { width: 120, height: 90, borderRadius: 10 },
-  photoAnalyzingOverlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: 10,
-    backgroundColor: "rgba(0,0,0,0.55)",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-  },
-  photoAnalyzingText: { color: "#fff", fontSize: 12, fontWeight: "600" },
-  photoRemove: {
-    position: "absolute",
-    top: 4,
-    right: 4,
-    backgroundColor: "rgba(0,0,0,0.55)",
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  photoBtn: {
-    flex: 1,
-    backgroundColor: "#EDF2F7",
-    borderRadius: 10,
-    paddingVertical: 14,
-    alignItems: "center",
-  },
-  photoBtnText: { fontSize: 14, fontWeight: "600", color: "#4A5568" },
-  label: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#4A5568",
-    marginBottom: 6,
-    marginTop: 12,
-  },
-  input: {
-    height: 44,
-    borderWidth: 1.5,
-    borderColor: "#E2E8F0",
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    fontSize: 15,
-    color: "#2D3748",
-    backgroundColor: "#F7FAFC",
-    marginBottom: 4,
-  },
-  macroGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-    marginBottom: 4,
-  },
-  macroField: { width: "47%" },
-  macroLabel: { fontSize: 12, fontWeight: "600", marginBottom: 4 },
-  macroInput: {
-    height: 40,
-    borderWidth: 1.5,
-    borderColor: "#E2E8F0",
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    fontSize: 15,
-    color: "#2D3748",
-    backgroundColor: "#F7FAFC",
-  },
-  kcalHint: { fontSize: 11, color: "#A0AEC0", marginBottom: 16 },
-  saveBtn: {
-    backgroundColor: "#4CAF50",
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  saveBtnText: { color: "#fff", fontSize: 16, fontWeight: "600" },
-});
-
-const mealStyles = StyleSheet.create({
-  mealCard: {
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  mealHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  mealTitle: { fontSize: 16, fontWeight: "600", color: "#2D3748" },
-  mealKcalBadge: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#4CAF50",
-    backgroundColor: "#E8F5E9",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
-  },
-  mealItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#F7FAFC",
-    borderRadius: 10,
-    padding: 10,
-    marginBottom: 8,
-  },
-  mealPhoto: {
-    width: 52,
-    height: 52,
-    borderRadius: 8,
-    marginRight: 10,
-  },
-  mealInfo: { flex: 1 },
-  mealDesc: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#2D3748",
-    marginBottom: 4,
-  },
-  macroRow: { flexDirection: "row", gap: 8, alignItems: "center" },
-  macroText: { fontSize: 12, fontWeight: "500" },
-  macroKcal: { fontSize: 12, color: "#718096", fontWeight: "500" },
-  mealDeleteBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: "#FED7D7",
-    alignItems: "center",
-    justifyContent: "center",
-    marginLeft: 6,
-  },
-  mealDeleteText: { fontSize: 12, color: "#E53E3E", fontWeight: "700" },
-  addBtn: {
-    backgroundColor: "#EDF2F7",
-    borderRadius: 10,
-    paddingVertical: 10,
-    alignItems: "center",
-    marginTop: 4,
-  },
-  addBtnText: { fontSize: 13, fontWeight: "600", color: "#4A5568" },
 });
