@@ -31,6 +31,7 @@ import {
   loadUserSettings,
   upsertRecord,
 } from "@/utils/storage";
+import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useFocusEffect } from "@react-navigation/native";
 import React, { useCallback, useMemo, useRef, useState } from "react";
@@ -834,7 +835,18 @@ export default function HomeScreen() {
             <View style={styles.switchGroup}>
               {userSettings.metricInputVisibility?.["exercised"] !== false && (
                 <View style={styles.switchRow}>
-                  <Text style={styles.switchLabel}>🏃 오늘 운동했나요?</Text>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      flex: 1,
+                    }}
+                  >
+                    <View style={{ width: 32, alignItems: "center" }}>
+                      <FontAwesome5 name="running" size={24} color="black" />
+                    </View>
+                    <Text style={styles.switchLabel}>오늘 운동했나요?</Text>
+                  </View>
                   <Switch
                     value={exercised}
                     onValueChange={setExercised}
@@ -845,10 +857,18 @@ export default function HomeScreen() {
               )}
               {userSettings.metricInputVisibility?.["drank"] !== false && (
                 <View style={styles.switchRow}>
-                  <Text style={styles.switchLabel}>
-                    <Ionicons name="beer-outline" size={24} color="black" />{" "}
-                    오늘 음주했나요?
-                  </Text>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      flex: 1,
+                    }}
+                  >
+                    <View style={{ width: 32, alignItems: "center" }}>
+                      <Ionicons name="beer-outline" size={24} color="black" />
+                    </View>
+                    <Text style={styles.switchLabel}>오늘 음주했나요?</Text>
+                  </View>
                   <Switch
                     value={drank}
                     onValueChange={setDrank}
@@ -864,10 +884,20 @@ export default function HomeScreen() {
                 )
                 .map((cbm) => (
                   <View key={cbm.key} style={styles.switchRow}>
-                    <Text style={styles.switchLabel}>
-                      {cbm.emoji ? `${cbm.emoji} ` : ""}오늘 {cbm.label}
-                      했나요?
-                    </Text>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        flex: 1,
+                      }}
+                    >
+                      <View style={{ width: 32, alignItems: "center" }}>
+                        <Text style={{ fontSize: 22 }}>{cbm.emoji || ""}</Text>
+                      </View>
+                      <Text style={styles.switchLabel}>
+                        오늘 {cbm.label}했나요?
+                      </Text>
+                    </View>
                     <Switch
                       value={boolCustomInputs[cbm.key] ?? false}
                       onValueChange={(v) =>
