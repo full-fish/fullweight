@@ -30,6 +30,8 @@ import {
   saveMeals,
   upsertRecord,
 } from "@/utils/storage";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useFocusEffect } from "@react-navigation/native";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
@@ -1790,16 +1792,24 @@ export default function CalendarScreen() {
                             flex: 1,
                           }}
                         >
-                          <View
-                            style={{
-                              width: 8,
-                              height: 8,
-                              borderRadius: 4,
-                              backgroundColor: cbm.color,
-                            }}
-                          />
+                          {cbm.iconName ? (
+                            cbm.iconLibrary === "mci" ? (
+                              <MaterialCommunityIcons name={cbm.iconName as any} size={16} color={cbm.iconColor || cbm.color} />
+                            ) : (
+                              <Ionicons name={cbm.iconName as any} size={16} color={cbm.iconColor || cbm.color} />
+                            )
+                          ) : (
+                            <View
+                              style={{
+                                width: 8,
+                                height: 8,
+                                borderRadius: 4,
+                                backgroundColor: cbm.color,
+                              }}
+                            />
+                          )}
                           <Text style={s.editLabel}>
-                            {cbm.emoji ? `${cbm.emoji} ` : ""}
+                            {!cbm.iconName && cbm.emoji ? `${cbm.emoji} ` : ""}
                             {cbm.label}
                           </Text>
                         </View>
@@ -2373,16 +2383,24 @@ export default function CalendarScreen() {
                           flex: 1,
                         }}
                       >
-                        <View
-                          style={{
-                            width: 8,
-                            height: 8,
-                            borderRadius: 4,
-                            backgroundColor: cbm.color,
-                          }}
-                        />
+                        {cbm.iconName ? (
+                          cbm.iconLibrary === "mci" ? (
+                            <MaterialCommunityIcons name={cbm.iconName as any} size={16} color={cbm.iconColor || cbm.color} />
+                          ) : (
+                            <Ionicons name={cbm.iconName as any} size={16} color={cbm.iconColor || cbm.color} />
+                          )
+                        ) : (
+                          <View
+                            style={{
+                              width: 8,
+                              height: 8,
+                              borderRadius: 4,
+                              backgroundColor: cbm.color,
+                            }}
+                          />
+                        )}
                         <Text style={s.editLabel}>
-                          {cbm.emoji ? `${cbm.emoji} ` : ""}
+                          {!cbm.iconName && cbm.emoji ? `${cbm.emoji} ` : ""}
                           {cbm.label}
                         </Text>
                       </View>

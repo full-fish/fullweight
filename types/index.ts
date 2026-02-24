@@ -62,6 +62,9 @@ export type CustomBoolMetric = {
   label: string;
   color: string;
   emoji?: string;
+  iconName?: string;
+  iconColor?: string;
+  iconLibrary?: string;
 };
 
 /** 사용자 정의 체크항목 색상 팔레트 */

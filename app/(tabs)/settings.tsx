@@ -38,6 +38,9 @@ import {
   saveUserSettings,
   seedDummyData,
 } from "@/utils/storage";
+import Entypo from "@expo/vector-icons/Entypo";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useFocusEffect } from "@react-navigation/native";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
@@ -54,16 +57,128 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-
+import Svg, {
+  Defs,
+  Stop,
+  Circle as SvgCircle,
+  LinearGradient as SvgLinearGradient,
+  Rect as SvgRect,
+} from "react-native-svg";
 /* ───── 유틸 ───── */
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
+
+/* ───── HSV ↔ Hex 변환 유틸 ───── */
+function hsvToHex(h: number, s: number, v: number): string {
+  const f = (n: number) => {
+    const k = (n + h / 60) % 6;
+    return v - v * s * Math.max(0, Math.min(k, 4 - k, 1));
+  };
+  const toHex = (x: number) =>
+    Math.round(x * 255)
+      .toString(16)
+      .padStart(2, "0");
+  return `#${toHex(f(5))}${toHex(f(3))}${toHex(f(1))}`.toUpperCase();
+}
+function hexToHsv(hex: string): [number, number, number] {
+  const r = parseInt(hex.slice(1, 3), 16) / 255;
+  const g = parseInt(hex.slice(3, 5), 16) / 255;
+  const b = parseInt(hex.slice(5, 7), 16) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const d = max - min;
+  let h = 0;
+  if (d !== 0) {
+    if (max === r) h = 60 * (((g - b) / d + 6) % 6);
+    else if (max === g) h = 60 * ((b - r) / d + 2);
+    else h = 60 * ((r - g) / d + 4);
+  }
+  const s = max === 0 ? 0 : d / max;
+  return [h, s, max];
+}
+
+function hexToRgb(hex: string): [number, number, number] {
+  return [
+    parseInt(hex.slice(1, 3), 16),
+    parseInt(hex.slice(3, 5), 16),
+    parseInt(hex.slice(5, 7), 16),
+  ];
+}
+function rgbToHex(r: number, g: number, b: number): string {
+  return (
+    "#" +
+    [r, g, b]
+      .map((v) => Math.max(0, Math.min(255, v)).toString(16).padStart(2, "0"))
+      .join("")
+      .toUpperCase()
+  );
+}
+const ICON_GRID_COLS = 6;
+const ICON_GRID_GAP = 8;
+const ICON_CARD_CONTENT_W = SCREEN_WIDTH * 0.85 - 48;
+const ICON_ITEM_SIZE = Math.floor(
+  (ICON_CARD_CONTENT_W - (ICON_GRID_COLS - 1) * ICON_GRID_GAP) / ICON_GRID_COLS
+);
+const CP_W = ICON_CARD_CONTENT_W; // color picker width
+const SV_H = Math.round(CP_W * 0.55); // SV panel height
+const HUE_H = 24; // hue bar height
 
 const CURRENT_YEAR = new Date().getFullYear();
 const YEAR_LIST = Array.from(
   { length: CURRENT_YEAR - 1920 + 1 },
   (_, i) => 1920 + i
 ).reverse();
+
+/* ───── 아이콘 선택 목록 ───── */
+const POPULAR_ICONS: { name: string; label: string; library?: "mci" }[] = [
+  { name: "fitness-outline", label: "운동" },
+  { name: "barbell-outline", label: "바벨" },
+  { name: "bicycle-outline", label: "자전거" },
+  { name: "walk-outline", label: "걷기" },
+  { name: "water-outline", label: "물" },
+  { name: "cafe-outline", label: "커피" },
+  { name: "restaurant-outline", label: "식사" },
+  { name: "bed-outline", label: "수면" },
+  { name: "moon-outline", label: "달" },
+  { name: "sunny-outline", label: "태양" },
+  { name: "heart-outline", label: "하트" },
+  { name: "medkit-outline", label: "약" },
+  { name: "bandage-outline", label: "반창고" },
+  { name: "book-outline", label: "책" },
+  { name: "school-outline", label: "학교" },
+  { name: "musical-notes-outline", label: "음악" },
+  { name: "game-controller-outline", label: "게임" },
+  { name: "happy-outline", label: "행복" },
+  { name: "sad-outline", label: "슬픔" },
+  { name: "flash-outline", label: "번개" },
+  { name: "leaf-outline", label: "잎" },
+  { name: "flower-outline", label: "꽃" },
+  { name: "paw-outline", label: "발자국" },
+  { name: "timer-outline", label: "타이머" },
+  { name: "alarm-outline", label: "알람" },
+  { name: "brush-outline", label: "브러시" },
+  { name: "color-palette-outline", label: "팔레트" },
+  { name: "camera-outline", label: "카메라" },
+  { name: "beer-outline", label: "맥주" },
+  { name: "wine-outline", label: "와인" },
+  { name: "pizza-outline", label: "피자" },
+  { name: "ice-cream-outline", label: "아이스크림" },
+  { name: "star-outline", label: "별" },
+  { name: "trophy-outline", label: "트로피" },
+  { name: "flag-outline", label: "깃발" },
+  { name: "checkmark-circle-outline", label: "체크" },
+  { name: "snow-outline", label: "눈" },
+  { name: "sparkles", label: "반짝" },
+  { name: "rocket-outline", label: "로켓" },
+  { name: "body-outline", label: "몸" },
+  { name: "eye-outline", label: "눈(eye)" },
+  { name: "thumbs-up-outline", label: "좋아요" },
+  { name: "globe-outline", label: "지구" },
+  { name: "smoking", label: "담배", library: "mci" },
+  { name: "smoking-off", label: "금연", library: "mci" },
+  { name: "pill", label: "알약", library: "mci" },
+  { name: "meditation", label: "명상", library: "mci" },
+];
 
 /* ───── 캘린더 팝업 컴포넌트 ───── */
 
@@ -402,10 +517,38 @@ export default function SettingsScreen() {
   const [showAddBoolMetric, setShowAddBoolMetric] = useState(false);
   const [newBoolLabel, setNewBoolLabel] = useState("");
   const [newBoolEmoji, setNewBoolEmoji] = useState("");
+  const [newBoolIconName, setNewBoolIconName] = useState<string | undefined>(
+    undefined
+  );
+  const [newBoolIconColor, setNewBoolIconColor] = useState<string>("#718096");
+  const [newBoolColor, setNewBoolColor] = useState<string>(
+    CUSTOM_BOOL_COLORS[0]
+  );
+  const [newPickerHue, setNewPickerHue] = useState(0);
+  const [newPickerSat, setNewPickerSat] = useState(1);
+  const [newPickerVal, setNewPickerVal] = useState(1);
+  const [newHexInput, setNewHexInput] = useState("E91E63");
+  const [newRInput, setNewRInput] = useState("233");
+  const [newGInput, setNewGInput] = useState("30");
+  const [newBInput, setNewBInput] = useState("99");
   const [editingBoolEmojiKey, setEditingBoolEmojiKey] = useState<string | null>(
     null
   );
   const [editBoolEmoji, setEditBoolEmoji] = useState("");
+  const [editBoolIconName, setEditBoolIconName] = useState<string | undefined>(
+    undefined
+  );
+  const [editBoolIconColor, setEditBoolIconColor] = useState<string>("#718096");
+  const [editBoolColor, setEditBoolColor] = useState<string>(
+    CUSTOM_BOOL_COLORS[0]
+  );
+  const [editPickerHue, setEditPickerHue] = useState(0);
+  const [editPickerSat, setEditPickerSat] = useState(1);
+  const [editPickerVal, setEditPickerVal] = useState(1);
+  const [editHexInput, setEditHexInput] = useState("718096");
+  const [editRInput, setEditRInput] = useState("113");
+  const [editGInput, setEditGInput] = useState("128");
+  const [editBInput, setEditBInput] = useState("150");
 
   // ── Google Drive 백업 상태 ──
   const [googleEmail, setGoogleEmail] = useState<string | null>(null);
@@ -943,13 +1086,28 @@ export default function SettingsScreen() {
 
           {/* 앱 잠금 */}
           <View style={s.infoRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={s.infoLabel}>🔒 앱 잠금</Text>
-              <Text style={{ fontSize: 11, color: "#A0AEC0", marginTop: 2 }}>
-                {lockEnabled
-                  ? "PIN 잠금이 활성화되어 있습니다"
-                  : "앱 실행 시 PIN을 요구합니다"}
-              </Text>
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                flex: 1,
+              }}
+            >
+              <View style={{ marginRight: 8 }}>
+                <Entypo
+                  name={lockEnabled ? "lock" : "lock-open"}
+                  size={20}
+                  color="#bfb41f"
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.infoLabel}>앱 잠금</Text>
+                <Text style={{ fontSize: 11, color: "#A0AEC0", marginTop: 2 }}>
+                  {lockEnabled
+                    ? "PIN 잠금이 활성화되어 있습니다"
+                    : "앱 실행 시 PIN을 요구합니다"}
+                </Text>
+              </View>
             </View>
             <Switch
               value={lockEnabled}
@@ -971,8 +1129,8 @@ export default function SettingsScreen() {
                   Alert.alert("잠금 해제", "앱 잠금이 비활성화되었습니다.");
                 }
               }}
-              trackColor={{ false: "#E2E8F0", true: "#F6AD55" }}
-              thumbColor={lockEnabled ? "#DD6B20" : "#fff"}
+              trackColor={{ false: "#E2E8F0", true: "#bfb41f" }}
+              thumbColor={lockEnabled ? "#bfb41f" : "#fff"}
             />
           </View>
 
@@ -1210,16 +1368,32 @@ export default function SettingsScreen() {
                           flex: 1,
                         }}
                       >
-                        <View
-                          style={{
-                            width: 10,
-                            height: 10,
-                            borderRadius: 5,
-                            backgroundColor: cbm.color,
-                          }}
-                        />
+                        {cbm.iconName ? (
+                          cbm.iconLibrary === "mci" ? (
+                            <MaterialCommunityIcons
+                              name={cbm.iconName as any}
+                              size={16}
+                              color={cbm.iconColor || cbm.color}
+                            />
+                          ) : (
+                            <Ionicons
+                              name={cbm.iconName as any}
+                              size={16}
+                              color={cbm.iconColor || cbm.color}
+                            />
+                          )
+                        ) : (
+                          <View
+                            style={{
+                              width: 10,
+                              height: 10,
+                              borderRadius: 5,
+                              backgroundColor: cbm.color,
+                            }}
+                          />
+                        )}
                         <Text style={s.infoLabel}>
-                          {cbm.emoji ? `${cbm.emoji} ` : ""}
+                          {!cbm.iconName && cbm.emoji ? `${cbm.emoji} ` : ""}
                           {cbm.label}
                         </Text>
                       </View>
@@ -1449,16 +1623,32 @@ export default function SettingsScreen() {
                           flex: 1,
                         }}
                       >
-                        <View
-                          style={{
-                            width: 10,
-                            height: 10,
-                            borderRadius: 5,
-                            backgroundColor: cbm.color,
-                          }}
-                        />
+                        {cbm.iconName ? (
+                          cbm.iconLibrary === "mci" ? (
+                            <MaterialCommunityIcons
+                              name={cbm.iconName as any}
+                              size={16}
+                              color={cbm.iconColor || cbm.color}
+                            />
+                          ) : (
+                            <Ionicons
+                              name={cbm.iconName as any}
+                              size={16}
+                              color={cbm.iconColor || cbm.color}
+                            />
+                          )
+                        ) : (
+                          <View
+                            style={{
+                              width: 10,
+                              height: 10,
+                              borderRadius: 5,
+                              backgroundColor: cbm.color,
+                            }}
+                          />
+                        )}
                         <Text style={s.infoLabel}>
-                          {cbm.emoji ? `${cbm.emoji} ` : ""}
+                          {!cbm.iconName && cbm.emoji ? `${cbm.emoji} ` : ""}
                           {cbm.label}
                         </Text>
                       </View>
@@ -1586,16 +1776,32 @@ export default function SettingsScreen() {
                   flex: 1,
                 }}
               >
-                <View
-                  style={{
-                    width: 10,
-                    height: 10,
-                    borderRadius: 5,
-                    backgroundColor: cbm.color,
-                  }}
-                />
+                {cbm.iconName ? (
+                  cbm.iconLibrary === "mci" ? (
+                    <MaterialCommunityIcons
+                      name={cbm.iconName as any}
+                      size={18}
+                      color={cbm.iconColor || cbm.color}
+                    />
+                  ) : (
+                    <Ionicons
+                      name={cbm.iconName as any}
+                      size={18}
+                      color={cbm.iconColor || cbm.color}
+                    />
+                  )
+                ) : (
+                  <View
+                    style={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: 5,
+                      backgroundColor: cbm.color,
+                    }}
+                  />
+                )}
                 <Text style={s.infoLabel}>
-                  {cbm.emoji ? `${cbm.emoji} ` : ""}
+                  {!cbm.iconName && cbm.emoji ? `${cbm.emoji} ` : ""}
                   {cbm.label}
                 </Text>
               </View>
@@ -1606,6 +1812,19 @@ export default function SettingsScreen() {
                   onPress={() => {
                     setEditingBoolEmojiKey(cbm.key);
                     setEditBoolEmoji(cbm.emoji || "");
+                    setEditBoolIconName(cbm.iconName);
+                    const initColor = cbm.iconColor || cbm.color || "#718096";
+                    setEditBoolIconColor(initColor);
+                    setEditBoolColor(cbm.color);
+                    const [h, s, v] = hexToHsv(initColor);
+                    setEditPickerHue(h);
+                    setEditPickerSat(s);
+                    setEditPickerVal(v);
+                    setEditHexInput(initColor.slice(1));
+                    const [r0, g0, b0] = hexToRgb(initColor);
+                    setEditRInput(String(r0));
+                    setEditGInput(String(g0));
+                    setEditBInput(String(b0));
                   }}
                 >
                   <Text
@@ -1615,7 +1834,7 @@ export default function SettingsScreen() {
                       fontWeight: "600",
                     }}
                   >
-                    {cbm.emoji ? "이모지 변경" : "이모지 추가"}
+                    수정
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -1668,6 +1887,22 @@ export default function SettingsScreen() {
             onPress={() => {
               setNewBoolLabel("");
               setNewBoolEmoji("");
+              setNewBoolIconName(undefined);
+              const initColor =
+                CUSTOM_BOOL_COLORS[
+                  customBoolMetrics.length % CUSTOM_BOOL_COLORS.length
+                ];
+              setNewBoolIconColor(initColor);
+              setNewBoolColor(initColor);
+              const [h, s, v] = hexToHsv(initColor);
+              setNewPickerHue(h);
+              setNewPickerSat(s);
+              setNewPickerVal(v);
+              setNewHexInput(initColor.slice(1));
+              const [r0, g0, b0] = hexToRgb(initColor);
+              setNewRInput(String(r0));
+              setNewGInput(String(g0));
+              setNewBInput(String(b0));
               setShowAddBoolMetric(true);
             }}
           >
@@ -1685,110 +1920,549 @@ export default function SettingsScreen() {
             animationType="fade"
             onRequestClose={() => setShowAddBoolMetric(false)}
           >
-            <TouchableOpacity
-              style={s.pinModalOverlay}
-              activeOpacity={1}
-              onPress={() => setShowAddBoolMetric(false)}
-            >
-              <View
-                style={s.pinModalCard}
-                onStartShouldSetResponder={() => true}
-              >
-                <Text style={s.pinModalTitle}>체크항목 추가</Text>
-                <Text style={s.pinModalDesc}>
-                  체크로 기록할 항목의 이름을 입력하세요
-                </Text>
-                <View style={{ width: "100%", marginBottom: 12 }}>
-                  <Text
-                    style={{ fontSize: 13, color: "#4A5568", marginBottom: 4 }}
-                  >
-                    이름
+            <View style={s.pinModalOverlay}>
+              <TouchableOpacity
+                style={StyleSheet.absoluteFill}
+                activeOpacity={1}
+                onPress={() => setShowAddBoolMetric(false)}
+              />
+              <View style={[s.pinModalCard, { maxHeight: "85%" }]}>
+                <ScrollView
+                  style={{ width: "100%" }}
+                  showsVerticalScrollIndicator={false}
+                  nestedScrollEnabled
+                >
+                  <Text style={s.pinModalTitle}>체크항목 추가</Text>
+                  <Text style={s.pinModalDesc}>
+                    체크로 기록할 항목의 이름을 입력하세요
                   </Text>
-                  <TextInput
-                    style={[s.input, { width: "100%", textAlign: "left" }]}
-                    value={newBoolLabel}
-                    onChangeText={setNewBoolLabel}
-                    placeholder="예: 스트레칭, 명상, 금연"
-                    placeholderTextColor="#A0AEC0"
-                    returnKeyType="next"
-                  />
-                </View>
-                <View style={{ width: "100%", marginBottom: 20 }}>
-                  <Text
-                    style={{ fontSize: 13, color: "#4A5568", marginBottom: 4 }}
-                  >
-                    이모지 (선택)
-                  </Text>
-                  <TextInput
-                    style={[s.input, { width: "100%", textAlign: "left" }]}
-                    value={newBoolEmoji}
-                    onChangeText={(t) => setNewBoolEmoji(t.slice(0, 2))}
-                    placeholder="예: 🧘 💊 🚭"
-                    placeholderTextColor="#A0AEC0"
-                    returnKeyType="done"
-                  />
-                </View>
-                <View style={{ flexDirection: "row", gap: 10, width: "100%" }}>
-                  <TouchableOpacity
-                    style={[s.saveBtn, { flex: 1, marginTop: 0 }]}
-                    onPress={async () => {
-                      const label = newBoolLabel.trim();
-                      if (!label) {
-                        Alert.alert("입력 오류", "항목 이름을 입력해주세요.");
-                        return;
-                      }
-                      const key = `bool_${label}`;
-                      if (customBoolMetrics.some((c) => c.key === key)) {
-                        Alert.alert(
-                          "입력 오류",
-                          "같은 이름의 항목이 이미 존재합니다."
-                        );
-                        return;
-                      }
-                      const colorIdx =
-                        customBoolMetrics.length % CUSTOM_BOOL_COLORS.length;
-                      const color = CUSTOM_BOOL_COLORS[colorIdx];
-                      const emoji = newBoolEmoji.trim() || undefined;
-                      const newCbm: CustomBoolMetric = {
-                        key,
-                        label,
-                        color,
-                        emoji,
-                      };
-                      const next = [...customBoolMetrics, newCbm];
-                      setCustomBoolMetrics(next);
-                      const cur = await loadUserSettings();
-                      await saveUserSettings({
-                        ...cur,
-                        customBoolMetrics: next,
-                      });
-                      setShowAddBoolMetric(false);
-                      Alert.alert(
-                        "추가 완료",
-                        `"${label}" 항목이 추가되었습니다.`
-                      );
-                    }}
-                  >
-                    <Text style={s.saveBtnText}>추가</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      s.saveBtn,
-                      { flex: 1, marginTop: 0, backgroundColor: "#EDF2F7" },
-                    ]}
-                    onPress={() => setShowAddBoolMetric(false)}
-                  >
-                    <Text style={[s.saveBtnText, { color: "#718096" }]}>
-                      취소
+
+                  {/* 미리보기 */}
+                  <View style={{ alignItems: "center", marginBottom: 16 }}>
+                    <View
+                      style={{
+                        width: 56,
+                        height: 56,
+                        borderRadius: 28,
+                        backgroundColor:
+                          (newBoolIconName ? newBoolIconColor : newBoolColor) +
+                          "22",
+                        justifyContent: "center",
+                        alignItems: "center",
+                      }}
+                    >
+                      {newBoolIconName ? (
+                        POPULAR_ICONS.find((i) => i.name === newBoolIconName)
+                          ?.library === "mci" ? (
+                          <MaterialCommunityIcons
+                            name={newBoolIconName as any}
+                            size={28}
+                            color={newBoolIconColor}
+                          />
+                        ) : (
+                          <Ionicons
+                            name={newBoolIconName as any}
+                            size={28}
+                            color={newBoolIconColor}
+                          />
+                        )
+                      ) : newBoolEmoji ? (
+                        <Text style={{ fontSize: 28 }}>{newBoolEmoji}</Text>
+                      ) : (
+                        <Text style={{ fontSize: 28, color: "#CBD5E0" }}>
+                          ?
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+
+                  {/* 이름 */}
+                  <View style={{ width: "100%", marginBottom: 12 }}>
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        color: "#4A5568",
+                        marginBottom: 4,
+                      }}
+                    >
+                      이름
                     </Text>
-                  </TouchableOpacity>
-                </View>
+                    <TextInput
+                      style={[s.input, { width: "100%", textAlign: "left" }]}
+                      value={newBoolLabel}
+                      onChangeText={setNewBoolLabel}
+                      placeholder="예: 스트레칭, 명상, 금연"
+                      placeholderTextColor="#A0AEC0"
+                      returnKeyType="next"
+                    />
+                  </View>
+
+                  {/* 이모지 직접 입력 */}
+                  <View style={{ width: "100%", marginBottom: 12 }}>
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        color: "#4A5568",
+                        marginBottom: 4,
+                      }}
+                    >
+                      이모지 직접 입력 (선택)
+                    </Text>
+                    <TextInput
+                      style={[s.input, { width: "100%", textAlign: "left" }]}
+                      value={newBoolEmoji}
+                      onChangeText={(t) => {
+                        setNewBoolEmoji(t.slice(0, 2));
+                        if (t.trim()) setNewBoolIconName(undefined);
+                      }}
+                      placeholder="예: 🧘 💊 🚭"
+                      placeholderTextColor="#A0AEC0"
+                      returnKeyType="done"
+                    />
+                  </View>
+
+                  {/* 아이콘 선택 */}
+                  <View style={{ width: "100%", marginBottom: 12 }}>
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        color: "#4A5568",
+                        marginBottom: 8,
+                      }}
+                    >
+                      또는 아이콘 선택
+                    </Text>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        flexWrap: "wrap",
+                        gap: ICON_GRID_GAP,
+                      }}
+                    >
+                      {POPULAR_ICONS.map((icon) => (
+                        <TouchableOpacity
+                          key={icon.name}
+                          onPress={() => {
+                            setNewBoolIconName(icon.name);
+                            setNewBoolEmoji("");
+                          }}
+                          style={{
+                            width: ICON_ITEM_SIZE,
+                            height: ICON_ITEM_SIZE,
+                            borderRadius: 12,
+                            backgroundColor:
+                              newBoolIconName === icon.name
+                                ? newBoolIconColor + "22"
+                                : "#F7FAFC",
+                            borderWidth: newBoolIconName === icon.name ? 2 : 1,
+                            borderColor:
+                              newBoolIconName === icon.name
+                                ? newBoolIconColor
+                                : "#E2E8F0",
+                            justifyContent: "center",
+                            alignItems: "center",
+                          }}
+                        >
+                          {icon.library === "mci" ? (
+                            <MaterialCommunityIcons
+                              name={icon.name as any}
+                              size={22}
+                              color={
+                                newBoolIconName === icon.name
+                                  ? newBoolIconColor
+                                  : "#718096"
+                              }
+                            />
+                          ) : (
+                            <Ionicons
+                              name={icon.name as any}
+                              size={22}
+                              color={
+                                newBoolIconName === icon.name
+                                  ? newBoolIconColor
+                                  : "#718096"
+                              }
+                            />
+                          )}
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+
+                  {/* 색상 선택 — 컬러 피커 */}
+                  <View style={{ width: "100%", marginBottom: 20 }}>
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        color: "#4A5568",
+                        marginBottom: 8,
+                      }}
+                    >
+                      색상
+                    </Text>
+                    {/* SV 패널 */}
+                    <View
+                      style={{
+                        width: CP_W,
+                        height: SV_H,
+                        borderRadius: 10,
+                        overflow: "hidden",
+                        marginBottom: 12,
+                      }}
+                      onStartShouldSetResponder={() => true}
+                      onMoveShouldSetResponder={() => true}
+                      onResponderGrant={(e) => {
+                        const { locationX, locationY } = e.nativeEvent;
+                        const s2 = Math.max(0, Math.min(1, locationX / CP_W));
+                        const v2 = Math.max(
+                          0,
+                          Math.min(1, 1 - locationY / SV_H)
+                        );
+                        setNewPickerSat(s2);
+                        setNewPickerVal(v2);
+                        const hex = hsvToHex(newPickerHue, s2, v2);
+                        setNewBoolIconColor(hex);
+                        setNewBoolColor(hex);
+                        setNewHexInput(hex.slice(1));
+                        const [r0, g0, b0] = hexToRgb(hex);
+                        setNewRInput(String(r0)); setNewGInput(String(g0)); setNewBInput(String(b0));
+                      }}
+                      onResponderMove={(e) => {
+                        const { locationX, locationY } = e.nativeEvent;
+                        const s2 = Math.max(0, Math.min(1, locationX / CP_W));
+                        const v2 = Math.max(
+                          0,
+                          Math.min(1, 1 - locationY / SV_H)
+                        );
+                        setNewPickerSat(s2);
+                        setNewPickerVal(v2);
+                        const hex = hsvToHex(newPickerHue, s2, v2);
+                        setNewBoolIconColor(hex);
+                        setNewBoolColor(hex);
+                        setNewHexInput(hex.slice(1));
+                        const [r0, g0, b0] = hexToRgb(hex);
+                        setNewRInput(String(r0)); setNewGInput(String(g0)); setNewBInput(String(b0));
+                      }}
+                    >
+                      <Svg width={CP_W} height={SV_H}>
+                        <Defs>
+                          <SvgLinearGradient
+                            id="newSat"
+                            x1="0"
+                            y1="0"
+                            x2="1"
+                            y2="0"
+                          >
+                            <Stop offset="0" stopColor="#FFFFFF" />
+                            <Stop
+                              offset="1"
+                              stopColor={`hsl(${newPickerHue}, 100%, 50%)`}
+                            />
+                          </SvgLinearGradient>
+                          <SvgLinearGradient
+                            id="newVal"
+                            x1="0"
+                            y1="0"
+                            x2="0"
+                            y2="1"
+                          >
+                            <Stop
+                              offset="0"
+                              stopColor="rgba(0,0,0,0)"
+                              stopOpacity="0"
+                            />
+                            <Stop offset="1" stopColor="#000" stopOpacity="1" />
+                          </SvgLinearGradient>
+                        </Defs>
+                        <SvgRect
+                          width={CP_W}
+                          height={SV_H}
+                          fill="url(#newSat)"
+                        />
+                        <SvgRect
+                          width={CP_W}
+                          height={SV_H}
+                          fill="url(#newVal)"
+                        />
+                        <SvgCircle
+                          cx={newPickerSat * CP_W}
+                          cy={(1 - newPickerVal) * SV_H}
+                          r={9}
+                          fill="none"
+                          stroke="#fff"
+                          strokeWidth={3}
+                        />
+                      </Svg>
+                    </View>
+                    {/* 휴 슬라이더 */}
+                    <View
+                      style={{
+                        width: CP_W,
+                        height: HUE_H,
+                        borderRadius: HUE_H / 2,
+                        overflow: "hidden",
+                        marginBottom: 12,
+                      }}
+                      onStartShouldSetResponder={() => true}
+                      onMoveShouldSetResponder={() => true}
+                      onResponderGrant={(e) => {
+                        const h2 = Math.max(
+                          0,
+                          Math.min(360, (e.nativeEvent.locationX / CP_W) * 360)
+                        );
+                        setNewPickerHue(h2);
+                        const hex = hsvToHex(h2, newPickerSat, newPickerVal);
+                        setNewBoolIconColor(hex);
+                        setNewBoolColor(hex);
+                        setNewHexInput(hex.slice(1));
+                        const [r0, g0, b0] = hexToRgb(hex);
+                        setNewRInput(String(r0)); setNewGInput(String(g0)); setNewBInput(String(b0));
+                      }}
+                      onResponderMove={(e) => {
+                        const h2 = Math.max(
+                          0,
+                          Math.min(360, (e.nativeEvent.locationX / CP_W) * 360)
+                        );
+                        setNewPickerHue(h2);
+                        const hex = hsvToHex(h2, newPickerSat, newPickerVal);
+                        setNewBoolIconColor(hex);
+                        setNewBoolColor(hex);
+                        setNewHexInput(hex.slice(1));
+                        const [r0, g0, b0] = hexToRgb(hex);
+                        setNewRInput(String(r0)); setNewGInput(String(g0)); setNewBInput(String(b0));
+                      }}
+                    >
+                      <Svg width={CP_W} height={HUE_H}>
+                        <Defs>
+                          <SvgLinearGradient
+                            id="newHue"
+                            x1="0"
+                            y1="0"
+                            x2="1"
+                            y2="0"
+                          >
+                            <Stop offset="0" stopColor="hsl(0,100%,50%)" />
+                            <Stop offset="0.167" stopColor="hsl(60,100%,50%)" />
+                            <Stop
+                              offset="0.333"
+                              stopColor="hsl(120,100%,50%)"
+                            />
+                            <Stop offset="0.5" stopColor="hsl(180,100%,50%)" />
+                            <Stop
+                              offset="0.667"
+                              stopColor="hsl(240,100%,50%)"
+                            />
+                            <Stop
+                              offset="0.833"
+                              stopColor="hsl(300,100%,50%)"
+                            />
+                            <Stop offset="1" stopColor="hsl(360,100%,50%)" />
+                          </SvgLinearGradient>
+                        </Defs>
+                        <SvgRect
+                          width={CP_W}
+                          height={HUE_H}
+                          rx={HUE_H / 2}
+                          fill="url(#newHue)"
+                        />
+                        <SvgCircle
+                          cx={Math.max(
+                            HUE_H / 2,
+                            Math.min(
+                              CP_W - HUE_H / 2,
+                              (newPickerHue / 360) * CP_W
+                            )
+                          )}
+                          cy={HUE_H / 2}
+                          r={HUE_H / 2 - 2}
+                          fill="none"
+                          stroke="#fff"
+                          strokeWidth={3}
+                        />
+                      </Svg>
+                    </View>
+                    {/* 미리보기 + Hex + RGB 입력 */}
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                      <View
+                        style={{
+                          width: 36,
+                          height: 36,
+                          borderRadius: 18,
+                          backgroundColor: newBoolIconColor,
+                          borderWidth: 2,
+                          borderColor: "#E2E8F0",
+                        }}
+                      />
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          height: 36,
+                          borderRadius: 8,
+                          borderWidth: 1,
+                          borderColor: "#E2E8F0",
+                          paddingHorizontal: 8,
+                          width: 100,
+                        }}
+                      >
+                        <Text style={{ fontSize: 13, color: "#718096", fontFamily: "monospace" }}>#</Text>
+                        <TextInput
+                          style={{
+                            flex: 1,
+                            height: 36,
+                            fontSize: 13,
+                            fontFamily: "monospace",
+                            color: "#2D3748",
+                            paddingVertical: 0,
+                          }}
+                          value={newHexInput}
+                          onChangeText={(text) => {
+                            const cleaned = text.replace(/[^0-9A-Fa-f]/g, "").slice(0, 6);
+                            setNewHexInput(cleaned);
+                            if (/^[0-9A-Fa-f]{6}$/.test(cleaned)) {
+                              const full = "#" + cleaned;
+                              const [h, s2, v2] = hexToHsv(full);
+                              setNewPickerHue(h);
+                              setNewPickerSat(s2);
+                              setNewPickerVal(v2);
+                              setNewBoolIconColor(full.toUpperCase());
+                              setNewBoolColor(full.toUpperCase());
+                              const [r0, g0, b0] = hexToRgb(full);
+                              setNewRInput(String(r0)); setNewGInput(String(g0)); setNewBInput(String(b0));
+                            }
+                          }}
+                          onBlur={() => setNewHexInput(newBoolIconColor.slice(1))}
+                          placeholder="RRGGBB"
+                          placeholderTextColor="#A0AEC0"
+                          autoCapitalize="characters"
+                          maxLength={6}
+                        />
+                      </View>
+                    </View>
+                    <View style={{ flexDirection: "row", gap: 8 }}>
+                      {([
+                        { label: "R", val: newRInput, set: setNewRInput, ch: 0 },
+                        { label: "G", val: newGInput, set: setNewGInput, ch: 1 },
+                        { label: "B", val: newBInput, set: setNewBInput, ch: 2 },
+                      ] as { label: string; val: string; set: (v: string) => void; ch: number }[]).map(({ label, val, set, ch }) => (
+                        <View key={label} style={{ flex: 1, alignItems: "center" }}>
+                          <Text style={{ fontSize: 11, color: "#718096", marginBottom: 2 }}>{label}</Text>
+                          <TextInput
+                            style={{
+                              width: "100%",
+                              height: 40,
+                              borderRadius: 8,
+                              borderWidth: 1,
+                              borderColor: "#E2E8F0",
+                              textAlign: "center",
+                              fontSize: 13,
+                              color: "#2D3748",
+                              paddingVertical: 0,
+                            }}
+                            value={val}
+                            onChangeText={(t) => {
+                              set(t);
+                              const n = parseInt(t, 10);
+                              if (!isNaN(n) && n >= 0 && n <= 255) {
+                                const rgb: [number, number, number] = [
+                                  ch === 0 ? n : parseInt(newRInput, 10),
+                                  ch === 1 ? n : parseInt(newGInput, 10),
+                                  ch === 2 ? n : parseInt(newBInput, 10),
+                                ];
+                                if (rgb.every((v) => !isNaN(v))) {
+                                  const hex = rgbToHex(rgb[0], rgb[1], rgb[2]);
+                                  const [h, s2, v2] = hexToHsv(hex);
+                                  setNewPickerHue(h); setNewPickerSat(s2); setNewPickerVal(v2);
+                                  setNewBoolIconColor(hex); setNewBoolColor(hex); setNewHexInput(hex.slice(1).slice(1));
+                                }
+                              }
+                            }}
+                            onBlur={() => {
+                              const [r0, g0, b0] = hexToRgb(newBoolIconColor);
+                              setNewRInput(String(r0)); setNewGInput(String(g0)); setNewBInput(String(b0));
+                            }}
+                            keyboardType="number-pad"
+                            maxLength={3}
+                          />
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+
+                  {/* 버튼 */}
+                  <View
+                    style={{ flexDirection: "row", gap: 10, width: "100%" }}
+                  >
+                    <TouchableOpacity
+                      style={[s.saveBtn, { flex: 1, marginTop: 0 }]}
+                      onPress={async () => {
+                        const label = newBoolLabel.trim();
+                        if (!label) {
+                          Alert.alert("입력 오류", "항목 이름을 입력해주세요.");
+                          return;
+                        }
+                        const key = `bool_${label}`;
+                        if (customBoolMetrics.some((c) => c.key === key)) {
+                          Alert.alert(
+                            "입력 오류",
+                            "같은 이름의 항목이 이미 존재합니다."
+                          );
+                          return;
+                        }
+                        const emoji = newBoolEmoji.trim() || undefined;
+                        const iconName = newBoolIconName || undefined;
+                        const iconColor = newBoolIconName
+                          ? newBoolIconColor
+                          : undefined;
+                        const iconLibrary = newBoolIconName
+                          ? POPULAR_ICONS.find(
+                              (i) => i.name === newBoolIconName
+                            )?.library || undefined
+                          : undefined;
+                        const newCbm: CustomBoolMetric = {
+                          key,
+                          label,
+                          color: newBoolColor,
+                          emoji: iconName ? undefined : emoji,
+                          iconName,
+                          iconColor,
+                          iconLibrary,
+                        };
+                        const next = [...customBoolMetrics, newCbm];
+                        setCustomBoolMetrics(next);
+                        const cur = await loadUserSettings();
+                        await saveUserSettings({
+                          ...cur,
+                          customBoolMetrics: next,
+                        });
+                        setShowAddBoolMetric(false);
+                        Alert.alert(
+                          "추가 완료",
+                          `"${label}" 항목이 추가되었습니다.`
+                        );
+                      }}
+                    >
+                      <Text style={s.saveBtnText}>추가</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        s.saveBtn,
+                        { flex: 1, marginTop: 0, backgroundColor: "#EDF2F7" },
+                      ]}
+                      onPress={() => setShowAddBoolMetric(false)}
+                    >
+                      <Text style={[s.saveBtnText, { color: "#718096" }]}>
+                        취소
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </ScrollView>
               </View>
-            </TouchableOpacity>
+            </View>
           </Modal>
         )}
 
-        {/* 이모지 편집 모달 */}
+        {/* 이모지/아이콘 편집 모달 */}
         {editingBoolEmojiKey !== null && (
           <Modal
             visible
@@ -1796,71 +2470,538 @@ export default function SettingsScreen() {
             animationType="fade"
             onRequestClose={() => setEditingBoolEmojiKey(null)}
           >
-            <TouchableOpacity
-              style={s.pinModalOverlay}
-              activeOpacity={1}
-              onPress={() => setEditingBoolEmojiKey(null)}
-            >
-              <View
-                style={s.pinModalCard}
-                onStartShouldSetResponder={() => true}
-              >
-                <Text style={s.pinModalTitle}>이모지 변경</Text>
-                <Text style={s.pinModalDesc}>
-                  {customBoolMetrics.find((c) => c.key === editingBoolEmojiKey)
-                    ?.label || ""}{" "}
-                  항목의 이모지를 변경합니다
-                </Text>
-                <View style={{ width: "100%", marginBottom: 20 }}>
-                  <Text
-                    style={{ fontSize: 13, color: "#4A5568", marginBottom: 4 }}
-                  >
-                    이모지
+            <View style={s.pinModalOverlay}>
+              <TouchableOpacity
+                style={StyleSheet.absoluteFill}
+                activeOpacity={1}
+                onPress={() => setEditingBoolEmojiKey(null)}
+              />
+              <View style={[s.pinModalCard, { maxHeight: "85%" }]}>
+                <ScrollView
+                  style={{ width: "100%" }}
+                  showsVerticalScrollIndicator={false}
+                  nestedScrollEnabled
+                >
+                  <Text style={s.pinModalTitle}>항목 수정</Text>
+                  <Text style={s.pinModalDesc}>
+                    {customBoolMetrics.find(
+                      (c) => c.key === editingBoolEmojiKey
+                    )?.label || ""}{" "}
+                    항목의 아이콘과 색상을 변경합니다
                   </Text>
-                  <TextInput
-                    style={[s.input, { width: "100%", textAlign: "left" }]}
-                    value={editBoolEmoji}
-                    onChangeText={(t) => setEditBoolEmoji(t.slice(0, 2))}
-                    placeholder="예: 🧘 💊 🚭 (비우면 제거)"
-                    placeholderTextColor="#A0AEC0"
-                    returnKeyType="done"
-                    autoFocus
-                  />
-                </View>
-                <View style={{ flexDirection: "row", gap: 10, width: "100%" }}>
-                  <TouchableOpacity
-                    style={[s.saveBtn, { flex: 1, marginTop: 0 }]}
-                    onPress={async () => {
-                      if (!editingBoolEmojiKey) return;
-                      const emoji = editBoolEmoji.trim() || undefined;
-                      const next = customBoolMetrics.map((c) =>
-                        c.key === editingBoolEmojiKey ? { ...c, emoji } : c
-                      );
-                      setCustomBoolMetrics(next);
-                      const cur = await loadUserSettings();
-                      await saveUserSettings({
-                        ...cur,
-                        customBoolMetrics: next,
-                      });
-                      setEditingBoolEmojiKey(null);
-                    }}
-                  >
-                    <Text style={s.saveBtnText}>저장</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      s.saveBtn,
-                      { flex: 1, marginTop: 0, backgroundColor: "#EDF2F7" },
-                    ]}
-                    onPress={() => setEditingBoolEmojiKey(null)}
-                  >
-                    <Text style={[s.saveBtnText, { color: "#718096" }]}>
-                      취소
+
+                  {/* 미리보기 */}
+                  <View style={{ alignItems: "center", marginBottom: 16 }}>
+                    <View
+                      style={{
+                        width: 56,
+                        height: 56,
+                        borderRadius: 28,
+                        backgroundColor:
+                          (editBoolIconName
+                            ? editBoolIconColor
+                            : editBoolColor) + "22",
+                        justifyContent: "center",
+                        alignItems: "center",
+                      }}
+                    >
+                      {editBoolIconName ? (
+                        POPULAR_ICONS.find((i) => i.name === editBoolIconName)
+                          ?.library === "mci" ? (
+                          <MaterialCommunityIcons
+                            name={editBoolIconName as any}
+                            size={28}
+                            color={editBoolIconColor}
+                          />
+                        ) : (
+                          <Ionicons
+                            name={editBoolIconName as any}
+                            size={28}
+                            color={editBoolIconColor}
+                          />
+                        )
+                      ) : editBoolEmoji ? (
+                        <Text style={{ fontSize: 28 }}>{editBoolEmoji}</Text>
+                      ) : (
+                        <Text style={{ fontSize: 28, color: "#CBD5E0" }}>
+                          ?
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+
+                  {/* 이모지 직접 입력 */}
+                  <View style={{ width: "100%", marginBottom: 12 }}>
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        color: "#4A5568",
+                        marginBottom: 4,
+                      }}
+                    >
+                      이모지 직접 입력 (선택)
                     </Text>
-                  </TouchableOpacity>
-                </View>
+                    <TextInput
+                      style={[s.input, { width: "100%", textAlign: "left" }]}
+                      value={editBoolEmoji}
+                      onChangeText={(t) => {
+                        setEditBoolEmoji(t.slice(0, 2));
+                        if (t.trim()) setEditBoolIconName(undefined);
+                      }}
+                      placeholder="예: 🧘 💊 🚭 (비우면 제거)"
+                      placeholderTextColor="#A0AEC0"
+                      returnKeyType="done"
+                    />
+                  </View>
+
+                  {/* 아이콘 선택 */}
+                  <View style={{ width: "100%", marginBottom: 12 }}>
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        color: "#4A5568",
+                        marginBottom: 8,
+                      }}
+                    >
+                      또는 아이콘 선택
+                    </Text>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        flexWrap: "wrap",
+                        gap: ICON_GRID_GAP,
+                      }}
+                    >
+                      {/* 아이콘 해제 버튼 */}
+                      <TouchableOpacity
+                        onPress={() => setEditBoolIconName(undefined)}
+                        style={{
+                          width: ICON_ITEM_SIZE,
+                          height: ICON_ITEM_SIZE,
+                          borderRadius: 12,
+                          backgroundColor: !editBoolIconName
+                            ? "#FED7D7"
+                            : "#F7FAFC",
+                          borderWidth: !editBoolIconName ? 2 : 1,
+                          borderColor: !editBoolIconName
+                            ? "#FC8181"
+                            : "#E2E8F0",
+                          justifyContent: "center",
+                          alignItems: "center",
+                        }}
+                      >
+                        <Ionicons
+                          name="close"
+                          size={20}
+                          color={!editBoolIconName ? "#E53E3E" : "#A0AEC0"}
+                        />
+                      </TouchableOpacity>
+                      {POPULAR_ICONS.map((icon) => (
+                        <TouchableOpacity
+                          key={icon.name}
+                          onPress={() => {
+                            setEditBoolIconName(icon.name);
+                            setEditBoolEmoji("");
+                          }}
+                          style={{
+                            width: ICON_ITEM_SIZE,
+                            height: ICON_ITEM_SIZE,
+                            borderRadius: 12,
+                            backgroundColor:
+                              editBoolIconName === icon.name
+                                ? editBoolIconColor + "22"
+                                : "#F7FAFC",
+                            borderWidth: editBoolIconName === icon.name ? 2 : 1,
+                            borderColor:
+                              editBoolIconName === icon.name
+                                ? editBoolIconColor
+                                : "#E2E8F0",
+                            justifyContent: "center",
+                            alignItems: "center",
+                          }}
+                        >
+                          {icon.library === "mci" ? (
+                            <MaterialCommunityIcons
+                              name={icon.name as any}
+                              size={22}
+                              color={
+                                editBoolIconName === icon.name
+                                  ? editBoolIconColor
+                                  : "#718096"
+                              }
+                            />
+                          ) : (
+                            <Ionicons
+                              name={icon.name as any}
+                              size={22}
+                              color={
+                                editBoolIconName === icon.name
+                                  ? editBoolIconColor
+                                  : "#718096"
+                              }
+                            />
+                          )}
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+
+                  {/* 색상 선택 — 컬러 피커 */}
+                  <View style={{ width: "100%", marginBottom: 20 }}>
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        color: "#4A5568",
+                        marginBottom: 8,
+                      }}
+                    >
+                      색상
+                    </Text>
+                    {/* SV 패널 */}
+                    <View
+                      style={{
+                        width: CP_W,
+                        height: SV_H,
+                        borderRadius: 10,
+                        overflow: "hidden",
+                        marginBottom: 12,
+                      }}
+                      onStartShouldSetResponder={() => true}
+                      onMoveShouldSetResponder={() => true}
+                      onResponderGrant={(e) => {
+                        const { locationX, locationY } = e.nativeEvent;
+                        const s2 = Math.max(0, Math.min(1, locationX / CP_W));
+                        const v2 = Math.max(
+                          0,
+                          Math.min(1, 1 - locationY / SV_H)
+                        );
+                        setEditPickerSat(s2);
+                        setEditPickerVal(v2);
+                        const hex = hsvToHex(editPickerHue, s2, v2);
+                        setEditBoolIconColor(hex);
+                        setEditBoolColor(hex);
+                        setEditHexInput(hex.slice(1));
+                        const [r0, g0, b0] = hexToRgb(hex);
+                        setEditRInput(String(r0)); setEditGInput(String(g0)); setEditBInput(String(b0));
+                      }}
+                      onResponderMove={(e) => {
+                        const { locationX, locationY } = e.nativeEvent;
+                        const s2 = Math.max(0, Math.min(1, locationX / CP_W));
+                        const v2 = Math.max(
+                          0,
+                          Math.min(1, 1 - locationY / SV_H)
+                        );
+                        setEditPickerSat(s2);
+                        setEditPickerVal(v2);
+                        const hex = hsvToHex(editPickerHue, s2, v2);
+                        setEditBoolIconColor(hex);
+                        setEditBoolColor(hex);
+                        setEditHexInput(hex.slice(1));
+                        const [r0, g0, b0] = hexToRgb(hex);
+                        setEditRInput(String(r0)); setEditGInput(String(g0)); setEditBInput(String(b0));
+                      }}
+                    >
+                      <Svg width={CP_W} height={SV_H}>
+                        <Defs>
+                          <SvgLinearGradient
+                            id="editSat"
+                            x1="0"
+                            y1="0"
+                            x2="1"
+                            y2="0"
+                          >
+                            <Stop offset="0" stopColor="#FFFFFF" />
+                            <Stop
+                              offset="1"
+                              stopColor={`hsl(${editPickerHue}, 100%, 50%)`}
+                            />
+                          </SvgLinearGradient>
+                          <SvgLinearGradient
+                            id="editVal"
+                            x1="0"
+                            y1="0"
+                            x2="0"
+                            y2="1"
+                          >
+                            <Stop
+                              offset="0"
+                              stopColor="rgba(0,0,0,0)"
+                              stopOpacity="0"
+                            />
+                            <Stop offset="1" stopColor="#000" stopOpacity="1" />
+                          </SvgLinearGradient>
+                        </Defs>
+                        <SvgRect
+                          width={CP_W}
+                          height={SV_H}
+                          fill="url(#editSat)"
+                        />
+                        <SvgRect
+                          width={CP_W}
+                          height={SV_H}
+                          fill="url(#editVal)"
+                        />
+                        <SvgCircle
+                          cx={editPickerSat * CP_W}
+                          cy={(1 - editPickerVal) * SV_H}
+                          r={9}
+                          fill="none"
+                          stroke="#fff"
+                          strokeWidth={3}
+                        />
+                      </Svg>
+                    </View>
+                    {/* 휴 슬라이더 */}
+                    <View
+                      style={{
+                        width: CP_W,
+                        height: HUE_H,
+                        borderRadius: HUE_H / 2,
+                        overflow: "hidden",
+                        marginBottom: 12,
+                      }}
+                      onStartShouldSetResponder={() => true}
+                      onMoveShouldSetResponder={() => true}
+                      onResponderGrant={(e) => {
+                        const h2 = Math.max(
+                          0,
+                          Math.min(360, (e.nativeEvent.locationX / CP_W) * 360)
+                        );
+                        setEditPickerHue(h2);
+                        const hex = hsvToHex(h2, editPickerSat, editPickerVal);
+                        setEditBoolIconColor(hex);
+                        setEditBoolColor(hex);
+                        setEditHexInput(hex.slice(1));
+                        const [r0, g0, b0] = hexToRgb(hex);
+                        setEditRInput(String(r0)); setEditGInput(String(g0)); setEditBInput(String(b0));
+                      }}
+                      onResponderMove={(e) => {
+                        const h2 = Math.max(
+                          0,
+                          Math.min(360, (e.nativeEvent.locationX / CP_W) * 360)
+                        );
+                        setEditPickerHue(h2);
+                        const hex = hsvToHex(h2, editPickerSat, editPickerVal);
+                        setEditBoolIconColor(hex);
+                        setEditBoolColor(hex);
+                        setEditHexInput(hex.slice(1));
+                        const [r0, g0, b0] = hexToRgb(hex);
+                        setEditRInput(String(r0)); setEditGInput(String(g0)); setEditBInput(String(b0));
+                      }}
+                    >
+                      <Svg width={CP_W} height={HUE_H}>
+                        <Defs>
+                          <SvgLinearGradient
+                            id="editHue"
+                            x1="0"
+                            y1="0"
+                            x2="1"
+                            y2="0"
+                          >
+                            <Stop offset="0" stopColor="hsl(0,100%,50%)" />
+                            <Stop offset="0.167" stopColor="hsl(60,100%,50%)" />
+                            <Stop
+                              offset="0.333"
+                              stopColor="hsl(120,100%,50%)"
+                            />
+                            <Stop offset="0.5" stopColor="hsl(180,100%,50%)" />
+                            <Stop
+                              offset="0.667"
+                              stopColor="hsl(240,100%,50%)"
+                            />
+                            <Stop
+                              offset="0.833"
+                              stopColor="hsl(300,100%,50%)"
+                            />
+                            <Stop offset="1" stopColor="hsl(360,100%,50%)" />
+                          </SvgLinearGradient>
+                        </Defs>
+                        <SvgRect
+                          width={CP_W}
+                          height={HUE_H}
+                          rx={HUE_H / 2}
+                          fill="url(#editHue)"
+                        />
+                        <SvgCircle
+                          cx={Math.max(
+                            HUE_H / 2,
+                            Math.min(
+                              CP_W - HUE_H / 2,
+                              (editPickerHue / 360) * CP_W
+                            )
+                          )}
+                          cy={HUE_H / 2}
+                          r={HUE_H / 2 - 2}
+                          fill="none"
+                          stroke="#fff"
+                          strokeWidth={3}
+                        />
+                      </Svg>
+                    </View>
+                    {/* 미리보기 + Hex + RGB 입력 */}
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                      <View
+                        style={{
+                          width: 36,
+                          height: 36,
+                          borderRadius: 18,
+                          backgroundColor: editBoolIconColor,
+                          borderWidth: 2,
+                          borderColor: "#E2E8F0",
+                        }}
+                      />
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          height: 36,
+                          borderRadius: 8,
+                          borderWidth: 1,
+                          borderColor: "#E2E8F0",
+                          paddingHorizontal: 8,
+                          width: 100,
+                        }}
+                      >
+                        <Text style={{ fontSize: 13, color: "#718096", fontFamily: "monospace" }}>#</Text>
+                        <TextInput
+                          style={{
+                            flex: 1,
+                            height: 36,
+                            fontSize: 13,
+                            fontFamily: "monospace",
+                            color: "#2D3748",
+                            paddingVertical: 0,
+                          }}
+                          value={editHexInput}
+                          onChangeText={(text) => {
+                            const cleaned = text.replace(/[^0-9A-Fa-f]/g, "").slice(0, 6);
+                            setEditHexInput(cleaned);
+                            if (/^[0-9A-Fa-f]{6}$/.test(cleaned)) {
+                              const full = "#" + cleaned;
+                              const [h, s2, v2] = hexToHsv(full);
+                              setEditPickerHue(h);
+                              setEditPickerSat(s2);
+                              setEditPickerVal(v2);
+                              setEditBoolIconColor(full.toUpperCase());
+                              setEditBoolColor(full.toUpperCase());
+                              const [r0, g0, b0] = hexToRgb(full);
+                              setEditRInput(String(r0)); setEditGInput(String(g0)); setEditBInput(String(b0));
+                            }
+                          }}
+                          onBlur={() => setEditHexInput(editBoolIconColor.slice(1))}
+                          placeholder="RRGGBB"
+                          placeholderTextColor="#A0AEC0"
+                          autoCapitalize="characters"
+                          maxLength={6}
+                        />
+                      </View>
+                    </View>
+                    <View style={{ flexDirection: "row", gap: 8 }}>
+                      {([
+                        { label: "R", val: editRInput, set: setEditRInput, ch: 0 },
+                        { label: "G", val: editGInput, set: setEditGInput, ch: 1 },
+                        { label: "B", val: editBInput, set: setEditBInput, ch: 2 },
+                      ] as { label: string; val: string; set: (v: string) => void; ch: number }[]).map(({ label, val, set, ch }) => (
+                        <View key={label} style={{ flex: 1, alignItems: "center" }}>
+                          <Text style={{ fontSize: 11, color: "#718096", marginBottom: 2 }}>{label}</Text>
+                          <TextInput
+                            style={{
+                              width: "100%",
+                              height: 40,
+                              borderRadius: 8,
+                              borderWidth: 1,
+                              borderColor: "#E2E8F0",
+                              textAlign: "center",
+                              fontSize: 13,
+                              color: "#2D3748",
+                              paddingVertical: 0,
+                            }}
+                            value={val}
+                            onChangeText={(t) => {
+                              set(t);
+                              const n = parseInt(t, 10);
+                              if (!isNaN(n) && n >= 0 && n <= 255) {
+                                const rgb: [number, number, number] = [
+                                  ch === 0 ? n : parseInt(editRInput, 10),
+                                  ch === 1 ? n : parseInt(editGInput, 10),
+                                  ch === 2 ? n : parseInt(editBInput, 10),
+                                ];
+                                if (rgb.every((v) => !isNaN(v))) {
+                                  const hex = rgbToHex(rgb[0], rgb[1], rgb[2]);
+                                  const [h, s2, v2] = hexToHsv(hex);
+                                  setEditPickerHue(h); setEditPickerSat(s2); setEditPickerVal(v2);
+                                  setEditBoolIconColor(hex); setEditBoolColor(hex); setEditHexInput(hex.slice(1).slice(1));
+                                }
+                              }
+                            }}
+                            onBlur={() => {
+                              const [r0, g0, b0] = hexToRgb(editBoolIconColor);
+                              setEditRInput(String(r0)); setEditGInput(String(g0)); setEditBInput(String(b0));
+                            }}
+                            keyboardType="number-pad"
+                            maxLength={3}
+                          />
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+
+                  {/* 버튼 */}
+                  <View
+                    style={{ flexDirection: "row", gap: 10, width: "100%" }}
+                  >
+                    <TouchableOpacity
+                      style={[s.saveBtn, { flex: 1, marginTop: 0 }]}
+                      onPress={async () => {
+                        if (!editingBoolEmojiKey) return;
+                        const emoji = editBoolEmoji.trim() || undefined;
+                        const iconName = editBoolIconName || undefined;
+                        const iconColor = editBoolIconName
+                          ? editBoolIconColor
+                          : undefined;
+                        const iconLibrary = editBoolIconName
+                          ? POPULAR_ICONS.find(
+                              (i) => i.name === editBoolIconName
+                            )?.library || undefined
+                          : undefined;
+                        const next = customBoolMetrics.map((c) =>
+                          c.key === editingBoolEmojiKey
+                            ? {
+                                ...c,
+                                emoji: iconName ? undefined : emoji,
+                                iconName,
+                                iconColor,
+                                iconLibrary,
+                                color: editBoolColor,
+                              }
+                            : c
+                        );
+                        setCustomBoolMetrics(next);
+                        const cur = await loadUserSettings();
+                        await saveUserSettings({
+                          ...cur,
+                          customBoolMetrics: next,
+                        });
+                        setEditingBoolEmojiKey(null);
+                      }}
+                    >
+                      <Text style={s.saveBtnText}>저장</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        s.saveBtn,
+                        { flex: 1, marginTop: 0, backgroundColor: "#EDF2F7" },
+                      ]}
+                      onPress={() => setEditingBoolEmojiKey(null)}
+                    >
+                      <Text style={[s.saveBtnText, { color: "#718096" }]}>
+                        취소
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </ScrollView>
               </View>
-            </TouchableOpacity>
+            </View>
           </Modal>
         )}
 

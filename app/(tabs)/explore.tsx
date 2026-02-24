@@ -19,6 +19,7 @@ import {
   weekKey,
 } from "@/utils/format";
 import { loadMeals, loadRecords, loadUserSettings } from "@/utils/storage";
+import { FontAwesome5, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
@@ -1418,12 +1419,24 @@ export default function ChartScreen() {
               decelerationRate="fast"
             >
               <View style={[s.summaryItem, { width: (width - 48) / 5 }]}>
-                <Text style={s.summaryEmoji}>📅</Text>
+                <View style={{ height: 36, justifyContent: "center", alignItems: "center", marginBottom: 6 }}>
+                  <Ionicons
+                    name="calendar-outline"
+                    size={26}
+                    color="#5388e3"
+                  />
+                </View>
                 <Text style={s.summaryCount}>{activityRecords.length}</Text>
                 <Text style={s.summaryLabel}>총 기록일</Text>
               </View>
               <View style={[s.summaryItem, { width: (width - 48) / 5 }]}>
-                <Text style={s.summaryEmoji}>🏃</Text>
+                <View style={{ height: 36, justifyContent: "center", alignItems: "center", marginBottom: 6 }}>
+                  <FontAwesome5
+                    name="running"
+                    size={26}
+                    color="#4CAF50"
+                  />
+                </View>
                 <Text style={s.summaryCount}>
                   {activityRecords.filter((r) => r.exercised).length}
                   <Text style={s.summaryPercent}>
@@ -1441,7 +1454,13 @@ export default function ChartScreen() {
                 <Text style={s.summaryLabel}>운동일</Text>
               </View>
               <View style={[s.summaryItem, { width: (width - 48) / 5 }]}>
-                <Text style={s.summaryEmoji}>🍺</Text>
+                <View style={{ height: 36, justifyContent: "center", alignItems: "center", marginBottom: 6 }}>
+                  <Ionicons
+                    name="beer-outline"
+                    size={26}
+                    color="#e6e02d"
+                  />
+                </View>
                 <Text style={s.summaryCount}>
                   {activityRecords.filter((r) => r.drank).length}
                   <Text style={s.summaryPercent}>
@@ -1479,7 +1498,21 @@ export default function ChartScreen() {
                         marginBottom: 6,
                       }}
                     >
-                      {cbm.emoji ? (
+                      {cbm.iconName ? (
+                        cbm.iconLibrary === "mci" ? (
+                          <MaterialCommunityIcons
+                            name={cbm.iconName as any}
+                            size={26}
+                            color={cbm.iconColor || cbm.color}
+                          />
+                        ) : (
+                          <Ionicons
+                            name={cbm.iconName as any}
+                            size={26}
+                            color={cbm.iconColor || cbm.color}
+                          />
+                        )
+                      ) : cbm.emoji ? (
                         <Text style={{ fontSize: 26 }}>{cbm.emoji}</Text>
                       ) : (
                         <View

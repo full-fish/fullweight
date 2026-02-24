@@ -33,6 +33,7 @@ import {
 } from "@/utils/storage";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useFocusEffect } from "@react-navigation/native";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
@@ -843,7 +844,7 @@ export default function HomeScreen() {
                     }}
                   >
                     <View style={{ width: 32, alignItems: "center" }}>
-                      <FontAwesome5 name="running" size={24} color="black" />
+                      <FontAwesome5 name="running" size={24} color="#4CAF50" />
                     </View>
                     <Text style={styles.switchLabel}>오늘 운동했나요?</Text>
                   </View>
@@ -865,14 +866,14 @@ export default function HomeScreen() {
                     }}
                   >
                     <View style={{ width: 32, alignItems: "center" }}>
-                      <Ionicons name="beer-outline" size={24} color="black" />
+                      <Ionicons name="beer-outline" size={24} color="#e6e02d" />
                     </View>
                     <Text style={styles.switchLabel}>오늘 음주했나요?</Text>
                   </View>
                   <Switch
                     value={drank}
                     onValueChange={setDrank}
-                    trackColor={{ true: "#525150", false: "#ddd" }}
+                    trackColor={{ true: "#e6e02d", false: "#ddd" }}
                     thumbColor="#fff"
                   />
                 </View>
@@ -892,7 +893,15 @@ export default function HomeScreen() {
                       }}
                     >
                       <View style={{ width: 32, alignItems: "center" }}>
-                        <Text style={{ fontSize: 22 }}>{cbm.emoji || ""}</Text>
+                        {cbm.iconName ? (
+                          cbm.iconLibrary === "mci" ? (
+                            <MaterialCommunityIcons name={cbm.iconName as any} size={24} color={cbm.iconColor || cbm.color} />
+                          ) : (
+                            <Ionicons name={cbm.iconName as any} size={24} color={cbm.iconColor || cbm.color} />
+                          )
+                        ) : (
+                          <Text style={{ fontSize: 22 }}>{cbm.emoji || ""}</Text>
+                        )}
                       </View>
                       <Text style={styles.switchLabel}>
                         오늘 {cbm.label}했나요?
@@ -1819,10 +1828,20 @@ export default function HomeScreen() {
                     )
                     .map((cbm) => (
                       <View key={cbm.key} style={editModalStyles.switchRow}>
-                        <Text style={editModalStyles.label}>
-                          {cbm.emoji ? `${cbm.emoji} ` : ""}
-                          {cbm.label}
-                        </Text>
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flex: 1 }}>
+                          {cbm.iconName ? (
+                            cbm.iconLibrary === "mci" ? (
+                              <MaterialCommunityIcons name={cbm.iconName as any} size={20} color={cbm.iconColor || cbm.color} />
+                            ) : (
+                              <Ionicons name={cbm.iconName as any} size={20} color={cbm.iconColor || cbm.color} />
+                            )
+                          ) : cbm.emoji ? (
+                            <Text style={{ fontSize: 18 }}>{cbm.emoji}</Text>
+                          ) : null}
+                          <Text style={editModalStyles.label}>
+                            {cbm.label}
+                          </Text>
+                        </View>
                         <Switch
                           value={emBoolCustomInputs[cbm.key] ?? false}
                           onValueChange={(v) =>
