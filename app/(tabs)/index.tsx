@@ -30,6 +30,7 @@ import {
   loadMeals,
   loadRecords,
   loadUserSettings,
+  saveMeals,
   upsertRecord,
 } from "@/utils/storage";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
@@ -368,6 +369,20 @@ export default function HomeScreen() {
     });
   }, [userSettings, weight, challenge, muscleMass, bodyFatPercent]);
 
+  /** 기록 목록: 체중 기록 + 식사만 있는 날짜 통합 (날짜 내림차순) */
+  const recordListItems = useMemo(() => {
+    const recordDates = new Set(records.map((r) => r.date));
+    const mealOnlyDates = [...new Set(allMeals.map((m) => m.date))].filter(
+      (d) => !recordDates.has(d)
+    );
+    const items: { date: string; record?: WeightRecord }[] = records.map(
+      (r) => ({ date: r.date, record: r })
+    );
+    mealOnlyDates.forEach((d) => items.push({ date: d }));
+    items.sort((a, b) => b.date.localeCompare(a.date));
+    return items;
+  }, [records, allMeals]);
+
   const handleSave = async () => {
     const w = parseFloat(weight);
     if (!weight || isNaN(w) || w <= 0) {
@@ -411,7 +426,13 @@ export default function HomeScreen() {
         onPress: async () => {
           const updated = await deleteRecord(date);
           setRecords([...updated].sort((a, b) => b.date.localeCompare(a.date)));
+          // 해당 날짜 식사 기록도 삭제
+          const allM = await loadMeals();
+          const filtered = allM.filter((m) => m.date !== date);
+          await saveMeals(filtered);
+          setAllMeals(filtered);
           if (date === selectedDate) {
+            setMeals([]);
             setWeight("");
             setWaist("");
             setMuscleMass("");
@@ -1109,248 +1130,279 @@ export default function HomeScreen() {
 
           {/* 기록 목록 */}
           <Text style={styles.sectionTitle}>기록 목록</Text>
-          {records.length === 0 ? (
+          {recordListItems.length === 0 ? (
             <Text style={styles.emptyText}>
               아직 기록이 없습니다.{"\n"}첫 번째 기록을 추가해보세요!
             </Text>
           ) : (
             <>
-              {records.slice(0, visibleRecordCount).map((record) => (
-                <View key={record.id} style={styles.recordCard}>
-                  <View style={styles.recordTop}>
-                    <Text style={styles.recordDate}>
-                      {fmtDate(record.date)}
-                    </Text>
-                    <View style={styles.recordActions}>
-                      <TouchableOpacity
-                        style={styles.editBtnContainer}
-                        onPress={() => handleEdit(record)}
-                      >
-                        <Text style={styles.editBtn}>수정</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={styles.deleteBtnContainer}
-                        onPress={() => handleDelete(record.date)}
-                      >
-                        <Text style={styles.deleteBtn}>삭제</Text>
-                      </TouchableOpacity>
+              {recordListItems.slice(0, visibleRecordCount).map((item) => {
+                const record = item.record;
+                return (
+                  <View key={item.date} style={styles.recordCard}>
+                    <View style={styles.recordTop}>
+                      <Text style={styles.recordDate}>
+                        {fmtDate(item.date)}
+                      </Text>
+                      <View style={styles.recordActions}>
+                        {record && (
+                          <TouchableOpacity
+                            style={styles.editBtnContainer}
+                            onPress={() => handleEdit(record)}
+                          >
+                            <Text style={styles.editBtn}>수정</Text>
+                          </TouchableOpacity>
+                        )}
+                        <TouchableOpacity
+                          style={styles.deleteBtnContainer}
+                          onPress={() => handleDelete(item.date)}
+                        >
+                          <Text style={styles.deleteBtn}>삭제</Text>
+                        </TouchableOpacity>
+                      </View>
                     </View>
-                  </View>
-                  <Text style={styles.recordWeight}>{record.weight} kg</Text>
-                  {userSettings.height &&
-                    (() => {
-                      const info = getBmiInfo(
-                        record.weight,
-                        userSettings.height
-                      );
-                      if (!info) return null;
-                      return (
-                        <View style={styles.bmiRow}>
-                          <Text style={styles.recordSub}>BMI: {info.bmi}</Text>
-                          <View style={styles.bmiBadge}>
-                            <Text
-                              style={[
-                                styles.bmiBadgeText,
-                                { color: info.color },
-                              ]}
-                            >
-                              {info.label}
+                    {record && (
+                      <Text style={styles.recordWeight}>
+                        {record.weight} kg
+                      </Text>
+                    )}
+                    {record && (
+                      <>
+                        {userSettings.height &&
+                          (() => {
+                            const info = getBmiInfo(
+                              record.weight,
+                              userSettings.height
+                            );
+                            if (!info) return null;
+                            return (
+                              <View style={styles.bmiRow}>
+                                <Text style={styles.recordSub}>
+                                  BMI: {info.bmi}
+                                </Text>
+                                <View style={styles.bmiBadge}>
+                                  <Text
+                                    style={[
+                                      styles.bmiBadgeText,
+                                      { color: info.color },
+                                    ]}
+                                  >
+                                    {info.label}
+                                  </Text>
+                                </View>
+                                <View style={styles.bmiBarWrap}>
+                                  <View style={styles.bmiBarTrack}>
+                                    <View
+                                      style={[
+                                        styles.bmiBarZone,
+                                        {
+                                          flex: 18.5,
+                                          backgroundColor: "#BEE3F8",
+                                        },
+                                      ]}
+                                    />
+                                    <View
+                                      style={[
+                                        styles.bmiBarZone,
+                                        {
+                                          flex: 4.5,
+                                          backgroundColor: "#C6F6D5",
+                                        },
+                                      ]}
+                                    />
+                                    <View
+                                      style={[
+                                        styles.bmiBarZone,
+                                        { flex: 2, backgroundColor: "#FEEBC8" },
+                                      ]}
+                                    />
+                                    <View
+                                      style={[
+                                        styles.bmiBarZone,
+                                        {
+                                          flex: 15,
+                                          backgroundColor: "#FED7D7",
+                                        },
+                                      ]}
+                                    />
+                                  </View>
+                                  <View
+                                    style={[
+                                      styles.bmiIndicator,
+                                      {
+                                        left: `${Math.min(95, Math.max(2, ((info.bmi - 10) / 30) * 100))}%`,
+                                      },
+                                    ]}
+                                  />
+                                </View>
+                              </View>
+                            );
+                          })()}
+                        {userSettings.metricDisplayVisibility?.waist !==
+                          false &&
+                          record.waist != null && (
+                            <Text style={styles.recordSub}>
+                              허리: {record.waist} cm
                             </Text>
-                          </View>
-                          <View style={styles.bmiBarWrap}>
-                            <View style={styles.bmiBarTrack}>
-                              <View
-                                style={[
-                                  styles.bmiBarZone,
-                                  { flex: 18.5, backgroundColor: "#BEE3F8" },
-                                ]}
-                              />
-                              <View
-                                style={[
-                                  styles.bmiBarZone,
-                                  { flex: 4.5, backgroundColor: "#C6F6D5" },
-                                ]}
-                              />
-                              <View
-                                style={[
-                                  styles.bmiBarZone,
-                                  { flex: 2, backgroundColor: "#FEEBC8" },
-                                ]}
-                              />
-                              <View
-                                style={[
-                                  styles.bmiBarZone,
-                                  { flex: 15, backgroundColor: "#FED7D7" },
-                                ]}
-                              />
+                          )}
+                        {userSettings.metricDisplayVisibility?.muscleMass !==
+                          false &&
+                          record.muscleMass != null && (
+                            <Text style={styles.recordSub}>
+                              골격근: {record.muscleMass} kg
+                            </Text>
+                          )}
+                        {userSettings.metricDisplayVisibility
+                          ?.bodyFatPercent !== false &&
+                          record.bodyFatPercent != null && (
+                            <Text style={styles.recordSub}>
+                              체지방률: {record.bodyFatPercent} %
+                            </Text>
+                          )}
+                        {userSettings.metricDisplayVisibility?.bodyFatMass !==
+                          false &&
+                          record.bodyFatMass != null && (
+                            <Text style={styles.recordSub}>
+                              체지방량: {record.bodyFatMass} kg
+                            </Text>
+                          )}
+                        {/* 사용자 정의 수치 표시 */}
+                        {(userSettings.customMetrics ?? [])
+                          .filter(
+                            (cm) =>
+                              userSettings.metricDisplayVisibility?.[cm.key] !==
+                              false
+                          )
+                          .map((cm) => {
+                            const val = record.customValues?.[cm.key];
+                            if (val == null) return null;
+                            return (
+                              <Text key={cm.key} style={styles.recordSub}>
+                                {cm.label}: {val} {cm.unit}
+                              </Text>
+                            );
+                          })}
+                        {record.photoUri && (
+                          <Image
+                            source={{ uri: record.photoUri }}
+                            style={styles.recordPhoto}
+                          />
+                        )}
+                        <View style={styles.badgeRow}>
+                          {record.exercised && (
+                            <View style={[styles.badge, styles.badgeExercise]}>
+                              <Text style={styles.badgeText}>운동</Text>
                             </View>
-                            <View
-                              style={[
-                                styles.bmiIndicator,
-                                {
-                                  left: `${Math.min(95, Math.max(2, ((info.bmi - 10) / 30) * 100))}%`,
-                                },
-                              ]}
-                            />
-                          </View>
+                          )}
+                          {record.drank && (
+                            <View style={[styles.badge, styles.badgeDrank]}>
+                              <Text style={styles.badgeText}>음주</Text>
+                            </View>
+                          )}
+                        </View>
+                      </>
+                    )}
+                    {/* 해당 날짜 식사 기록 */}
+                    {(() => {
+                      const dayMeals = allMeals.filter(
+                        (m) => m.date === item.date
+                      );
+                      if (dayMeals.length === 0) return null;
+                      const mealTypes: MealType[] = [
+                        "breakfast",
+                        "lunch",
+                        "dinner",
+                        "snack",
+                      ];
+                      return (
+                        <View style={styles.recordMealsSection}>
+                          <Text style={styles.recordMealsTitle}>
+                            식사 {dayMeals.reduce((s, m) => s + m.kcal, 0)}kcal
+                          </Text>
+                          {mealTypes.map((mt) => {
+                            const items = dayMeals.filter(
+                              (m) => m.mealType === mt
+                            );
+                            if (items.length === 0) return null;
+                            return (
+                              <View key={mt} style={mealStyles.mealCard}>
+                                <View style={mealStyles.mealHeader}>
+                                  <Text style={mealStyles.mealTitle}>
+                                    {MEAL_LABELS[mt]}
+                                  </Text>
+                                  {items.length > 0 && (
+                                    <Text style={mealStyles.mealKcalBadge}>
+                                      {items.reduce((s, m) => s + m.kcal, 0)}{" "}
+                                      kcal
+                                    </Text>
+                                  )}
+                                </View>
+                                {items.map((meal) => (
+                                  <View
+                                    key={meal.id}
+                                    style={mealStyles.mealItem}
+                                  >
+                                    {meal.photoUri && (
+                                      <TouchableOpacity
+                                        onPress={() =>
+                                          setZoomPhotoUri(meal.photoUri!)
+                                        }
+                                      >
+                                        <Image
+                                          source={{ uri: meal.photoUri }}
+                                          style={mealStyles.mealPhoto}
+                                        />
+                                      </TouchableOpacity>
+                                    )}
+                                    <View style={mealStyles.mealInfo}>
+                                      <Text
+                                        style={mealStyles.mealDesc}
+                                        numberOfLines={1}
+                                      >
+                                        {meal.description || "음식"}
+                                      </Text>
+                                      <View style={mealStyles.macroRow}>
+                                        <Text
+                                          style={[
+                                            mealStyles.macroText,
+                                            { color: "#E53E3E" },
+                                          ]}
+                                        >
+                                          탄 {meal.carb}g
+                                        </Text>
+                                        <Text
+                                          style={[
+                                            mealStyles.macroText,
+                                            { color: "#3182CE" },
+                                          ]}
+                                        >
+                                          단 {meal.protein}g
+                                        </Text>
+                                        <Text
+                                          style={[
+                                            mealStyles.macroText,
+                                            { color: "#D69E2E" },
+                                          ]}
+                                        >
+                                          지 {meal.fat}g
+                                        </Text>
+                                        <Text style={mealStyles.macroKcal}>
+                                          {meal.kcal}kcal
+                                        </Text>
+                                      </View>
+                                    </View>
+                                  </View>
+                                ))}
+                              </View>
+                            );
+                          })}
                         </View>
                       );
                     })()}
-                  {userSettings.metricDisplayVisibility?.waist !== false &&
-                    record.waist != null && (
-                      <Text style={styles.recordSub}>
-                        허리: {record.waist} cm
-                      </Text>
-                    )}
-                  {userSettings.metricDisplayVisibility?.muscleMass !== false &&
-                    record.muscleMass != null && (
-                      <Text style={styles.recordSub}>
-                        골격근: {record.muscleMass} kg
-                      </Text>
-                    )}
-                  {userSettings.metricDisplayVisibility?.bodyFatPercent !==
-                    false &&
-                    record.bodyFatPercent != null && (
-                      <Text style={styles.recordSub}>
-                        체지방률: {record.bodyFatPercent} %
-                      </Text>
-                    )}
-                  {userSettings.metricDisplayVisibility?.bodyFatMass !==
-                    false &&
-                    record.bodyFatMass != null && (
-                      <Text style={styles.recordSub}>
-                        체지방량: {record.bodyFatMass} kg
-                      </Text>
-                    )}
-                  {/* 사용자 정의 수치 표시 */}
-                  {(userSettings.customMetrics ?? [])
-                    .filter(
-                      (cm) =>
-                        userSettings.metricDisplayVisibility?.[cm.key] !== false
-                    )
-                    .map((cm) => {
-                      const val = record.customValues?.[cm.key];
-                      if (val == null) return null;
-                      return (
-                        <Text key={cm.key} style={styles.recordSub}>
-                          {cm.label}: {val} {cm.unit}
-                        </Text>
-                      );
-                    })}
-                  {record.photoUri && (
-                    <Image
-                      source={{ uri: record.photoUri }}
-                      style={styles.recordPhoto}
-                    />
-                  )}
-                  <View style={styles.badgeRow}>
-                    {record.exercised && (
-                      <View style={[styles.badge, styles.badgeExercise]}>
-                        <Text style={styles.badgeText}>운동</Text>
-                      </View>
-                    )}
-                    {record.drank && (
-                      <View style={[styles.badge, styles.badgeDrank]}>
-                        <Text style={styles.badgeText}>음주</Text>
-                      </View>
-                    )}
                   </View>
-                  {/* 해당 날짜 식사 기록 */}
-                  {(() => {
-                    const dayMeals = allMeals.filter(
-                      (m) => m.date === record.date
-                    );
-                    if (dayMeals.length === 0) return null;
-                    const mealTypes: MealType[] = [
-                      "breakfast",
-                      "lunch",
-                      "dinner",
-                      "snack",
-                    ];
-                    return (
-                      <View style={styles.recordMealsSection}>
-                        <Text style={styles.recordMealsTitle}>
-                          식사 {dayMeals.reduce((s, m) => s + m.kcal, 0)}kcal
-                        </Text>
-                        {mealTypes.map((mt) => {
-                          const items = dayMeals.filter(
-                            (m) => m.mealType === mt
-                          );
-                          if (items.length === 0) return null;
-                          return (
-                            <View key={mt} style={mealStyles.mealCard}>
-                              <View style={mealStyles.mealHeader}>
-                                <Text style={mealStyles.mealTitle}>
-                                  {MEAL_LABELS[mt]}
-                                </Text>
-                                {items.length > 0 && (
-                                  <Text style={mealStyles.mealKcalBadge}>
-                                    {items.reduce((s, m) => s + m.kcal, 0)} kcal
-                                  </Text>
-                                )}
-                              </View>
-                              {items.map((meal) => (
-                                <View key={meal.id} style={mealStyles.mealItem}>
-                                  {meal.photoUri && (
-                                    <TouchableOpacity
-                                      onPress={() =>
-                                        setZoomPhotoUri(meal.photoUri!)
-                                      }
-                                    >
-                                      <Image
-                                        source={{ uri: meal.photoUri }}
-                                        style={mealStyles.mealPhoto}
-                                      />
-                                    </TouchableOpacity>
-                                  )}
-                                  <View style={mealStyles.mealInfo}>
-                                    <Text
-                                      style={mealStyles.mealDesc}
-                                      numberOfLines={1}
-                                    >
-                                      {meal.description || "음식"}
-                                    </Text>
-                                    <View style={mealStyles.macroRow}>
-                                      <Text
-                                        style={[
-                                          mealStyles.macroText,
-                                          { color: "#E53E3E" },
-                                        ]}
-                                      >
-                                        탄 {meal.carb}g
-                                      </Text>
-                                      <Text
-                                        style={[
-                                          mealStyles.macroText,
-                                          { color: "#3182CE" },
-                                        ]}
-                                      >
-                                        단 {meal.protein}g
-                                      </Text>
-                                      <Text
-                                        style={[
-                                          mealStyles.macroText,
-                                          { color: "#D69E2E" },
-                                        ]}
-                                      >
-                                        지 {meal.fat}g
-                                      </Text>
-                                      <Text style={mealStyles.macroKcal}>
-                                        {meal.kcal}kcal
-                                      </Text>
-                                    </View>
-                                  </View>
-                                </View>
-                              ))}
-                            </View>
-                          );
-                        })}
-                      </View>
-                    );
-                  })()}
-                </View>
-              ))}
-              {visibleRecordCount < records.length && (
+                );
+              })}
+              {visibleRecordCount < recordListItems.length && (
                 <TouchableOpacity
                   style={{
                     alignItems: "center",
@@ -1372,7 +1424,8 @@ export default function HomeScreen() {
                       color: "#4CAF50",
                     }}
                   >
-                    더보기 ({records.length - visibleRecordCount}개 남음)
+                    더보기 ({recordListItems.length - visibleRecordCount}개
+                    남음)
                   </Text>
                 </TouchableOpacity>
               )}

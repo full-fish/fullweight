@@ -463,8 +463,14 @@ export default function CalendarScreen() {
         text: "삭제",
         style: "destructive",
         onPress: async () => {
-          const newRecords = await deleteRecord(selectedRecord.date);
+          const dateStr = selectedRecord.date;
+          const newRecords = await deleteRecord(dateStr);
           setRecords(newRecords);
+          // 해당 날짜 식사 기록도 삭제
+          const allM = await loadMeals();
+          const filtered = allM.filter((m) => m.date !== dateStr);
+          await saveMeals(filtered);
+          setAllMeals(filtered);
           setSelectedRecord(null);
           setEditMode(false);
         },
@@ -480,7 +486,7 @@ export default function CalendarScreen() {
   };
 
   /* 빈 날짜 클릭 → 새 기록 추가 */
-  const openAddModal = (dateStr: string) => {
+  const openAddModal = async (dateStr: string) => {
     setAddDate(dateStr);
     setEWeight("");
     setEWaist("");
@@ -492,7 +498,9 @@ export default function CalendarScreen() {
     setEPhotoUri(undefined);
     setECustomInputs({});
     setEBoolCustomInputs({});
-    setEMeals([]);
+    // 해당 날짜에 이미 식사 기록이 있으면 불러오기
+    const existingMeals = allMeals.filter((m) => m.date === dateStr);
+    setEMeals(existingMeals);
     setShowMealInput(false);
     setAddMode(true);
   };
@@ -1113,6 +1121,9 @@ export default function CalendarScreen() {
                         s.dayCell,
                         isToday && s.dayCellToday,
                         rec && s.dayCellHasRecord,
+                        !rec &&
+                          allMeals.some((m) => m.date === dateStr) &&
+                          s.dayCellMealOnly,
                       ]}
                       onPress={() => {
                         if (rec) {
@@ -2668,6 +2679,7 @@ const s = StyleSheet.create({
   },
   dayCellToday: { borderWidth: 2, borderColor: "#4CAF50" },
   dayCellHasRecord: { backgroundColor: "#F0FFF4" },
+  dayCellMealOnly: { backgroundColor: "#FEFCE8" },
   dayText: { fontSize: 14, fontWeight: "500", color: "#2D3748" },
   dayTextToday: { fontWeight: "700", color: "#4CAF50" },
   dotRow: { flexDirection: "row", gap: 2, marginTop: 2 },
