@@ -956,7 +956,6 @@ export default function HomeScreen() {
               placeholder="메모를 입력하세요..."
               placeholderTextColor="#aaa"
               multiline
-              numberOfLines={3}
               textAlignVertical="top"
             />
 
@@ -1547,9 +1546,11 @@ export default function HomeScreen() {
                       );
                     })()}
                     {record?.memo && (
-                      <View style={styles.memoBox}>
-                        <Text style={styles.memoBoxLabel}>📝 메모</Text>
-                        <Text style={styles.memoBoxText}>{record.memo}</Text>
+                      <View style={styles.memoSection}>
+                        <Text style={styles.memoSectionTitle}>메모</Text>
+                        <View style={styles.memoCard}>
+                          <Text style={styles.memoCardText}>{record.memo}</Text>
+                        </View>
                       </View>
                     )}
                   </View>
@@ -1926,14 +1927,17 @@ export default function HomeScreen() {
                   <TextInput
                     style={[
                       editModalStyles.input,
-                      { height: 80, textAlignVertical: "top" },
+                      {
+                        minHeight: 48,
+                        height: undefined,
+                        textAlignVertical: "top",
+                      },
                     ]}
                     value={emMemo}
                     onChangeText={setEmMemo}
                     placeholder="메모를 입력하세요..."
                     placeholderTextColor="#aaa"
                     multiline
-                    numberOfLines={3}
                   />
 
                   {/* 사진 */}
@@ -2790,24 +2794,34 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#2D3748",
     backgroundColor: "#F7FAFC",
-    minHeight: 70,
+    minHeight: 48,
     marginBottom: 16,
   },
-  memoBox: {
-    backgroundColor: "#FFFDF5",
-    borderRadius: 10,
-    padding: 10,
+  memoSection: {
     marginTop: 8,
-    borderWidth: 1,
-    borderColor: "#FEFCBF",
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: "#F0F4F8",
   },
-  memoBoxLabel: {
-    fontSize: 12,
+  memoSectionTitle: {
+    fontSize: 13,
     fontWeight: "600",
-    color: "#975A16",
-    marginBottom: 4,
+    color: "#4A5568",
+    marginBottom: 6,
   },
-  memoBoxText: {
+  memoCard: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  memoCardText: {
     fontSize: 13,
     color: "#4A5568",
     lineHeight: 18,

@@ -1507,6 +1507,11 @@ export default function CalendarScreen() {
                                   marginBottom: 8,
                                   borderWidth: 1,
                                   borderColor: "#E2E8F0",
+                                  shadowColor: "#000",
+                                  shadowOffset: { width: 0, height: 1 },
+                                  shadowOpacity: 0.05,
+                                  shadowRadius: 4,
+                                  elevation: 2,
                                 }}
                               >
                                 <View
@@ -1641,33 +1646,46 @@ export default function CalendarScreen() {
                     {selectedRecord.memo && (
                       <View
                         style={{
-                          backgroundColor: "#FFFDF5",
-                          borderRadius: 10,
-                          padding: 10,
-                          marginTop: 8,
-                          borderWidth: 1,
-                          borderColor: "#FEFCBF",
+                          marginTop: 12,
+                          borderTopWidth: 1,
+                          borderTopColor: "#F0F4F8",
+                          paddingTop: 10,
                         }}
                       >
                         <Text
                           style={{
-                            fontSize: 12,
+                            fontSize: 14,
                             fontWeight: "600",
-                            color: "#975A16",
-                            marginBottom: 4,
+                            color: "#2D3748",
+                            marginBottom: 6,
                           }}
                         >
-                          📝 메모
+                          메모
                         </Text>
-                        <Text
+                        <View
                           style={{
-                            fontSize: 13,
-                            color: "#4A5568",
-                            lineHeight: 18,
+                            backgroundColor: "#fff",
+                            borderRadius: 12,
+                            padding: 10,
+                            borderWidth: 1,
+                            borderColor: "#E2E8F0",
+                            shadowColor: "#000",
+                            shadowOffset: { width: 0, height: 1 },
+                            shadowOpacity: 0.05,
+                            shadowRadius: 4,
+                            elevation: 2,
                           }}
                         >
-                          {selectedRecord.memo}
-                        </Text>
+                          <Text
+                            style={{
+                              fontSize: 13,
+                              color: "#4A5568",
+                              lineHeight: 18,
+                            }}
+                          >
+                            {selectedRecord.memo}
+                          </Text>
+                        </View>
                       </View>
                     )}
 
@@ -1819,14 +1837,17 @@ export default function CalendarScreen() {
                     <TextInput
                       style={[
                         s.editInput,
-                        { height: 80, textAlignVertical: "top" },
+                        {
+                          minHeight: 48,
+                          height: undefined,
+                          textAlignVertical: "top",
+                        },
                       ]}
                       value={eMemo}
                       onChangeText={setEMemo}
                       placeholder="메모를 입력하세요..."
                       placeholderTextColor="#aaa"
                       multiline
-                      numberOfLines={3}
                     />
 
                     {/* 눈바디 사진 */}
@@ -2232,14 +2253,17 @@ export default function CalendarScreen() {
                   <TextInput
                     style={[
                       s.editInput,
-                      { height: 80, textAlignVertical: "top" },
+                      {
+                        minHeight: 48,
+                        height: undefined,
+                        textAlignVertical: "top",
+                      },
                     ]}
                     value={eMemo}
                     onChangeText={setEMemo}
                     placeholder="메모를 입력하세요..."
                     placeholderTextColor="#aaa"
                     multiline
-                    numberOfLines={3}
                   />
 
                   {/* 눈바디 사진 */}
