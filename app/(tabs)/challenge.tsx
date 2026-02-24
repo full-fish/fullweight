@@ -1,4 +1,5 @@
 import { ProgressBar } from "@/components/progress-bar";
+import { useKeyboardOffset } from "@/hooks/use-keyboard-offset";
 import {
   Challenge,
   ChallengeHistory,
@@ -25,7 +26,6 @@ import {
   saveUserSettings,
 } from "@/utils/storage";
 import { useFocusEffect } from "@react-navigation/native";
-import { useKeyboardOffset } from "@/hooks/use-keyboard-offset";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
   Alert,
@@ -267,7 +267,10 @@ function DateCalendarPicker({
           activeOpacity={1}
           onPress={() => setShowCal(false)}
         >
-          <View style={[dcpS.card, { transform: [{ translateY: kbOffset }] }]} onStartShouldSetResponder={() => true}>
+          <View
+            style={[dcpS.card, { transform: [{ translateY: kbOffset }] }]}
+            onStartShouldSetResponder={() => true}
+          >
             {/* 텍스트 입력 */}
             <View
               style={{
@@ -1240,7 +1243,9 @@ export default function ChallengeScreen() {
             onRequestClose={() => setShowForm(false)}
           >
             <View style={st.formOverlay}>
-              <View style={[st.formCard, { transform: [{ translateY: kbOffset }] }]}>
+              <View
+                style={[st.formCard, { transform: [{ translateY: kbOffset }] }]}
+              >
                 <ScrollView showsVerticalScrollIndicator={false}>
                   <Text style={st.formTitle}>
                     {challenge ? "챌린지 수정" : "새 챌린지"}

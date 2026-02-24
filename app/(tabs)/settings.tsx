@@ -1,3 +1,4 @@
+import { useKeyboardOffset } from "@/hooks/use-keyboard-offset";
 import {
   AiModelOption,
   BodyPhotoQuality,
@@ -38,7 +39,6 @@ import {
   saveUserSettings,
   seedDummyData,
 } from "@/utils/storage";
-import { useKeyboardOffset } from "@/hooks/use-keyboard-offset";
 import Entypo from "@expo/vector-icons/Entypo";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
@@ -1928,7 +1928,12 @@ export default function SettingsScreen() {
                 activeOpacity={1}
                 onPress={() => setShowAddBoolMetric(false)}
               />
-              <View style={[s.pinModalCard, { maxHeight: "85%", transform: [{ translateY: kbOffset }] }]}>
+              <View
+                style={[
+                  s.pinModalCard,
+                  { maxHeight: "85%", transform: [{ translateY: kbOffset }] },
+                ]}
+              >
                 <ScrollView
                   style={{ width: "100%" }}
                   showsVerticalScrollIndicator={false}
@@ -2546,7 +2551,12 @@ export default function SettingsScreen() {
                 activeOpacity={1}
                 onPress={() => setEditingBoolEmojiKey(null)}
               />
-              <View style={[s.pinModalCard, { maxHeight: "85%", transform: [{ translateY: kbOffset }] }]}>
+              <View
+                style={[
+                  s.pinModalCard,
+                  { maxHeight: "85%", transform: [{ translateY: kbOffset }] },
+                ]}
+              >
                 <ScrollView
                   style={{ width: "100%" }}
                   showsVerticalScrollIndicator={false}
@@ -3157,7 +3167,10 @@ export default function SettingsScreen() {
               onPress={() => setShowAddMetric(false)}
             >
               <View
-                style={[s.pinModalCard, { transform: [{ translateY: kbOffset }] }]}
+                style={[
+                  s.pinModalCard,
+                  { transform: [{ translateY: kbOffset }] },
+                ]}
                 onStartShouldSetResponder={() => true}
               >
                 <Text style={s.pinModalTitle}>수치 추가</Text>

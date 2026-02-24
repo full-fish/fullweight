@@ -108,7 +108,10 @@ export function CalendarModal({
       onRequestClose={onClose}
     >
       <TouchableOpacity style={cpS.overlay} activeOpacity={1} onPress={onClose}>
-        <View style={[cpS.card, { transform: [{ translateY: kbOffset }] }]} onStartShouldSetResponder={() => true}>
+        <View
+          style={[cpS.card, { transform: [{ translateY: kbOffset }] }]}
+          onStartShouldSetResponder={() => true}
+        >
           {/* 직접 입력 */}
           <View
             style={{

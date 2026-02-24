@@ -1,3 +1,4 @@
+import { useKeyboardOffset } from "@/hooks/use-keyboard-offset";
 import {
   MEAL_LABELS,
   MealEntry,
@@ -31,11 +32,11 @@ import {
   upsertRecord,
 } from "@/utils/storage";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { useKeyboardOffset } from "@/hooks/use-keyboard-offset";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useFocusEffect } from "@react-navigation/native";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Dimensions,
   Image,
@@ -106,6 +107,7 @@ export default function CalendarScreen() {
     undefined
   );
   const [aiAnalyzing, setAiAnalyzing] = useState(false);
+  const [mealModalDate, setMealModalDate] = useState("");
   const [zoomPhotoUri, setZoomPhotoUri] = useState<string | null>(null);
 
   useFocusEffect(
@@ -354,22 +356,26 @@ export default function CalendarScreen() {
   };
 
   const handleAddMealEntry = async (dateStr: string) => {
+    if (!mealDesc.trim()) {
+      Alert.alert("입력 오류", "음식 이름을 입력해주세요.");
+      return;
+    }
+    const carb = parseFloat(mealCarb) || 0;
+    const protein = parseFloat(mealProtein) || 0;
+    const fat = parseFloat(mealFat) || 0;
+    const kcal =
+      parseFloat(mealKcal) || Math.round(carb * 4 + protein * 4 + fat * 9);
     const entry: MealEntry = {
       id: `${dateStr}_${mealInputType}_${Date.now()}`,
       date: dateStr,
       mealType: mealInputType,
-      description: mealDesc,
-      carb: parseFloat(mealCarb) || 0,
-      protein: parseFloat(mealProtein) || 0,
-      fat: parseFloat(mealFat) || 0,
-      kcal:
-        parseFloat(mealKcal) ||
-        Math.round(
-          (parseFloat(mealCarb) || 0) * 4 +
-            (parseFloat(mealProtein) || 0) * 4 +
-            (parseFloat(mealFat) || 0) * 9
-        ),
+      description: mealDesc.trim(),
+      carb,
+      protein,
+      fat,
+      kcal,
       photoUri: mealPhotoUri,
+      createdAt: new Date().toISOString(),
     };
     const updated = await addMeal(entry);
     setEMeals(updated.filter((m) => m.date === dateStr));
@@ -390,28 +396,23 @@ export default function CalendarScreen() {
     );
     if (!captured) return;
     setMealPhotoUri(captured.savedUri);
-    if (userSettings.foodAiEnabled) {
-      setAiAnalyzing(true);
-      try {
-        // AI에는 원본 고화질 파일 전송
-        const result = await analyzeFood(
-          captured.aiUri,
-          userSettings.openaiApiKey
-        );
-        if (result) {
-          if (result.name) setMealDesc(result.name);
-          if (result.carb) setMealCarb(String(result.carb));
-          if (result.protein) setMealProtein(String(result.protein));
-          if (result.fat) setMealFat(String(result.fat));
-          if (result.kcal) setMealKcal(String(result.kcal));
-        }
-      } catch {
-      } finally {
-        deletePhoto(captured.aiUri).catch(() => {});
-        setAiAnalyzing(false);
-      }
-    } else {
+    setAiAnalyzing(true);
+    try {
+      const result = await analyzeFood(captured.aiUri, userSettings.aiModel);
+      setMealDesc(result.description);
+      setMealCarb(String(result.carb));
+      setMealProtein(String(result.protein));
+      setMealFat(String(result.fat));
+      setMealKcal(String(result.kcal));
+    } catch (err: any) {
+      Alert.alert(
+        "AI 분석 실패",
+        (err.message || "서버 연결에 실패했습니다.") +
+          "\n\n음식 이름과 영양소를 직접 입력해주세요."
+      );
+    } finally {
       deletePhoto(captured.aiUri).catch(() => {});
+      setAiAnalyzing(false);
     }
   };
 
@@ -1213,7 +1214,9 @@ export default function CalendarScreen() {
                 activeOpacity={1}
                 onPress={closeModal}
               />
-              <View style={[s.modalCard, { transform: [{ translateY: kbOffset }] }]}>
+              <View
+                style={[s.modalCard, { transform: [{ translateY: kbOffset }] }]}
+              >
                 {selectedRecord && !editMode && (
                   <ScrollView
                     showsVerticalScrollIndicator={false}
@@ -1943,6 +1946,13 @@ export default function CalendarScreen() {
                             style={mealStyles.addBtn}
                             onPress={() => {
                               setMealInputType(mealType);
+                              setMealDesc("");
+                              setMealCarb("");
+                              setMealProtein("");
+                              setMealFat("");
+                              setMealKcal("");
+                              setMealPhotoUri(undefined);
+                              setMealModalDate(selectedRecord!.date);
                               setShowMealInput(true);
                             }}
                           >
@@ -1953,219 +1963,6 @@ export default function CalendarScreen() {
                         </View>
                       );
                     })}
-                    {showMealInput && (
-                      <View
-                        style={{
-                          backgroundColor: "#F7FAFC",
-                          borderRadius: 10,
-                          padding: 10,
-                          marginBottom: 8,
-                        }}
-                      >
-                        <View
-                          style={{
-                            flexDirection: "row",
-                            flexWrap: "wrap",
-                            gap: 6,
-                            marginBottom: 8,
-                          }}
-                        >
-                          {(
-                            [
-                              "breakfast",
-                              "lunch",
-                              "dinner",
-                              "snack",
-                            ] as MealType[]
-                          ).map((t) => (
-                            <TouchableOpacity
-                              key={t}
-                              onPress={() => setMealInputType(t)}
-                              style={{
-                                paddingHorizontal: 10,
-                                paddingVertical: 5,
-                                borderRadius: 12,
-                                backgroundColor:
-                                  mealInputType === t ? "#3182CE" : "#E2E8F0",
-                              }}
-                            >
-                              <Text
-                                style={{
-                                  fontSize: 12,
-                                  color:
-                                    mealInputType === t ? "#fff" : "#4A5568",
-                                  fontWeight: "600",
-                                }}
-                              >
-                                {MEAL_LABELS[t]}
-                              </Text>
-                            </TouchableOpacity>
-                          ))}
-                        </View>
-                        {mealPhotoUri && (
-                          <Image
-                            source={{ uri: mealPhotoUri }}
-                            style={{
-                              width: "100%",
-                              height: 100,
-                              borderRadius: 8,
-                              marginBottom: 6,
-                            }}
-                            resizeMode="cover"
-                          />
-                        )}
-                        <View
-                          style={{
-                            flexDirection: "row",
-                            gap: 6,
-                            marginBottom: 6,
-                          }}
-                        >
-                          <TouchableOpacity
-                            style={{
-                              flex: 1,
-                              backgroundColor: "#E2E8F0",
-                              borderRadius: 8,
-                              paddingVertical: 6,
-                              alignItems: "center",
-                            }}
-                            onPress={() => handleMealPhoto("camera")}
-                          >
-                            <Text style={{ fontSize: 12, color: "#4A5568" }}>
-                              📷 촬영
-                            </Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            style={{
-                              flex: 1,
-                              backgroundColor: "#E2E8F0",
-                              borderRadius: 8,
-                              paddingVertical: 6,
-                              alignItems: "center",
-                            }}
-                            onPress={() => handleMealPhoto("gallery")}
-                          >
-                            <Text style={{ fontSize: 12, color: "#4A5568" }}>
-                              🖼️ 갤러리
-                            </Text>
-                          </TouchableOpacity>
-                        </View>
-                        {aiAnalyzing && (
-                          <Text
-                            style={{
-                              fontSize: 12,
-                              color: "#3182CE",
-                              textAlign: "center",
-                              marginBottom: 4,
-                            }}
-                          >
-                            AI 분석 중...
-                          </Text>
-                        )}
-                        <TextInput
-                          style={[s.editInput, { marginBottom: 4 }]}
-                          value={mealDesc}
-                          onChangeText={setMealDesc}
-                          placeholder="음식 이름"
-                        />
-                        <View
-                          style={{
-                            flexDirection: "row",
-                            gap: 4,
-                            marginBottom: 6,
-                          }}
-                        >
-                          <TextInput
-                            style={[
-                              s.editInput,
-                              { flex: 1, fontSize: 12, marginBottom: 0 },
-                            ]}
-                            value={mealCarb}
-                            onChangeText={setMealCarb}
-                            keyboardType="numeric"
-                            placeholder="탄(g)"
-                          />
-                          <TextInput
-                            style={[
-                              s.editInput,
-                              { flex: 1, fontSize: 12, marginBottom: 0 },
-                            ]}
-                            value={mealProtein}
-                            onChangeText={setMealProtein}
-                            keyboardType="numeric"
-                            placeholder="단(g)"
-                          />
-                          <TextInput
-                            style={[
-                              s.editInput,
-                              { flex: 1, fontSize: 12, marginBottom: 0 },
-                            ]}
-                            value={mealFat}
-                            onChangeText={setMealFat}
-                            keyboardType="numeric"
-                            placeholder="지(g)"
-                          />
-                          <TextInput
-                            style={[
-                              s.editInput,
-                              { flex: 1, fontSize: 12, marginBottom: 0 },
-                            ]}
-                            value={mealKcal}
-                            onChangeText={setMealKcal}
-                            keyboardType="numeric"
-                            placeholder="kcal"
-                          />
-                        </View>
-                        <View style={{ flexDirection: "row", gap: 6 }}>
-                          <TouchableOpacity
-                            style={{
-                              flex: 1,
-                              backgroundColor: "#3182CE",
-                              borderRadius: 8,
-                              paddingVertical: 8,
-                              alignItems: "center",
-                            }}
-                            onPress={() =>
-                              selectedRecord &&
-                              handleAddMealEntry(selectedRecord.date)
-                            }
-                          >
-                            <Text
-                              style={{
-                                fontSize: 13,
-                                color: "#fff",
-                                fontWeight: "600",
-                              }}
-                            >
-                              추가
-                            </Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            style={{
-                              flex: 1,
-                              backgroundColor: "#E2E8F0",
-                              borderRadius: 8,
-                              paddingVertical: 8,
-                              alignItems: "center",
-                            }}
-                            onPress={() => {
-                              setShowMealInput(false);
-                              setMealPhotoUri(undefined);
-                            }}
-                          >
-                            <Text
-                              style={{
-                                fontSize: 13,
-                                color: "#4A5568",
-                                fontWeight: "600",
-                              }}
-                            >
-                              취소
-                            </Text>
-                          </TouchableOpacity>
-                        </View>
-                      </View>
-                    )}
 
                     <View style={s.modalActionRow}>
                       <TouchableOpacity
@@ -2207,7 +2004,9 @@ export default function CalendarScreen() {
                   setAddDate("");
                 }}
               />
-              <View style={[s.modalCard, { transform: [{ translateY: kbOffset }] }]}>
+              <View
+                style={[s.modalCard, { transform: [{ translateY: kbOffset }] }]}
+              >
                 <ScrollView
                   showsVerticalScrollIndicator={false}
                   bounces={false}
@@ -2536,6 +2335,13 @@ export default function CalendarScreen() {
                           style={mealStyles.addBtn}
                           onPress={() => {
                             setMealInputType(mealType);
+                            setMealDesc("");
+                            setMealCarb("");
+                            setMealProtein("");
+                            setMealFat("");
+                            setMealKcal("");
+                            setMealPhotoUri(undefined);
+                            setMealModalDate(addDate);
                             setShowMealInput(true);
                           }}
                         >
@@ -2544,215 +2350,6 @@ export default function CalendarScreen() {
                       </View>
                     );
                   })}
-                  {showMealInput && (
-                    <View
-                      style={{
-                        backgroundColor: "#F7FAFC",
-                        borderRadius: 10,
-                        padding: 10,
-                        marginBottom: 8,
-                      }}
-                    >
-                      <View
-                        style={{
-                          flexDirection: "row",
-                          flexWrap: "wrap",
-                          gap: 6,
-                          marginBottom: 8,
-                        }}
-                      >
-                        {(
-                          [
-                            "breakfast",
-                            "lunch",
-                            "dinner",
-                            "snack",
-                          ] as MealType[]
-                        ).map((t) => (
-                          <TouchableOpacity
-                            key={t}
-                            onPress={() => setMealInputType(t)}
-                            style={{
-                              paddingHorizontal: 10,
-                              paddingVertical: 5,
-                              borderRadius: 12,
-                              backgroundColor:
-                                mealInputType === t ? "#3182CE" : "#E2E8F0",
-                            }}
-                          >
-                            <Text
-                              style={{
-                                fontSize: 12,
-                                color: mealInputType === t ? "#fff" : "#4A5568",
-                                fontWeight: "600",
-                              }}
-                            >
-                              {MEAL_LABELS[t]}
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
-                      </View>
-                      {mealPhotoUri && (
-                        <Image
-                          source={{ uri: mealPhotoUri }}
-                          style={{
-                            width: "100%",
-                            height: 100,
-                            borderRadius: 8,
-                            marginBottom: 6,
-                          }}
-                          resizeMode="cover"
-                        />
-                      )}
-                      <View
-                        style={{
-                          flexDirection: "row",
-                          gap: 6,
-                          marginBottom: 6,
-                        }}
-                      >
-                        <TouchableOpacity
-                          style={{
-                            flex: 1,
-                            backgroundColor: "#E2E8F0",
-                            borderRadius: 8,
-                            paddingVertical: 6,
-                            alignItems: "center",
-                          }}
-                          onPress={() => handleMealPhoto("camera")}
-                        >
-                          <Text style={{ fontSize: 12, color: "#4A5568" }}>
-                            📷 촬영
-                          </Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={{
-                            flex: 1,
-                            backgroundColor: "#E2E8F0",
-                            borderRadius: 8,
-                            paddingVertical: 6,
-                            alignItems: "center",
-                          }}
-                          onPress={() => handleMealPhoto("gallery")}
-                        >
-                          <Text style={{ fontSize: 12, color: "#4A5568" }}>
-                            🖼️ 갤러리
-                          </Text>
-                        </TouchableOpacity>
-                      </View>
-                      {aiAnalyzing && (
-                        <Text
-                          style={{
-                            fontSize: 12,
-                            color: "#3182CE",
-                            textAlign: "center",
-                            marginBottom: 4,
-                          }}
-                        >
-                          AI 분석 중...
-                        </Text>
-                      )}
-                      <TextInput
-                        style={[s.editInput, { marginBottom: 4 }]}
-                        value={mealDesc}
-                        onChangeText={setMealDesc}
-                        placeholder="음식 이름"
-                      />
-                      <View
-                        style={{
-                          flexDirection: "row",
-                          gap: 4,
-                          marginBottom: 6,
-                        }}
-                      >
-                        <TextInput
-                          style={[
-                            s.editInput,
-                            { flex: 1, fontSize: 12, marginBottom: 0 },
-                          ]}
-                          value={mealCarb}
-                          onChangeText={setMealCarb}
-                          keyboardType="numeric"
-                          placeholder="탄(g)"
-                        />
-                        <TextInput
-                          style={[
-                            s.editInput,
-                            { flex: 1, fontSize: 12, marginBottom: 0 },
-                          ]}
-                          value={mealProtein}
-                          onChangeText={setMealProtein}
-                          keyboardType="numeric"
-                          placeholder="단(g)"
-                        />
-                        <TextInput
-                          style={[
-                            s.editInput,
-                            { flex: 1, fontSize: 12, marginBottom: 0 },
-                          ]}
-                          value={mealFat}
-                          onChangeText={setMealFat}
-                          keyboardType="numeric"
-                          placeholder="지(g)"
-                        />
-                        <TextInput
-                          style={[
-                            s.editInput,
-                            { flex: 1, fontSize: 12, marginBottom: 0 },
-                          ]}
-                          value={mealKcal}
-                          onChangeText={setMealKcal}
-                          keyboardType="numeric"
-                          placeholder="kcal"
-                        />
-                      </View>
-                      <View style={{ flexDirection: "row", gap: 6 }}>
-                        <TouchableOpacity
-                          style={{
-                            flex: 1,
-                            backgroundColor: "#3182CE",
-                            borderRadius: 8,
-                            paddingVertical: 8,
-                            alignItems: "center",
-                          }}
-                          onPress={() => handleAddMealEntry(addDate)}
-                        >
-                          <Text
-                            style={{
-                              fontSize: 13,
-                              color: "#fff",
-                              fontWeight: "600",
-                            }}
-                          >
-                            추가
-                          </Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={{
-                            flex: 1,
-                            backgroundColor: "#E2E8F0",
-                            borderRadius: 8,
-                            paddingVertical: 8,
-                            alignItems: "center",
-                          }}
-                          onPress={() => {
-                            setShowMealInput(false);
-                            setMealPhotoUri(undefined);
-                          }}
-                        >
-                          <Text
-                            style={{
-                              fontSize: 13,
-                              color: "#4A5568",
-                              fontWeight: "600",
-                            }}
-                          >
-                            취소
-                          </Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  )}
 
                   <View style={s.modalActionRow}>
                     <TouchableOpacity
@@ -2771,6 +2368,188 @@ export default function CalendarScreen() {
                       <Text style={s.modalCancelBtnText}>취소</Text>
                     </TouchableOpacity>
                   </View>
+                </ScrollView>
+              </View>
+            </View>
+          </Modal>
+        )}
+
+        {/* 식사 입력 모달 (bottom-sheet) */}
+        {showMealInput && (
+          <Modal
+            visible
+            transparent
+            animationType="slide"
+            onRequestClose={() => setShowMealInput(false)}
+          >
+            <View style={mealModalStyles.overlay}>
+              <View
+                style={[
+                  mealModalStyles.sheet,
+                  { transform: [{ translateY: kbOffset }] },
+                ]}
+              >
+                {/* 헤더 */}
+                <View style={mealModalStyles.header}>
+                  <Text style={mealModalStyles.title}>
+                    {MEAL_LABELS[mealInputType]} 추가
+                  </Text>
+                  <TouchableOpacity onPress={() => setShowMealInput(false)}>
+                    <Text style={mealModalStyles.closeBtn}>✕</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <ScrollView
+                  showsVerticalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
+                  contentContainerStyle={{ paddingBottom: 45 }}
+                >
+                  {/* 사진 선택 */}
+                  <View style={mealModalStyles.photoRow}>
+                    {mealPhotoUri ? (
+                      <View style={{ position: "relative" }}>
+                        <Image
+                          source={{ uri: mealPhotoUri }}
+                          style={mealModalStyles.photoPreview}
+                        />
+                        {aiAnalyzing && (
+                          <View style={mealModalStyles.photoAnalyzingOverlay}>
+                            <ActivityIndicator size="large" color="#fff" />
+                            <Text style={mealModalStyles.photoAnalyzingText}>
+                              AI 분석 중...
+                            </Text>
+                          </View>
+                        )}
+                        <TouchableOpacity
+                          style={mealModalStyles.photoRemove}
+                          onPress={() => setMealPhotoUri(undefined)}
+                        >
+                          <Text
+                            style={{
+                              color: "#fff",
+                              fontSize: 12,
+                              fontWeight: "700",
+                            }}
+                          >
+                            ✕
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    ) : (
+                      <>
+                        <TouchableOpacity
+                          style={mealModalStyles.photoBtn}
+                          onPress={() => handleMealPhoto("camera")}
+                        >
+                          <Text style={mealModalStyles.photoBtnText}>촬영</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={mealModalStyles.photoBtn}
+                          onPress={() => handleMealPhoto("gallery")}
+                        >
+                          <Text style={mealModalStyles.photoBtnText}>
+                            갤러리
+                          </Text>
+                        </TouchableOpacity>
+                      </>
+                    )}
+                  </View>
+
+                  {/* 음식 이름 */}
+                  <Text style={mealModalStyles.label}>음식 이름 *</Text>
+                  <TextInput
+                    style={mealModalStyles.input}
+                    value={mealDesc}
+                    onChangeText={setMealDesc}
+                    placeholder="예: 닭가슴살 볶음밥"
+                    placeholderTextColor="#CBD5E0"
+                  />
+
+                  {/* 영양소 입력 */}
+                  <Text style={mealModalStyles.label}>
+                    영양소 (먹은 양 전체)
+                  </Text>
+                  <View style={mealModalStyles.macroGrid}>
+                    {(
+                      [
+                        {
+                          label: "탄수화물(g)",
+                          value: mealCarb,
+                          key: "carb",
+                          color: "#E53E3E",
+                        },
+                        {
+                          label: "단백질(g)",
+                          value: mealProtein,
+                          key: "protein",
+                          color: "#3182CE",
+                        },
+                        {
+                          label: "지방(g)",
+                          value: mealFat,
+                          key: "fat",
+                          color: "#D69E2E",
+                        },
+                      ] as const
+                    ).map(({ label, value, key, color }) => (
+                      <View key={label} style={mealModalStyles.macroField}>
+                        <Text style={[mealModalStyles.macroLabel, { color }]}>
+                          {label}
+                        </Text>
+                        <TextInput
+                          style={mealModalStyles.macroInput}
+                          value={value}
+                          onChangeText={(v) => {
+                            const c = key === "carb" ? v : mealCarb;
+                            const p = key === "protein" ? v : mealProtein;
+                            const f = key === "fat" ? v : mealFat;
+                            if (key === "carb") setMealCarb(v);
+                            if (key === "protein") setMealProtein(v);
+                            if (key === "fat") setMealFat(v);
+                            const auto = Math.round(
+                              (parseFloat(c) || 0) * 4 +
+                                (parseFloat(p) || 0) * 4 +
+                                (parseFloat(f) || 0) * 9
+                            );
+                            setMealKcal(auto > 0 ? String(auto) : "");
+                          }}
+                          keyboardType="numeric"
+                          placeholder="0"
+                          placeholderTextColor="#CBD5E0"
+                        />
+                      </View>
+                    ))}
+                    <View style={mealModalStyles.macroField}>
+                      <Text
+                        style={[
+                          mealModalStyles.macroLabel,
+                          { color: "#718096" },
+                        ]}
+                      >
+                        칼로리(kcal)
+                      </Text>
+                      <TextInput
+                        style={[
+                          mealModalStyles.macroInput,
+                          { backgroundColor: "#F0F4F8" },
+                        ]}
+                        value={mealKcal}
+                        editable={false}
+                        placeholder="자동 계산"
+                        placeholderTextColor="#CBD5E0"
+                      />
+                    </View>
+                  </View>
+                  <Text style={mealModalStyles.kcalHint}>
+                    * 칼로리는 탄단지 입력 시 자동 계산됩니다
+                  </Text>
+
+                  <TouchableOpacity
+                    style={mealModalStyles.saveBtn}
+                    onPress={() => handleAddMealEntry(mealModalDate)}
+                  >
+                    <Text style={mealModalStyles.saveBtnText}>저장</Text>
+                  </TouchableOpacity>
                 </ScrollView>
               </View>
             </View>
@@ -3067,6 +2846,108 @@ const s = StyleSheet.create({
     borderRadius: 10,
   },
   modalCloseText: { fontSize: 15, fontWeight: "600", color: "#4A5568" },
+});
+
+const mealModalStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "flex-end",
+  },
+  sheet: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    maxHeight: "90%",
+  },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  title: { fontSize: 18, fontWeight: "700", color: "#2D3748" },
+  closeBtn: { fontSize: 18, color: "#718096", padding: 4 },
+  photoRow: { flexDirection: "row", gap: 10, marginBottom: 16 },
+  photoPreview: { width: 120, height: 90, borderRadius: 10 },
+  photoAnalyzingOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 10,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+  photoAnalyzingText: { color: "#fff", fontSize: 12, fontWeight: "600" },
+  photoRemove: {
+    position: "absolute",
+    top: 4,
+    right: 4,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  photoBtn: {
+    flex: 1,
+    backgroundColor: "#EDF2F7",
+    borderRadius: 10,
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+  photoBtnText: { fontSize: 14, fontWeight: "600", color: "#4A5568" },
+  label: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#4A5568",
+    marginBottom: 6,
+    marginTop: 12,
+  },
+  input: {
+    height: 44,
+    borderWidth: 1.5,
+    borderColor: "#E2E8F0",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    fontSize: 15,
+    color: "#2D3748",
+    backgroundColor: "#F7FAFC",
+    marginBottom: 4,
+  },
+  macroGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    marginBottom: 4,
+  },
+  macroField: { width: "47%" },
+  macroLabel: { fontSize: 12, fontWeight: "600", marginBottom: 4 },
+  macroInput: {
+    height: 40,
+    borderWidth: 1.5,
+    borderColor: "#E2E8F0",
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    fontSize: 15,
+    color: "#2D3748",
+    backgroundColor: "#F7FAFC",
+  },
+  kcalHint: { fontSize: 11, color: "#A0AEC0", marginBottom: 16 },
+  saveBtn: {
+    backgroundColor: "#4CAF50",
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  saveBtnText: { color: "#fff", fontSize: 16, fontWeight: "600" },
 });
 
 const mealStyles = StyleSheet.create({
