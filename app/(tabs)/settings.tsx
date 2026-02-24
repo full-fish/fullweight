@@ -1,4 +1,6 @@
+import { PaywallModal } from "@/components/paywall-modal";
 import { useKeyboardOffset } from "@/hooks/use-keyboard-offset";
+import { usePro } from "@/hooks/use-pro";
 import {
   AiModelOption,
   BodyPhotoQuality,
@@ -481,6 +483,8 @@ function CalendarPopup({
 /* ───── 메인 화면 ───── */
 
 export default function SettingsScreen() {
+  const { isPro, loading: proLoading, refresh: refreshPro } = usePro();
+  const [paywallVisible, setPaywallVisible] = useState(false);
   const [recordCount, setRecordCount] = useState(0);
   const [height, setHeight] = useState("");
   const [birthDate, setBirthDate] = useState("");
@@ -924,7 +928,104 @@ export default function SettingsScreen() {
 
   return (
     <View style={{ flex: 1 }}>
+      <PaywallModal
+        visible={paywallVisible}
+        onClose={() => {
+          setPaywallVisible(false);
+          refreshPro();
+        }}
+      />
       <ScrollView style={s.container} contentContainerStyle={s.content}>
+        {/* ─── PRO 구독 ─── */}
+        {!proLoading && (
+          <>
+            {isPro ? (
+              /* 구독 중인 경우 */
+              <View
+                style={[
+                  s.card,
+                  {
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 12,
+                    backgroundColor: "#F0FFF4",
+                    borderWidth: 1,
+                    borderColor: "#68D391",
+                    marginBottom: 16,
+                  },
+                ]}
+              >
+                <Text style={{ fontSize: 28 }}>⭐</Text>
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{
+                      fontSize: 15,
+                      fontWeight: "700",
+                      color: "#276749",
+                    }}
+                  >
+                    PRO 구독 중
+                  </Text>
+                  <Text
+                    style={{ fontSize: 13, color: "#48BB78", marginTop: 2 }}
+                  >
+                    모든 기능을 자유롭게 사용할 수 있어요
+                  </Text>
+                </View>
+              </View>
+            ) : (
+              /* 미구독 — 업그레이드 배너 */
+              <TouchableOpacity
+                style={[
+                  s.card,
+                  {
+                    backgroundColor: "#1A202C",
+                    marginBottom: 16,
+                    overflow: "hidden",
+                  },
+                ]}
+                onPress={() => setPaywallVisible(true)}
+                activeOpacity={0.85}
+              >
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 12,
+                  }}
+                >
+                  <Text style={{ fontSize: 30 }}>⭐</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      style={{
+                        fontSize: 16,
+                        fontWeight: "800",
+                        color: "#fff",
+                      }}
+                    >
+                      PRO로 업그레이드
+                    </Text>
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        color: "rgba(255,255,255,0.65)",
+                        marginTop: 3,
+                      }}
+                    >
+                      광고 제거 · AI 분석 무제한 · 모든 기능 개방
+                    </Text>
+                  </View>
+                  <Ionicons
+                    name="chevron-forward"
+                    size={20}
+                    color="rgba(255,255,255,0.5)"
+                  />
+                </View>
+              </TouchableOpacity>
+            )}
+          </>
+        )}
+
         {/* ─── 프로필 ─── */}
         <Text style={s.sectionHeader}>프로필</Text>
 

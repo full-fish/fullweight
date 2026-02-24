@@ -13,7 +13,9 @@ import "react-native-reanimated";
 
 import LockScreen from "@/components/lock-screen";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { ProProvider } from "@/hooks/use-pro";
 import { performBackup, shouldAutoBackup } from "@/utils/backup";
+import { initPurchases } from "@/utils/purchases";
 import { loadUserSettings } from "@/utils/storage";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, InteractionManager, View } from "react-native";
@@ -57,6 +59,11 @@ export default function RootLayout() {
     }
   }, [fontsLoaded, fontError, lockChecked]);
 
+  /* ── RevenueCat 초기화 (앱 시작 시 1회) ── */
+  useEffect(() => {
+    initPurchases();
+  }, []);
+
   /* ── 앱 시작 시 자동 백업 (UI 렌더 완료 후, 백그라운드 실행) ── */
   const backupDone = useRef(false);
   useEffect(() => {
@@ -99,30 +106,34 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-        <Stack>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen
-            name="modal"
-            options={{ presentation: "modal", title: "Modal" }}
-          />
-        </Stack>
-        <StatusBar style="auto" />
-      </ThemeProvider>
-      {locked && (
-        <View
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            zIndex: 9999,
-          }}
+      <ProProvider>
+        <ThemeProvider
+          value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
         >
-          <LockScreen onUnlock={() => setLocked(false)} />
-        </View>
-      )}
+          <Stack>
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen
+              name="modal"
+              options={{ presentation: "modal", title: "Modal" }}
+            />
+          </Stack>
+          <StatusBar style="auto" />
+        </ThemeProvider>
+        {locked && (
+          <View
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: 9999,
+            }}
+          >
+            <LockScreen onUnlock={() => setLocked(false)} />
+          </View>
+        )}
+      </ProProvider>
     </GestureHandlerRootView>
   );
 }
