@@ -567,11 +567,16 @@ export default function ChallengeScreen() {
   const [history, setHistory] = useState<ChallengeHistory[]>([]);
 
   /* 폼 상태 */
+  const [fCurrentWeight, setFCurrentWeight] = useState("");
+  const [fCurrentMuscleMass, setFCurrentMuscleMass] = useState("");
+  const [fCurrentBodyFatMass, setFCurrentBodyFatMass] = useState("");
   const [fTargetWeight, setFTargetWeight] = useState("");
   const [fTargetMuscleMass, setFTargetMuscleMass] = useState("");
   const [fTargetBodyFatMass, setFTargetBodyFatMass] = useState("");
   const [fTargetBodyFatPercent, setFTargetBodyFatPercent] = useState("");
   const [fEndDate, setFEndDate] = useState("");
+  const [enableMuscleMass, setEnableMuscleMass] = useState(false);
+  const [enableBodyFatMass, setEnableBodyFatMass] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -583,9 +588,23 @@ export default function ChallengeScreen() {
     }, [])
   );
 
-  /* 시작 시점 수치 (챌린지 시작일 근처 기록) */
+  /* 시작 시점 수치 (챌린지에 저장된 start값 우선, 없으면 시작일 근처 기록) */
   const startValues = useMemo(() => {
     if (!challenge) return null;
+    const saved = {
+      weight: challenge.startWeight,
+      muscleMass: challenge.startMuscleMass,
+      bodyFatMass: challenge.startBodyFatMass,
+      bodyFatPercent: challenge.startBodyFatPercent,
+    };
+    // 저장된 값이 하나라도 있으면 그대로 사용
+    if (
+      saved.weight != null ||
+      saved.muscleMass != null ||
+      saved.bodyFatMass != null
+    )
+      return saved;
+    // fallback: 시작일 근처 기록
     const rec = records.find((r) => r.date >= challenge.startDate);
     if (!rec) return null;
     return {
@@ -596,16 +615,30 @@ export default function ChallengeScreen() {
     };
   }, [challenge, records]);
 
-  /* 현재 수치 (가장 최근 기록) */
+  /* 현재 수치 (각 수치의 가장 최근 유효값) */
   const currentValues = useMemo(() => {
     if (records.length === 0) return null;
-    const latest = records[records.length - 1];
-    return {
-      weight: latest.weight,
-      muscleMass: latest.muscleMass,
-      bodyFatMass: latest.bodyFatMass,
-      bodyFatPercent: latest.bodyFatPercent,
-    };
+    let weight: number | undefined;
+    let muscleMass: number | undefined;
+    let bodyFatMass: number | undefined;
+    let bodyFatPercent: number | undefined;
+    for (let i = records.length - 1; i >= 0; i--) {
+      const r = records[i];
+      if (weight == null && r.weight) weight = r.weight;
+      if (muscleMass == null && r.muscleMass != null) muscleMass = r.muscleMass;
+      if (bodyFatMass == null && r.bodyFatMass != null)
+        bodyFatMass = r.bodyFatMass;
+      if (bodyFatPercent == null && r.bodyFatPercent != null)
+        bodyFatPercent = r.bodyFatPercent;
+      if (
+        weight != null &&
+        muscleMass != null &&
+        bodyFatMass != null &&
+        bodyFatPercent != null
+      )
+        break;
+    }
+    return { weight: weight!, muscleMass, bodyFatMass, bodyFatPercent };
   }, [records]);
 
   const today = getLocalDateString();
@@ -619,29 +652,84 @@ export default function ChallengeScreen() {
 
   /* 폼 초기화 */
   const openForm = (existing?: Challenge) => {
+    // 최근 기록에서 각 수치의 가장 최근 유효값을 가져옴
+    let prefillWeight = "";
+    let prefillMuscle = "";
+    let prefillFatMass = "";
+    for (let i = records.length - 1; i >= 0; i--) {
+      const r = records[i];
+      if (!prefillWeight && r.weight) prefillWeight = r.weight.toFixed(1);
+      if (!prefillMuscle && r.muscleMass)
+        prefillMuscle = r.muscleMass.toFixed(1);
+      if (!prefillFatMass && r.bodyFatMass)
+        prefillFatMass = r.bodyFatMass.toFixed(1);
+      if (prefillWeight && prefillMuscle && prefillFatMass) break;
+    }
+
     if (existing) {
-      setFTargetWeight(existing.targetWeight?.toString() ?? "");
-      setFTargetMuscleMass(existing.targetMuscleMass?.toString() ?? "");
-      setFTargetBodyFatMass(existing.targetBodyFatMass?.toString() ?? "");
-      setFTargetBodyFatPercent(existing.targetBodyFatPercent?.toString() ?? "");
+      // 현재값: 저장된 start값이 있으면 사용, 없으면 최근 기록값
+      setFCurrentWeight(existing.startWeight?.toString() ?? prefillWeight);
+      setFCurrentMuscleMass(
+        existing.startMuscleMass?.toString() ?? prefillMuscle
+      );
+      setFCurrentBodyFatMass(
+        existing.startBodyFatMass?.toString() ?? prefillFatMass
+      );
+      setFTargetWeight(
+        existing.targetWeight?.toString() ??
+          existing.startWeight?.toString() ??
+          prefillWeight
+      );
+      setFTargetMuscleMass(
+        existing.targetMuscleMass?.toString() ??
+          existing.startMuscleMass?.toString() ??
+          prefillMuscle
+      );
+      setFTargetBodyFatMass(
+        existing.targetBodyFatMass?.toString() ??
+          existing.startBodyFatMass?.toString() ??
+          prefillFatMass
+      );
+      setFTargetBodyFatPercent(
+        (() => {
+          if (existing.targetBodyFatPercent != null)
+            return existing.targetBodyFatPercent.toString();
+          // 목표 체지방량과 목표 몸무게로 자동 계산
+          const tw = parseFloat(
+            existing.targetWeight?.toString() ??
+              existing.startWeight?.toString() ??
+              prefillWeight
+          );
+          const fm = parseFloat(
+            existing.targetBodyFatMass?.toString() ??
+              existing.startBodyFatMass?.toString() ??
+              prefillFatMass
+          );
+          if (!isNaN(tw) && tw > 0 && !isNaN(fm) && fm >= 0)
+            return ((fm / tw) * 100).toFixed(1);
+          return "";
+        })()
+      );
       setFEndDate(existing.endDate);
+      // 골격근량/체지방량 토글: 값이 있으면 활성화
+      setEnableMuscleMass(
+        existing.targetMuscleMass != null || existing.startMuscleMass != null
+      );
+      setEnableBodyFatMass(
+        existing.targetBodyFatMass != null || existing.startBodyFatMass != null
+      );
     } else {
-      // 최근 기록에서 각 수치의 가장 최근 유효값을 가져옴
-      let prefillWeight = "";
-      let prefillMuscle = "";
-      let prefillFatMass = "";
-      for (let i = records.length - 1; i >= 0; i--) {
-        const r = records[i];
-        if (!prefillWeight && r.weight) prefillWeight = r.weight.toFixed(1);
-        if (!prefillMuscle && r.muscleMass)
-          prefillMuscle = r.muscleMass.toFixed(1);
-        if (!prefillFatMass && r.bodyFatMass)
-          prefillFatMass = r.bodyFatMass.toFixed(1);
-        if (prefillWeight && prefillMuscle && prefillFatMass) break;
-      }
+      // 현재값: 최근 기록값으로 프리필
+      setFCurrentWeight(prefillWeight);
+      setFCurrentMuscleMass(prefillMuscle);
+      setFCurrentBodyFatMass(prefillFatMass);
+      // 목표값: 최근 기록값으로 프리필
       setFTargetWeight(prefillWeight);
       setFTargetMuscleMass(prefillMuscle);
       setFTargetBodyFatMass(prefillFatMass);
+      // 초기에는 비활성
+      setEnableMuscleMass(false);
+      setEnableBodyFatMass(false);
       // 체지방률 자동 계산
       const tw = parseFloat(prefillWeight);
       const fm = parseFloat(prefillFatMass);
@@ -672,30 +760,41 @@ export default function ChallengeScreen() {
       return;
     }
 
-    const latestRecord =
-      records.length > 0 ? records[records.length - 1] : null;
-
     const newChallenge: Challenge = {
       id: challenge?.id ?? Date.now().toString(),
       startDate: challenge?.startDate ?? today,
       endDate: fEndDate,
       createdAt: challenge?.createdAt ?? new Date().toISOString(),
-      startWeight: challenge?.startWeight ?? latestRecord?.weight,
-      startMuscleMass: challenge?.startMuscleMass ?? latestRecord?.muscleMass,
+      startWeight: fCurrentWeight ? parseFloat(fCurrentWeight) : undefined,
+      startMuscleMass:
+        enableMuscleMass && fCurrentMuscleMass
+          ? parseFloat(fCurrentMuscleMass)
+          : undefined,
       startBodyFatMass:
-        challenge?.startBodyFatMass ?? latestRecord?.bodyFatMass,
-      startBodyFatPercent:
-        challenge?.startBodyFatPercent ?? latestRecord?.bodyFatPercent,
+        enableBodyFatMass && fCurrentBodyFatMass
+          ? parseFloat(fCurrentBodyFatMass)
+          : undefined,
+      startBodyFatPercent: (() => {
+        if (!enableBodyFatMass) return undefined;
+        const cw = parseFloat(fCurrentWeight);
+        const cfm = parseFloat(fCurrentBodyFatMass);
+        if (!isNaN(cw) && cw > 0 && !isNaN(cfm) && cfm >= 0)
+          return parseFloat(((cfm / cw) * 100).toFixed(1));
+        return challenge?.startBodyFatPercent;
+      })(),
       targetWeight: fTargetWeight ? parseFloat(fTargetWeight) : undefined,
-      targetMuscleMass: fTargetMuscleMass
-        ? parseFloat(fTargetMuscleMass)
-        : undefined,
-      targetBodyFatMass: fTargetBodyFatMass
-        ? parseFloat(fTargetBodyFatMass)
-        : undefined,
-      targetBodyFatPercent: fTargetBodyFatPercent
-        ? parseFloat(fTargetBodyFatPercent)
-        : undefined,
+      targetMuscleMass:
+        enableMuscleMass && fTargetMuscleMass
+          ? parseFloat(fTargetMuscleMass)
+          : undefined,
+      targetBodyFatMass:
+        enableBodyFatMass && fTargetBodyFatMass
+          ? parseFloat(fTargetBodyFatMass)
+          : undefined,
+      targetBodyFatPercent:
+        enableBodyFatMass && fTargetBodyFatPercent
+          ? parseFloat(fTargetBodyFatPercent)
+          : undefined,
     };
 
     await saveChallenge(newChallenge);
@@ -713,15 +812,35 @@ export default function ChallengeScreen() {
         onPress: async () => {
           // Save to history before deleting
           if (challenge) {
-            const latestRecord =
-              records.length > 0 ? records[records.length - 1] : null;
+            // 각 수치별 가장 최근 유효값 찾기
+            let endWeight: number | undefined;
+            let endMuscleMass: number | undefined;
+            let endBodyFatMass: number | undefined;
+            let endBodyFatPercent: number | undefined;
+            for (let i = records.length - 1; i >= 0; i--) {
+              const r = records[i];
+              if (endWeight == null && r.weight) endWeight = r.weight;
+              if (endMuscleMass == null && r.muscleMass != null)
+                endMuscleMass = r.muscleMass;
+              if (endBodyFatMass == null && r.bodyFatMass != null)
+                endBodyFatMass = r.bodyFatMass;
+              if (endBodyFatPercent == null && r.bodyFatPercent != null)
+                endBodyFatPercent = r.bodyFatPercent;
+              if (
+                endWeight != null &&
+                endMuscleMass != null &&
+                endBodyFatMass != null &&
+                endBodyFatPercent != null
+              )
+                break;
+            }
             const historyEntry: ChallengeHistory = {
               id: challenge.id,
               challenge: { ...challenge },
-              endWeight: latestRecord?.weight,
-              endMuscleMass: latestRecord?.muscleMass,
-              endBodyFatMass: latestRecord?.bodyFatMass,
-              endBodyFatPercent: latestRecord?.bodyFatPercent,
+              endWeight,
+              endMuscleMass,
+              endBodyFatMass,
+              endBodyFatPercent,
               overallProgress: overallProgress,
               completedAt: new Date().toISOString(),
             };
@@ -737,80 +856,66 @@ export default function ChallengeScreen() {
 
   /* 전체 달성도 평균 */
   const overallProgress = useMemo(() => {
-    if (!challenge || !startValues || !currentValues) return null;
+    if (!challenge || !currentValues) return null;
     const items: number[] = [];
-    if (challenge.targetWeight != null && startValues.weight != null) {
-      const total = challenge.targetWeight - startValues.weight;
+
+    const effStartWeight = challenge.startWeight ?? startValues?.weight;
+    if (challenge.targetWeight != null && effStartWeight != null) {
+      const total = challenge.targetWeight - effStartWeight;
       if (total !== 0) {
         items.push(
           Math.max(
             0,
             Math.min(
               100,
-              ((currentValues.weight - startValues.weight) / total) * 100
+              ((currentValues.weight - effStartWeight) / total) * 100
             )
           )
         );
       }
     }
+
+    const effStartMuscle = challenge.startMuscleMass ?? startValues?.muscleMass;
     if (
       challenge.targetMuscleMass != null &&
-      startValues.muscleMass != null &&
+      effStartMuscle != null &&
       currentValues.muscleMass != null
     ) {
-      const total = challenge.targetMuscleMass - startValues.muscleMass;
+      const total = challenge.targetMuscleMass - effStartMuscle;
       if (total !== 0) {
         items.push(
           Math.max(
             0,
             Math.min(
               100,
-              ((currentValues.muscleMass - startValues.muscleMass) / total) *
-                100
+              ((currentValues.muscleMass - effStartMuscle) / total) * 100
             )
           )
         );
       }
     }
+
+    const effStartBodyFatMass =
+      challenge.startBodyFatMass ?? startValues?.bodyFatMass;
     if (
       challenge.targetBodyFatMass != null &&
-      startValues.bodyFatMass != null &&
+      effStartBodyFatMass != null &&
       currentValues.bodyFatMass != null
     ) {
-      const total = challenge.targetBodyFatMass - startValues.bodyFatMass;
+      const total = challenge.targetBodyFatMass - effStartBodyFatMass;
       if (total !== 0) {
         items.push(
           Math.max(
             0,
             Math.min(
               100,
-              ((currentValues.bodyFatMass - startValues.bodyFatMass) / total) *
-                100
+              ((currentValues.bodyFatMass - effStartBodyFatMass) / total) * 100
             )
           )
         );
       }
     }
-    if (
-      challenge.targetBodyFatPercent != null &&
-      startValues.bodyFatPercent != null &&
-      currentValues.bodyFatPercent != null
-    ) {
-      const total = challenge.targetBodyFatPercent - startValues.bodyFatPercent;
-      if (total !== 0) {
-        items.push(
-          Math.max(
-            0,
-            Math.min(
-              100,
-              ((currentValues.bodyFatPercent - startValues.bodyFatPercent) /
-                total) *
-                100
-            )
-          )
-        );
-      }
-    }
+
     if (items.length === 0) return null;
     return Math.round(items.reduce((a, b) => a + b, 0) / items.length);
   }, [challenge, startValues, currentValues]);
@@ -1023,29 +1128,40 @@ export default function ChallengeScreen() {
                 unit="kg"
                 color={METRIC_COLORS.muscleMass}
               />
-              <ProgressBar
-                label="체지방량"
-                start={challenge.startBodyFatMass ?? startValues?.bodyFatMass}
-                current={currentValues?.bodyFatMass}
-                target={challenge.targetBodyFatMass}
-                unit="kg"
-                color={METRIC_COLORS.bodyFatMass}
-              />
-              <ProgressBar
-                label="체지방률"
-                start={
-                  challenge.startBodyFatPercent ?? startValues?.bodyFatPercent
-                }
-                current={currentValues?.bodyFatPercent}
-                target={challenge.targetBodyFatPercent}
-                unit="%"
-                color={METRIC_COLORS.bodyFatPercent}
-              />
+              {(() => {
+                const sW = challenge.startWeight ?? startValues?.weight;
+                const sFM =
+                  challenge.startBodyFatMass ?? startValues?.bodyFatMass;
+                const cW = currentValues?.weight;
+                const cFM = currentValues?.bodyFatMass;
+                const tW = challenge.targetWeight;
+                const tFM = challenge.targetBodyFatMass;
+                return (
+                  <ProgressBar
+                    label="체지방량"
+                    start={
+                      challenge.startBodyFatMass ?? startValues?.bodyFatMass
+                    }
+                    current={currentValues?.bodyFatMass}
+                    target={challenge.targetBodyFatMass}
+                    unit="kg"
+                    color={METRIC_COLORS.bodyFatMass}
+                    pctStart={
+                      sW && sFM ? ((sFM / sW) * 100).toFixed(1) : undefined
+                    }
+                    pctCurrent={
+                      cW && cFM ? ((cFM / cW) * 100).toFixed(1) : undefined
+                    }
+                    pctTarget={
+                      tW && tFM ? ((tFM / tW) * 100).toFixed(1) : undefined
+                    }
+                  />
+                );
+              })()}
 
               {!challenge.targetWeight &&
                 !challenge.targetMuscleMass &&
-                !challenge.targetBodyFatMass &&
-                !challenge.targetBodyFatPercent && (
+                !challenge.targetBodyFatMass && (
                   <Text style={st.noTarget}>
                     설정된 목표가 없습니다. 수정 버튼을 눌러 목표를 추가하세요.
                   </Text>
@@ -1251,83 +1367,160 @@ export default function ChallengeScreen() {
                     {challenge ? "챌린지 수정" : "새 챌린지"}
                   </Text>
 
-                  <Text style={st.formLabel}>목표 몸무게 (kg)</Text>
-                  <StepInput
-                    value={fTargetWeight}
-                    onChangeText={(v) => {
-                      setFTargetWeight(v);
-                      // 체지방량이 있으면 체지방률 자동 계산
-                      const tw = parseFloat(v);
-                      const fm = parseFloat(fTargetBodyFatMass);
-                      if (!isNaN(tw) && tw > 0 && !isNaN(fm) && fm >= 0) {
-                        setFTargetBodyFatPercent(((fm / tw) * 100).toFixed(1));
-                      }
-                    }}
-                    placeholder="예: 70.0"
-                  />
-
-                  <Text style={st.formLabel}>목표 골격근량 (kg)</Text>
-                  <StepInput
-                    value={fTargetMuscleMass}
-                    onChangeText={setFTargetMuscleMass}
-                    placeholder="예: 35.0"
-                  />
-
-                  <Text style={st.formLabel}>목표 체지방량 (kg)</Text>
-                  <View style={{ flexDirection: "row", alignItems: "center" }}>
-                    <View style={{ flex: 1 }}>
+                  {/* ── 몸무게 ── */}
+                  <Text style={st.formSectionTitle}>몸무게 (kg)</Text>
+                  <View style={st.formDualRow}>
+                    <View style={st.formDualCol}>
+                      <Text style={st.formSubLabel}>현재</Text>
                       <StepInput
-                        value={fTargetBodyFatMass}
+                        value={fCurrentWeight}
+                        onChangeText={setFCurrentWeight}
+                        placeholder="0.0"
+                      />
+                    </View>
+                    <Text style={st.formArrow}>→</Text>
+                    <View style={st.formDualCol}>
+                      <Text style={st.formSubLabel}>목표</Text>
+                      <StepInput
+                        value={fTargetWeight}
                         onChangeText={(v) => {
-                          setFTargetBodyFatMass(v);
-                          // 목표 몸무게가 있으면 체지방률 자동 계산
-                          const tw = parseFloat(fTargetWeight);
-                          const fm = parseFloat(v);
+                          setFTargetWeight(v);
+                          const tw = parseFloat(v);
+                          const fm = parseFloat(fTargetBodyFatMass);
                           if (!isNaN(tw) && tw > 0 && !isNaN(fm) && fm >= 0) {
                             setFTargetBodyFatPercent(
                               ((fm / tw) * 100).toFixed(1)
                             );
-                          } else {
-                            setFTargetBodyFatPercent("");
                           }
                         }}
-                        placeholder="예: 12.0"
+                        placeholder="0.0"
                       />
                     </View>
-                    {fTargetBodyFatPercent ? (
-                      <View
-                        style={{
-                          marginLeft: 10,
-                          backgroundColor: "#EBF8FF",
-                          paddingHorizontal: 10,
-                          paddingVertical: 8,
-                          borderRadius: 10,
-                          marginBottom: 14,
-                          alignItems: "center",
-                        }}
-                      >
-                        <Text
-                          style={{
-                            fontSize: 10,
-                            fontWeight: "500",
-                            color: "#63B3ED",
-                            marginBottom: 2,
-                          }}
-                        >
-                          체지방률
-                        </Text>
-                        <Text
-                          style={{
-                            fontSize: 14,
-                            fontWeight: "700",
-                            color: "#3182CE",
-                          }}
-                        >
-                          {fTargetBodyFatPercent}%
-                        </Text>
-                      </View>
-                    ) : null}
                   </View>
+
+                  {/* ── 골격근량 (선택) ── */}
+                  <TouchableOpacity
+                    style={st.formToggleRow}
+                    onPress={() => setEnableMuscleMass(!enableMuscleMass)}
+                    activeOpacity={0.7}
+                  >
+                    <View
+                      style={[
+                        st.formCheckbox,
+                        enableMuscleMass && st.formCheckboxActive,
+                      ]}
+                    >
+                      {enableMuscleMass && (
+                        <Text style={st.formCheckmark}>✓</Text>
+                      )}
+                    </View>
+                    <Text
+                      style={[
+                        st.formSectionTitle,
+                        { marginTop: 0, marginBottom: 0 },
+                      ]}
+                    >
+                      골격근량 (kg)
+                    </Text>
+                    <Text style={st.formOptional}>선택</Text>
+                  </TouchableOpacity>
+                  {enableMuscleMass && (
+                    <View style={st.formDualRow}>
+                      <View style={st.formDualCol}>
+                        <Text style={st.formSubLabel}>현재</Text>
+                        <StepInput
+                          value={fCurrentMuscleMass}
+                          onChangeText={setFCurrentMuscleMass}
+                          placeholder="0.0"
+                        />
+                      </View>
+                      <Text style={st.formArrow}>→</Text>
+                      <View style={st.formDualCol}>
+                        <Text style={st.formSubLabel}>목표</Text>
+                        <StepInput
+                          value={fTargetMuscleMass}
+                          onChangeText={setFTargetMuscleMass}
+                          placeholder="0.0"
+                        />
+                      </View>
+                    </View>
+                  )}
+
+                  {/* ── 체지방량 (선택) ── */}
+                  <TouchableOpacity
+                    style={st.formToggleRow}
+                    onPress={() => setEnableBodyFatMass(!enableBodyFatMass)}
+                    activeOpacity={0.7}
+                  >
+                    <View
+                      style={[
+                        st.formCheckbox,
+                        enableBodyFatMass && st.formCheckboxActive,
+                      ]}
+                    >
+                      {enableBodyFatMass && (
+                        <Text style={st.formCheckmark}>✓</Text>
+                      )}
+                    </View>
+                    <Text
+                      style={[
+                        st.formSectionTitle,
+                        { marginTop: 0, marginBottom: 0 },
+                      ]}
+                    >
+                      체지방량 (kg)
+                    </Text>
+                    <Text style={st.formOptional}>선택</Text>
+                  </TouchableOpacity>
+                  {enableBodyFatMass && (
+                    <>
+                      <View style={st.formDualRow}>
+                        <View style={st.formDualCol}>
+                          <Text style={st.formSubLabel}>현재</Text>
+                          <StepInput
+                            value={fCurrentBodyFatMass}
+                            onChangeText={setFCurrentBodyFatMass}
+                            placeholder="0.0"
+                          />
+                        </View>
+                        <Text style={st.formArrow}>→</Text>
+                        <View style={st.formDualCol}>
+                          <Text style={st.formSubLabel}>목표</Text>
+                          <StepInput
+                            value={fTargetBodyFatMass}
+                            onChangeText={(v) => {
+                              setFTargetBodyFatMass(v);
+                              const tw = parseFloat(fTargetWeight);
+                              const fm = parseFloat(v);
+                              if (
+                                !isNaN(tw) &&
+                                tw > 0 &&
+                                !isNaN(fm) &&
+                                fm >= 0
+                              ) {
+                                setFTargetBodyFatPercent(
+                                  ((fm / tw) * 100).toFixed(1)
+                                );
+                              } else {
+                                setFTargetBodyFatPercent("");
+                              }
+                            }}
+                            placeholder="0.0"
+                          />
+                        </View>
+                      </View>
+                      {fTargetBodyFatPercent ? (
+                        <View style={st.formFatPercentBadge}>
+                          <Text style={st.formFatPercentLabel}>
+                            목표 체지방률
+                          </Text>
+                          <Text style={st.formFatPercentValue}>
+                            {fTargetBodyFatPercent}%
+                          </Text>
+                        </View>
+                      ) : null}
+                    </>
+                  )}
 
                   <DateCalendarPicker
                     label="목표 종료일"
@@ -1416,29 +1609,6 @@ export default function ChallengeScreen() {
                 });
               }
               if (
-                c.startBodyFatPercent != null &&
-                c.targetBodyFatPercent != null &&
-                h.endBodyFatPercent != null
-              ) {
-                const total = c.targetBodyFatPercent - c.startBodyFatPercent;
-                const pct =
-                  total !== 0
-                    ? Math.round(
-                        ((h.endBodyFatPercent - c.startBodyFatPercent) /
-                          total) *
-                          100
-                      )
-                    : 0;
-                metrics.push({
-                  label: "체지방률",
-                  unit: "%",
-                  start: c.startBodyFatPercent,
-                  target: c.targetBodyFatPercent,
-                  end: h.endBodyFatPercent,
-                  pct,
-                });
-              }
-              if (
                 c.startBodyFatMass != null &&
                 c.targetBodyFatMass != null &&
                 h.endBodyFatMass != null
@@ -1459,6 +1629,7 @@ export default function ChallengeScreen() {
                   pct,
                 });
               }
+              // 체지방률 별도 행은 더 이상 사용하지 않음 (체지방량에 통합 표시)
 
               const avgPct =
                 metrics.length > 0
@@ -1507,37 +1678,67 @@ export default function ChallengeScreen() {
                   {/* 수치별 상세 */}
                   {metrics.length > 0 && (
                     <View style={st.hMetrics}>
-                      {metrics.map((m) => (
-                        <View key={m.label} style={st.hMetricRow}>
-                          <View style={st.hMetricLabelRow}>
-                            <Text style={st.hMetricLabel}>{m.label}</Text>
-                            <Text style={st.hMetricLabelTarget}>
-                              (목표 {m.target}
-                              {m.unit})
-                            </Text>
+                      {metrics.map((m) => {
+                        // 체지방량일 때 kg 옆에 체지방률 % 계산
+                        const fatPctStart =
+                          m.label === "체지방량" && c.startWeight && m.start
+                            ? ((m.start / c.startWeight) * 100).toFixed(1)
+                            : null;
+                        const fatPctEnd =
+                          m.label === "체지방량" && h.endWeight && m.end
+                            ? ((m.end / h.endWeight) * 100).toFixed(1)
+                            : null;
+                        const fatPctTarget =
+                          m.label === "체지방량" && c.targetWeight && m.target
+                            ? ((m.target / c.targetWeight) * 100).toFixed(1)
+                            : null;
+                        return (
+                          <View key={m.label} style={st.hMetricRow}>
+                            <View style={st.hMetricLabelRow}>
+                              <Text style={st.hMetricLabel}>{m.label}</Text>
+                              <Text style={st.hMetricLabelTarget}>
+                                (목표 {m.target}
+                                {m.unit}
+                                {fatPctTarget ? ` · ${fatPctTarget}%` : ""})
+                              </Text>
+                            </View>
+                            <View style={st.hMetricValues}>
+                              <Text style={st.hMetricValue}>
+                                {m.start}
+                                {m.unit}
+                                {fatPctStart ? (
+                                  <Text
+                                    style={{ color: "#718096", fontSize: 10 }}
+                                  >{` (${fatPctStart}%)`}</Text>
+                                ) : (
+                                  ""
+                                )}
+                              </Text>
+                              <Text style={st.hMetricArrow}> → </Text>
+                              <Text style={st.hMetricValue}>
+                                {m.end}
+                                {m.unit}
+                                {fatPctEnd ? (
+                                  <Text
+                                    style={{ color: "#718096", fontSize: 10 }}
+                                  >{` (${fatPctEnd}%)`}</Text>
+                                ) : (
+                                  ""
+                                )}
+                              </Text>
+                              <Text
+                                style={[
+                                  st.hMetricPct,
+                                  { color: metricPctColor(m.pct) },
+                                ]}
+                              >
+                                {m.pct > 0 ? "+" : ""}
+                                {m.pct}%
+                              </Text>
+                            </View>
                           </View>
-                          <View style={st.hMetricValues}>
-                            <Text style={st.hMetricValue}>
-                              {m.start}
-                              {m.unit}
-                            </Text>
-                            <Text style={st.hMetricArrow}> → </Text>
-                            <Text style={st.hMetricValue}>
-                              {m.end}
-                              {m.unit}
-                            </Text>
-                            <Text
-                              style={[
-                                st.hMetricPct,
-                                { color: metricPctColor(m.pct) },
-                              ]}
-                            >
-                              {m.pct > 0 ? "+" : ""}
-                              {m.pct}%
-                            </Text>
-                          </View>
-                        </View>
-                      ))}
+                        );
+                      })}
                     </View>
                   )}
                 </View>
@@ -1713,6 +1914,89 @@ const st = StyleSheet.create({
     color: "#4A5568",
     marginBottom: 4,
     marginTop: 12,
+  },
+  formSectionTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#2D3748",
+    marginTop: 16,
+    marginBottom: 6,
+  },
+  formOptional: {
+    fontSize: 11,
+    fontWeight: "400",
+    color: "#A0AEC0",
+  },
+  formDualRow: {
+    flexDirection: "row" as const,
+    alignItems: "flex-end" as const,
+    gap: 6,
+    marginBottom: 2,
+  },
+  formDualCol: {
+    flex: 1,
+  },
+  formSubLabel: {
+    fontSize: 11,
+    fontWeight: "500" as const,
+    color: "#718096",
+    marginBottom: 2,
+    textAlign: "center" as const,
+  },
+  formArrow: {
+    fontSize: 16,
+    fontWeight: "700" as const,
+    color: "#A0AEC0",
+    marginBottom: 20,
+    marginHorizontal: 2,
+  },
+  formFatPercentBadge: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    alignSelf: "flex-end" as const,
+    backgroundColor: "#EBF8FF",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+    gap: 6,
+    marginBottom: 4,
+  },
+  formFatPercentLabel: {
+    fontSize: 11,
+    fontWeight: "500" as const,
+    color: "#63B3ED",
+  },
+  formFatPercentValue: {
+    fontSize: 14,
+    fontWeight: "700" as const,
+    color: "#3182CE",
+  },
+  formToggleRow: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    gap: 8,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  formCheckbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: "#CBD5E0",
+    backgroundColor: "#F7FAFC",
+    justifyContent: "center" as const,
+    alignItems: "center" as const,
+  },
+  formCheckboxActive: {
+    borderColor: "#4CAF50",
+    backgroundColor: "#E8F5E9",
+  },
+  formCheckmark: {
+    fontSize: 14,
+    fontWeight: "700" as const,
+    color: "#4CAF50",
+    marginTop: -1,
   },
   formInput: {
     height: 44,

@@ -9,6 +9,7 @@ export type WeightRecord = {
   exercised: boolean;
   drank: boolean;
   photoUri?: string; // 바디 사진 로컬 URI (선택)
+  memo?: string; // 메모 (선택)
   customValues?: Record<string, number>; // 사용자 정의 수치
   customBoolValues?: Record<string, boolean>; // 사용자 정의 체크항목
 };

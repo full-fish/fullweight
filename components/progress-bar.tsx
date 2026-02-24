@@ -8,6 +8,9 @@ export function ProgressBar({
   target,
   unit,
   color,
+  pctStart,
+  pctCurrent,
+  pctTarget,
 }: {
   label: string;
   start: number | undefined;
@@ -15,38 +18,55 @@ export function ProgressBar({
   target: number | undefined;
   unit: string;
   color: string;
+  /** 시작/현재/목표 옆에 (%)로 표시할 값 (체지방량 등) */
+  pctStart?: string;
+  pctCurrent?: string;
+  pctTarget?: string;
 }) {
-  if (start == null || current == null || target == null) return null;
-  const total = target - start;
-  const progress = total !== 0 ? ((current - start) / total) * 100 : 0;
+  if (target == null) return null;
+  const hasData = start != null && current != null;
+  const total = hasData ? target - start : 0;
+  const progress =
+    hasData && total !== 0 ? ((current - start) / total) * 100 : 0;
   const clamped = Math.max(0, Math.min(100, progress));
-  const isAchieved = clamped >= 100;
+  const isAchieved = hasData && clamped >= 100;
 
   return (
     <View style={ps.container}>
       <View style={ps.headerRow}>
         <Text style={ps.label}>{label}</Text>
         <Text style={[ps.percent, isAchieved && { color: "#38A169" }]}>
-          {Math.round(clamped)}%
+          {hasData ? `${Math.round(clamped)}%` : "—"}
         </Text>
       </View>
       <View style={ps.track}>
-        <View
-          style={[ps.fill, { width: `${clamped}%`, backgroundColor: color }]}
-        />
+        {hasData && (
+          <View
+            style={[ps.fill, { width: `${clamped}%`, backgroundColor: color }]}
+          />
+        )}
       </View>
       <View style={ps.detailRow}>
         <Text style={ps.detail}>
-          시작: {start.toFixed(1)}
-          {unit}
+          시작: {start != null ? `${start.toFixed(1)}${unit}` : "—"}
+          {pctStart ? <Text style={ps.pctHint}>{` (${pctStart}%)`}</Text> : ""}
         </Text>
         <Text style={[ps.detail, { fontWeight: "600" }]}>
-          현재: {current.toFixed(1)}
-          {unit}
+          현재: {current != null ? `${current.toFixed(1)}${unit}` : "—"}
+          {pctCurrent ? (
+            <Text style={ps.pctHint}>{` (${pctCurrent}%)`}</Text>
+          ) : (
+            ""
+          )}
         </Text>
         <Text style={ps.detail}>
           목표: {target.toFixed(1)}
           {unit}
+          {pctTarget ? (
+            <Text style={ps.pctHint}>{` (${pctTarget}%)`}</Text>
+          ) : (
+            ""
+          )}
         </Text>
       </View>
     </View>
@@ -75,4 +95,5 @@ const ps = StyleSheet.create({
     marginTop: 4,
   },
   detail: { fontSize: 11, color: "#A0AEC0" },
+  pctHint: { fontSize: 10, color: "#A0AEC0" },
 });

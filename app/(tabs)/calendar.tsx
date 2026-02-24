@@ -86,6 +86,7 @@ export default function CalendarScreen() {
   const [eExercised, setEExercised] = useState(false);
   const [eDrank, setEDrank] = useState(false);
   const [ePhotoUri, setEPhotoUri] = useState<string | undefined>(undefined);
+  const [eMemo, setEMemo] = useState("");
   const [eCustomInputs, setECustomInputs] = useState<Record<string, string>>(
     {}
   );
@@ -293,6 +294,7 @@ export default function CalendarScreen() {
     setEExercised(selectedRecord.exercised);
     setEDrank(selectedRecord.drank);
     setEPhotoUri(selectedRecord.photoUri);
+    setEMemo(selectedRecord.memo ?? "");
     const ci: Record<string, string> = {};
     if (selectedRecord.customValues) {
       for (const [k, v] of Object.entries(selectedRecord.customValues)) {
@@ -445,6 +447,7 @@ export default function CalendarScreen() {
       exercised: eExercised,
       drank: eDrank,
       photoUri: ePhotoUri,
+      memo: eMemo.trim() || undefined,
       customValues:
         Object.keys(customValues).length > 0 ? customValues : undefined,
       customBoolValues:
@@ -502,7 +505,7 @@ export default function CalendarScreen() {
     setEExercised(false);
     setEDrank(false);
     setEPhotoUri(undefined);
-    setECustomInputs({});
+    setEMemo("");
     setEBoolCustomInputs({});
     // 해당 날짜에 이미 식사 기록이 있으면 불러오기
     const existingMeals = allMeals.filter((m) => m.date === dateStr);
@@ -533,6 +536,7 @@ export default function CalendarScreen() {
       exercised: eExercised,
       drank: eDrank,
       photoUri: ePhotoUri,
+      memo: eMemo.trim() || undefined,
       customValues:
         Object.keys(addCustomValues).length > 0 ? addCustomValues : undefined,
       customBoolValues:
@@ -1634,6 +1638,39 @@ export default function CalendarScreen() {
                       );
                     })()}
 
+                    {selectedRecord.memo && (
+                      <View
+                        style={{
+                          backgroundColor: "#FFFDF5",
+                          borderRadius: 10,
+                          padding: 10,
+                          marginTop: 8,
+                          borderWidth: 1,
+                          borderColor: "#FEFCBF",
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 12,
+                            fontWeight: "600",
+                            color: "#975A16",
+                            marginBottom: 4,
+                          }}
+                        >
+                          📝 메모
+                        </Text>
+                        <Text
+                          style={{
+                            fontSize: 13,
+                            color: "#4A5568",
+                            lineHeight: 18,
+                          }}
+                        >
+                          {selectedRecord.memo}
+                        </Text>
+                      </View>
+                    )}
+
                     {/* 수정/삭제 버튼 */}
                     <View style={s.modalActionRow}>
                       <TouchableOpacity
@@ -1776,6 +1813,21 @@ export default function CalendarScreen() {
                           />
                         </View>
                       ))}
+
+                    {/* 메모 */}
+                    <Text style={s.editLabel}>메모</Text>
+                    <TextInput
+                      style={[
+                        s.editInput,
+                        { height: 80, textAlignVertical: "top" },
+                      ]}
+                      value={eMemo}
+                      onChangeText={setEMemo}
+                      placeholder="메모를 입력하세요..."
+                      placeholderTextColor="#aaa"
+                      multiline
+                      numberOfLines={3}
+                    />
 
                     {/* 눈바디 사진 */}
                     <Text style={s.editLabel}>눈바디 사진</Text>
@@ -2174,6 +2226,21 @@ export default function CalendarScreen() {
                         />
                       </View>
                     ))}
+
+                  {/* 메모 */}
+                  <Text style={s.editLabel}>메모</Text>
+                  <TextInput
+                    style={[
+                      s.editInput,
+                      { height: 80, textAlignVertical: "top" },
+                    ]}
+                    value={eMemo}
+                    onChangeText={setEMemo}
+                    placeholder="메모를 입력하세요..."
+                    placeholderTextColor="#aaa"
+                    multiline
+                    numberOfLines={3}
+                  />
 
                   {/* 눈바디 사진 */}
                   <Text style={s.editLabel}>눈바디 사진</Text>

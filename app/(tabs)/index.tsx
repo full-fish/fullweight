@@ -77,7 +77,11 @@ export default function HomeScreen() {
   const [exercised, setExercised] = useState(false);
   const [drank, setDrank] = useState(false);
   const [photoUri, setPhotoUri] = useState<string | undefined>(undefined);
+  const [memo, setMemo] = useState("");
   const scrollRef = useRef<ScrollView>(null);
+  const weightLongPressRef = useRef<ReturnType<typeof setInterval> | null>(
+    null
+  );
   const [customInputs, setCustomInputs] = useState<Record<string, string>>({});
   const [boolCustomInputs, setBoolCustomInputs] = useState<
     Record<string, boolean>
@@ -127,6 +131,7 @@ export default function HomeScreen() {
   const [emExercised, setEmExercised] = useState(false);
   const [emDrank, setEmDrank] = useState(false);
   const [emPhotoUri, setEmPhotoUri] = useState<string | undefined>(undefined);
+  const [emMemo, setEmMemo] = useState("");
   const [emMeals, setEmMeals] = useState<MealEntry[]>([]);
   const [emCustomInputs, setEmCustomInputs] = useState<Record<string, string>>(
     {}
@@ -155,6 +160,7 @@ export default function HomeScreen() {
         setExercised(existing.exercised);
         setDrank(existing.drank);
         setPhotoUri(existing.photoUri);
+        setMemo(existing.memo ?? "");
         // 사용자 정의 수치
         const ci: Record<string, string> = {};
         if (existing.customValues) {
@@ -184,7 +190,7 @@ export default function HomeScreen() {
         setBodyFatPercent("");
         setBodyFatMass("");
         setPhotoUri(undefined);
-        setCustomInputs({});
+        setMemo("");
         // 토글은 별도 스토리지에서 로드
         const toggle = await loadToggle(date);
         if (toggle) {
@@ -427,6 +433,7 @@ export default function HomeScreen() {
       exercised,
       drank,
       photoUri,
+      memo: memo.trim() || undefined,
       customValues:
         Object.keys(customValues).length > 0 ? customValues : undefined,
       customBoolValues:
@@ -558,6 +565,7 @@ export default function HomeScreen() {
     setEmExercised(record.exercised);
     setEmDrank(record.drank);
     setEmPhotoUri(record.photoUri);
+    setEmMemo(record.memo ?? "");
     const ci: Record<string, string> = {};
     if (record.customValues) {
       for (const [k, v] of Object.entries(record.customValues)) {
@@ -669,6 +677,7 @@ export default function HomeScreen() {
       exercised: emExercised,
       drank: emDrank,
       photoUri: emPhotoUri,
+      memo: emMemo.trim() || undefined,
       customValues:
         Object.keys(emCustomValues).length > 0 ? emCustomValues : undefined,
       customBoolValues:
@@ -692,6 +701,7 @@ export default function HomeScreen() {
       setExercised(emExercised);
       setDrank(emDrank);
       setPhotoUri(emPhotoUri);
+      setMemo(emMemo);
     }
     Alert.alert(
       "저장 완료",
@@ -775,6 +785,21 @@ export default function HomeScreen() {
                   const v = parseFloat(weight) || 0;
                   setWeight(Math.max(0, v - 0.1).toFixed(1));
                 }}
+                onLongPress={() => {
+                  weightLongPressRef.current = setInterval(() => {
+                    setWeight((prev) => {
+                      const v = parseFloat(prev) || 0;
+                      return Math.max(0, v - 0.1).toFixed(1);
+                    });
+                  }, 80);
+                }}
+                onPressOut={() => {
+                  if (weightLongPressRef.current) {
+                    clearInterval(weightLongPressRef.current);
+                    weightLongPressRef.current = null;
+                  }
+                }}
+                delayLongPress={300}
               >
                 <Text style={styles.stepBtnText}>▼</Text>
               </TouchableOpacity>
@@ -792,6 +817,21 @@ export default function HomeScreen() {
                   const v = parseFloat(weight) || 0;
                   setWeight((v + 0.1).toFixed(1));
                 }}
+                onLongPress={() => {
+                  weightLongPressRef.current = setInterval(() => {
+                    setWeight((prev) => {
+                      const v = parseFloat(prev) || 0;
+                      return (v + 0.1).toFixed(1);
+                    });
+                  }, 80);
+                }}
+                onPressOut={() => {
+                  if (weightLongPressRef.current) {
+                    clearInterval(weightLongPressRef.current);
+                    weightLongPressRef.current = null;
+                  }
+                }}
+                delayLongPress={300}
               >
                 <Text style={styles.stepBtnText}>▲</Text>
               </TouchableOpacity>
@@ -906,6 +946,19 @@ export default function HomeScreen() {
                   </View>
                 </View>
               ))}
+
+            {/* 메모 */}
+            <Text style={styles.label}>메모</Text>
+            <TextInput
+              style={styles.memoInput}
+              value={memo}
+              onChangeText={setMemo}
+              placeholder="메모를 입력하세요..."
+              placeholderTextColor="#aaa"
+              multiline
+              numberOfLines={3}
+              textAlignVertical="top"
+            />
 
             {/* 사진 */}
             <Text style={styles.label}>바디 사진</Text>
@@ -1493,6 +1546,12 @@ export default function HomeScreen() {
                         </View>
                       );
                     })()}
+                    {record?.memo && (
+                      <View style={styles.memoBox}>
+                        <Text style={styles.memoBoxLabel}>📝 메모</Text>
+                        <Text style={styles.memoBoxText}>{record.memo}</Text>
+                      </View>
+                    )}
                   </View>
                 );
               })}
@@ -1861,6 +1920,21 @@ export default function HomeScreen() {
                         />
                       </View>
                     ))}
+
+                  {/* 메모 */}
+                  <Text style={editModalStyles.label}>메모</Text>
+                  <TextInput
+                    style={[
+                      editModalStyles.input,
+                      { height: 80, textAlignVertical: "top" },
+                    ]}
+                    value={emMemo}
+                    onChangeText={setEmMemo}
+                    placeholder="메모를 입력하세요..."
+                    placeholderTextColor="#aaa"
+                    multiline
+                    numberOfLines={3}
+                  />
 
                   {/* 사진 */}
                   <Text style={editModalStyles.label}>바디 사진</Text>
@@ -2706,6 +2780,38 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   saveBtnText: { color: "#fff", fontSize: 16, fontWeight: "600" },
+
+  /* memo */
+  memoInput: {
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    borderRadius: 10,
+    padding: 12,
+    fontSize: 14,
+    color: "#2D3748",
+    backgroundColor: "#F7FAFC",
+    minHeight: 70,
+    marginBottom: 16,
+  },
+  memoBox: {
+    backgroundColor: "#FFFDF5",
+    borderRadius: 10,
+    padding: 10,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: "#FEFCBF",
+  },
+  memoBoxLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#975A16",
+    marginBottom: 4,
+  },
+  memoBoxText: {
+    fontSize: 13,
+    color: "#4A5568",
+    lineHeight: 18,
+  },
 
   /* photo */
   photoSection: { marginBottom: 16 },
