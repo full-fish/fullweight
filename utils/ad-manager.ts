@@ -126,11 +126,10 @@ try {
 function getInterstitialUnitId(): string | null {
   if (!TestIds) return null;
   if (__DEV__) return TestIds.INTERSTITIAL;
-  // TODO: 실제 광고 단위 ID로 교체
   return (
     Platform.select({
-      android: "ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX",
-      ios: "ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX",
+      android: "ca-app-pub-1379550026930118/2889199125",
+      ios: "ca-app-pub-1379550026930118/2889199125",
       default: TestIds.INTERSTITIAL,
     }) ?? null
   );

@@ -18,8 +18,8 @@ const getBannerUnitId = () => {
   if (__DEV__) return TestIds.ADAPTIVE_BANNER;
   return (
     Platform.select({
-      android: "ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX",
-      ios: "ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX",
+      android: "ca-app-pub-1379550026930118/3080770819",
+      ios: "ca-app-pub-1379550026930118/3080770819",
       default: TestIds.ADAPTIVE_BANNER,
     }) ?? null
   );
