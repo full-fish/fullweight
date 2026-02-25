@@ -49,7 +49,23 @@ export async function initPurchases(userId?: string) {
 export async function isPro(): Promise<boolean> {
   try {
     const info = await Purchases.getCustomerInfo();
-    return info.entitlements.active[ENTITLEMENT_PRO] !== undefined;
+    // 1) entitlement "pro"가 활성화되어 있으면 PRO
+    if (info.entitlements.active[ENTITLEMENT_PRO] !== undefined) {
+      return true;
+    }
+    // 2) entitlement 연결 전이라도 활성 구매가 있으면 PRO로 처리
+    if (Object.keys(info.entitlements.active).length > 0) {
+      return true;
+    }
+    // 3) 활성 구독이 있으면 PRO
+    if (info.activeSubscriptions.length > 0) {
+      return true;
+    }
+    // 4) 비소모성 구매(평생이용권 등)가 있으면 PRO
+    if (info.nonSubscriptionTransactions.length > 0) {
+      return true;
+    }
+    return false;
   } catch {
     return false;
   }

@@ -1,6 +1,5 @@
 /**
  * 페이월(구독 구매) 모달
- * 설정 화면의 "PRO 업그레이드" 버튼에서 열립니다.
  */
 import { usePro } from "@/hooks/use-pro";
 import {
@@ -8,10 +7,11 @@ import {
   purchasePackage,
   restorePurchases,
 } from "@/utils/purchases";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   Modal,
   ScrollView,
   StyleSheet,
@@ -35,20 +35,52 @@ const PRO_FEATURES = [
   { emoji: "📊", text: "상세 통계 및 분석" },
 ];
 
+const UNLOCKED_ITEMS = [
+  "AI 고성능 모델 (gpt-4o) 잠금 해제",
+  "광고 없는 깔끔한 화면",
+  "모든 PRO 기능 활성화",
+];
+
 export function PaywallModal({ visible, onClose }: PaywallModalProps) {
   const { refresh } = usePro();
   const [offering, setOffering] = useState<PurchasesOffering | null>(null);
   const [loadingOffering, setLoadingOffering] = useState(false);
   const [purchasing, setPurchasing] = useState(false);
   const [restoring, setRestoring] = useState(false);
+  const [purchased, setPurchased] = useState(false);
+
+  const scaleAnim = useRef(new Animated.Value(0.5)).current;
+  const opacityAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    if (!visible) return;
+    if (!visible) {
+      setPurchased(false);
+      return;
+    }
     setLoadingOffering(true);
     getCurrentOffering()
       .then(setOffering)
       .finally(() => setLoadingOffering(false));
   }, [visible]);
+
+  useEffect(() => {
+    if (!purchased) return;
+    scaleAnim.setValue(0.5);
+    opacityAnim.setValue(0);
+    Animated.parallel([
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        useNativeDriver: true,
+        tension: 60,
+        friction: 7,
+      }),
+      Animated.timing(opacityAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [purchased, scaleAnim, opacityAnim]);
 
   const handlePurchase = async (pkg: PurchasesPackage) => {
     setPurchasing(true);
@@ -56,11 +88,7 @@ export function PaywallModal({ visible, onClose }: PaywallModalProps) {
     setPurchasing(false);
     if (result.success) {
       await refresh();
-      Alert.alert(
-        "🎉 업그레이드 완료!",
-        "PRO 기능을 모두 사용할 수 있습니다.",
-        [{ text: "확인", onPress: onClose }]
-      );
+      setPurchased(true);
     } else if (result.error) {
       Alert.alert("구매 실패", result.error);
     }
@@ -72,9 +100,7 @@ export function PaywallModal({ visible, onClose }: PaywallModalProps) {
     setRestoring(false);
     await refresh();
     if (restored) {
-      Alert.alert("복원 완료", "PRO 구독이 복원되었습니다.", [
-        { text: "확인", onPress: onClose },
-      ]);
+      setPurchased(true);
     } else {
       Alert.alert("복원 실패", "복원할 구매 내역이 없습니다.");
     }
@@ -89,99 +115,128 @@ export function PaywallModal({ visible, onClose }: PaywallModalProps) {
     >
       <View style={st.overlay}>
         <View style={st.sheet}>
-          {/* 헤더 */}
-          <View style={st.header}>
-            <Text style={st.headerEmoji}>⭐</Text>
-            <Text style={st.headerTitle}>fullweight PRO</Text>
-            <Text style={st.headerSub}>광고 없이, 제한 없이</Text>
-            <TouchableOpacity style={st.closeBtn} onPress={onClose}>
-              <Text style={st.closeBtnText}>✕</Text>
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 20 }}
-          >
-            {/* 혜택 목록 */}
-            <View style={st.featureList}>
-              {PRO_FEATURES.map((f) => (
-                <View key={f.text} style={st.featureRow}>
-                  <Text style={st.featureEmoji}>{f.emoji}</Text>
-                  <Text style={st.featureText}>{f.text}</Text>
-                </View>
-              ))}
-            </View>
-
-            {/* 상품 목록 */}
-            <View style={st.packagesSection}>
-              {loadingOffering ? (
-                <ActivityIndicator
-                  size="large"
-                  color="#4CAF50"
-                  style={{ marginVertical: 24 }}
-                />
-              ) : offering?.availablePackages.length ? (
-                offering.availablePackages.map((pkg) => (
-                  <TouchableOpacity
-                    key={pkg.identifier}
-                    style={[st.packageBtn, purchasing && st.packageBtnDisabled]}
-                    onPress={() => handlePurchase(pkg)}
-                    disabled={purchasing}
-                  >
-                    {purchasing ? (
-                      <ActivityIndicator color="#fff" />
-                    ) : (
-                      <>
-                        <Text style={st.packageTitle}>
-                          {pkg.packageType === "MONTHLY"
-                            ? "월간 구독"
-                            : pkg.packageType === "ANNUAL"
-                              ? "연간 구독"
-                              : pkg.packageType === "LIFETIME"
-                                ? "평생 이용권"
-                                : pkg.product.title}
-                        </Text>
-                        <Text style={st.packagePrice}>
-                          {pkg.product.priceString}
-                          {pkg.packageType === "MONTHLY"
-                            ? " / 월"
-                            : pkg.packageType === "ANNUAL"
-                              ? " / 년"
-                              : ""}
-                        </Text>
-                      </>
-                    )}
-                  </TouchableOpacity>
-                ))
-              ) : (
-                /* 아직 RevenueCat에 상품 등록 전 — 개발 중 표시용 */
-                <View style={st.noProductBox}>
-                  <Text style={st.noProductText}>
-                    🛠️ 현재 개발 중입니다.{"\n"}곧 출시될 예정이에요!
-                  </Text>
-                </View>
-              )}
-            </View>
-
-            {/* 구매 복원 */}
-            <TouchableOpacity
-              style={st.restoreBtn}
-              onPress={handleRestore}
-              disabled={restoring}
+          {purchased ? (
+            <Animated.View
+              style={[
+                st.successContainer,
+                { opacity: opacityAnim, transform: [{ scale: scaleAnim }] },
+              ]}
             >
-              {restoring ? (
-                <ActivityIndicator size="small" color="#718096" />
-              ) : (
-                <Text style={st.restoreBtnText}>구매 내역 복원</Text>
-              )}
-            </TouchableOpacity>
+              <View style={st.successCircle}>
+                <Text style={st.successCheckmark}>✓</Text>
+              </View>
+              <Text style={st.successTitle}>PRO 업그레이드 완료!</Text>
+              <Text style={st.successSub}>
+                이제 모든 프리미엄 기능을 사용할 수 있어요
+              </Text>
+              <View style={st.unlockedList}>
+                {UNLOCKED_ITEMS.map((item) => (
+                  <View key={item} style={st.unlockedRow}>
+                    <View style={st.unlockedDot} />
+                    <Text style={st.unlockedText}>{item}</Text>
+                  </View>
+                ))}
+              </View>
+              <TouchableOpacity style={st.successBtn} onPress={onClose}>
+                <Text style={st.successBtnText}>시작하기 🚀</Text>
+              </TouchableOpacity>
+            </Animated.View>
+          ) : (
+            <>
+              <View style={st.header}>
+                <Text style={st.headerEmoji}>⭐</Text>
+                <Text style={st.headerTitle}>fullweight PRO</Text>
+                <Text style={st.headerSub}>광고 없이, 제한 없이</Text>
+                <TouchableOpacity style={st.closeBtn} onPress={onClose}>
+                  <Text style={st.closeBtnText}>✕</Text>
+                </TouchableOpacity>
+              </View>
 
-            <Text style={st.legalText}>
-              구독은 언제든지 취소할 수 있습니다.{"\n"}
-              결제는 구글 플레이 / 앱스토어 계정으로 청구됩니다.
-            </Text>
-          </ScrollView>
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{ paddingBottom: 20 }}
+              >
+                <View style={st.featureList}>
+                  {PRO_FEATURES.map((f) => (
+                    <View key={f.text} style={st.featureRow}>
+                      <Text style={st.featureEmoji}>{f.emoji}</Text>
+                      <Text style={st.featureText}>{f.text}</Text>
+                    </View>
+                  ))}
+                </View>
+
+                <View style={st.packagesSection}>
+                  {loadingOffering ? (
+                    <ActivityIndicator
+                      size="large"
+                      color="#4CAF50"
+                      style={{ marginVertical: 24 }}
+                    />
+                  ) : offering?.availablePackages.length ? (
+                    offering.availablePackages.map((pkg) => (
+                      <TouchableOpacity
+                        key={pkg.identifier}
+                        style={[
+                          st.packageBtn,
+                          purchasing && st.packageBtnDisabled,
+                        ]}
+                        onPress={() => handlePurchase(pkg)}
+                        disabled={purchasing}
+                      >
+                        {purchasing ? (
+                          <ActivityIndicator color="#fff" />
+                        ) : (
+                          <>
+                            <Text style={st.packageTitle}>
+                              {pkg.packageType === "MONTHLY"
+                                ? "월간 구독"
+                                : pkg.packageType === "ANNUAL"
+                                  ? "연간 구독"
+                                  : pkg.packageType === "LIFETIME"
+                                    ? "평생 이용권"
+                                    : pkg.product.title}
+                            </Text>
+                            <Text style={st.packagePrice}>
+                              {pkg.product.priceString}
+                              {pkg.packageType === "MONTHLY"
+                                ? " / 월"
+                                : pkg.packageType === "ANNUAL"
+                                  ? " / 년"
+                                  : ""}
+                            </Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                    ))
+                  ) : (
+                    <View style={st.noProductBox}>
+                      <Text style={st.noProductText}>
+                        {"🛠️ 현재 개발 중입니다.\n곧 출시될 예정이에요!"}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+                <TouchableOpacity
+                  style={st.restoreBtn}
+                  onPress={handleRestore}
+                  disabled={restoring}
+                >
+                  {restoring ? (
+                    <ActivityIndicator size="small" color="#718096" />
+                  ) : (
+                    <Text style={st.restoreBtnText}>구매 내역 복원</Text>
+                  )}
+                </TouchableOpacity>
+
+                <Text style={st.legalText}>
+                  {
+                    "구독은 언제든지 취소할 수 있습니다.\n결제는 구글 플레이 / 앱스토어 계정으로 청구됩니다."
+                  }
+                </Text>
+              </ScrollView>
+            </>
+          )}
         </View>
       </View>
     </Modal>
@@ -264,11 +319,7 @@ const st = StyleSheet.create({
     textAlign: "center",
     lineHeight: 22,
   },
-  restoreBtn: {
-    alignItems: "center",
-    paddingVertical: 16,
-    marginTop: 8,
-  },
+  restoreBtn: { alignItems: "center", paddingVertical: 16, marginTop: 8 },
   restoreBtnText: {
     fontSize: 14,
     color: "#718096",
@@ -282,4 +333,65 @@ const st = StyleSheet.create({
     lineHeight: 16,
     marginBottom: 8,
   },
+  successContainer: {
+    alignItems: "center",
+    paddingHorizontal: 32,
+    paddingVertical: 48,
+  },
+  successCircle: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: "#4CAF50",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 24,
+    shadowColor: "#4CAF50",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  successCheckmark: { fontSize: 48, color: "#fff", fontWeight: "700" },
+  successTitle: {
+    fontSize: 26,
+    fontWeight: "800",
+    color: "#1A202C",
+    marginBottom: 8,
+  },
+  successSub: {
+    fontSize: 15,
+    color: "#718096",
+    textAlign: "center",
+    lineHeight: 22,
+    marginBottom: 32,
+  },
+  unlockedList: {
+    width: "100%",
+    backgroundColor: "#F0FFF4",
+    borderRadius: 16,
+    padding: 20,
+    gap: 12,
+    marginBottom: 32,
+  },
+  unlockedRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  unlockedDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#4CAF50",
+  },
+  unlockedText: { fontSize: 14, color: "#276749", fontWeight: "500", flex: 1 },
+  successBtn: {
+    backgroundColor: "#1A202C",
+    borderRadius: 16,
+    paddingVertical: 18,
+    paddingHorizontal: 48,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  successBtnText: { fontSize: 17, fontWeight: "700", color: "#fff" },
 });

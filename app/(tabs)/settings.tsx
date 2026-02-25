@@ -3905,23 +3905,38 @@ export default function SettingsScreen() {
                 paddingVertical: 12,
                 borderRadius: 10,
                 alignItems: "center",
-                backgroundColor: aiModel === "gpt-4o" ? "#667EEA" : "#EDF2F7",
+                backgroundColor:
+                  aiModel === "gpt-4o"
+                    ? "#667EEA"
+                    : isPro
+                      ? "#EDF2F7"
+                      : "#F7F7F7",
+                opacity: !isPro && aiModel !== "gpt-4o" ? 0.75 : 1,
               }}
               onPress={async () => {
+                if (!isPro) {
+                  setPaywallVisible(true);
+                  return;
+                }
                 setAiModel("gpt-4o");
                 const settings = await loadUserSettings();
                 await saveUserSettings({ ...settings, aiModel: "gpt-4o" });
               }}
             >
-              <Text
-                style={{
-                  fontSize: 14,
-                  fontWeight: "700",
-                  color: aiModel === "gpt-4o" ? "#fff" : "#2D3748",
-                }}
+              <View
+                style={{ flexDirection: "row", alignItems: "center", gap: 4 }}
               >
-                고성능 모델
-              </Text>
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontWeight: "700",
+                    color: aiModel === "gpt-4o" ? "#fff" : "#2D3748",
+                  }}
+                >
+                  고성능 모델
+                </Text>
+                {!isPro && <Text style={{ fontSize: 12 }}>⭐</Text>}
+              </View>
               <Text
                 style={{
                   fontSize: 10,
