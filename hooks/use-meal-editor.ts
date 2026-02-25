@@ -9,6 +9,7 @@ import {
   MealEntry,
   MealType,
 } from "@/types";
+import { recordAiUsage, showInterstitialAd } from "@/utils/ad-manager";
 import { analyzeFood } from "@/utils/food-ai";
 import { captureFoodPhoto, deletePhoto } from "@/utils/photo";
 import { addMeal, deleteMeal, loadMeals, saveMeals } from "@/utils/storage";
@@ -20,6 +21,8 @@ type MealEditorOptions = {
   aiModel?: AiModelOption;
   /** 음식 사진 화질 */
   foodPhotoQuality?: FoodPhotoQuality;
+  /** AI PRO 구독 여부 (true면 제한 없음) */
+  aiPro?: boolean;
 };
 
 /**
@@ -58,6 +61,15 @@ export function useMealInputModal(options: MealEditorOptions = {}) {
       setPhotoUri(captured.savedUri);
       setAiAnalyzing(true);
       try {
+        // AI 사용량 기록 (PRO가 아닌 경우)
+        if (!options.aiPro) {
+          const isFree = await recordAiUsage();
+          if (!isFree) {
+            // 3회차부터 전면 광고 표시
+            await showInterstitialAd();
+          }
+        }
+
         const result = await analyzeFood(captured.aiUri, options.aiModel);
         setDesc(result.description);
         setCarb(String(result.carb));
@@ -75,7 +87,7 @@ export function useMealInputModal(options: MealEditorOptions = {}) {
         setAiAnalyzing(false);
       }
     },
-    [options.aiModel, options.foodPhotoQuality]
+    [options.aiModel, options.foodPhotoQuality, options.aiPro]
   );
 
   /** 탄단지 입력 시 칼로리 자동 계산 */

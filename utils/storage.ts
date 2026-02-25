@@ -63,22 +63,15 @@ export async function deleteRecord(date: string): Promise<WeightRecord[]> {
   return filtered;
 }
 
-/** 전체 기록 삭제 (체중 기록 + 식사 기록 + 챌린지 + 히스토리 + 사용자 정의 항목) */
+/** 전체 기록 삭제 (체중 + 식사 + 챌린지 + 히스토리 + 토글 + 사용자 설정 전체) */
 export async function clearAllRecords(): Promise<void> {
   await AsyncStorage.removeItem(STORAGE_KEY);
   await AsyncStorage.removeItem(MEAL_STORAGE_KEY);
   await AsyncStorage.removeItem(CHALLENGE_KEY);
   await AsyncStorage.removeItem(CHALLENGE_HISTORY_KEY);
-  // 사용자 정의 항목들도 삭제
-  const settings = await loadUserSettings();
-  const {
-    customMetrics,
-    customBoolMetrics,
-    metricInputVisibility,
-    metricDisplayVisibility,
-    ...rest
-  } = settings;
-  await saveUserSettings(rest);
+  await AsyncStorage.removeItem(TOGGLES_KEY);
+  // 프로필 포함 사용자 설정 전체 초기화
+  await AsyncStorage.removeItem(USER_SETTINGS_KEY);
 }
 
 /**

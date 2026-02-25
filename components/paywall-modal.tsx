@@ -1,5 +1,8 @@
 /**
- * 페이월(구독 구매) 모달
+ * 페이월(구매) 모달 — 3개 상품 섹션
+ * 1. 배너 광고 제거 ($1.49 lifetime)
+ * 2. AI 모델 구독 ($1.99/mo, $19.9/yr) — 무제한 AI + gpt-4o + 모든 광고 제거
+ * 3. 개발자에게 맥주 사주기 (consumable)
  */
 import { usePro } from "@/hooks/use-pro";
 import {
@@ -19,35 +22,30 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { PurchasesOffering, PurchasesPackage } from "react-native-purchases";
+import type {
+  PurchasesOffering,
+  PurchasesPackage,
+} from "react-native-purchases";
 
 interface PaywallModalProps {
   visible: boolean;
   onClose: () => void;
+  /** 특정 섹션으로 스크롤 (선택) */
+  initialSection?: "banner" | "ai" | "beer";
 }
 
-const PRO_FEATURES = [
-  { emoji: "🤖", text: "AI 음식 분석 무제한" },
-  { emoji: "🍽️", text: "식사 기록 무제한" },
-  { emoji: "🏆", text: "챌린지 무제한 생성" },
-  { emoji: "🚫", text: "광고 제거" },
-  { emoji: "☁️", text: "클라우드 백업 자동화" },
-  { emoji: "📊", text: "상세 통계 및 분석" },
-];
-
-const UNLOCKED_ITEMS = [
-  "AI 고성능 모델 (gpt-4o) 잠금 해제",
-  "광고 없는 깔끔한 화면",
-  "모든 PRO 기능 활성화",
-];
-
-export function PaywallModal({ visible, onClose }: PaywallModalProps) {
-  const { refresh } = usePro();
+export function PaywallModal({
+  visible,
+  onClose,
+  initialSection,
+}: PaywallModalProps) {
+  const { refresh, aiPro, bannerRemoved } = usePro();
   const [offering, setOffering] = useState<PurchasesOffering | null>(null);
   const [loadingOffering, setLoadingOffering] = useState(false);
   const [purchasing, setPurchasing] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const [purchased, setPurchased] = useState(false);
+  const [purchaseMessage, setPurchaseMessage] = useState("");
 
   const scaleAnim = useRef(new Animated.Value(0.5)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
@@ -55,6 +53,7 @@ export function PaywallModal({ visible, onClose }: PaywallModalProps) {
   useEffect(() => {
     if (!visible) {
       setPurchased(false);
+      setPurchaseMessage("");
       return;
     }
     setLoadingOffering(true);
@@ -82,12 +81,13 @@ export function PaywallModal({ visible, onClose }: PaywallModalProps) {
     ]).start();
   }, [purchased, scaleAnim, opacityAnim]);
 
-  const handlePurchase = async (pkg: PurchasesPackage) => {
+  const handlePurchase = async (pkg: PurchasesPackage, successMsg?: string) => {
     setPurchasing(true);
     const result = await purchasePackage(pkg);
     setPurchasing(false);
     if (result.success) {
       await refresh();
+      setPurchaseMessage(successMsg || "구매가 완료되었습니다!");
       setPurchased(true);
     } else if (result.error) {
       Alert.alert("구매 실패", result.error);
@@ -96,15 +96,40 @@ export function PaywallModal({ visible, onClose }: PaywallModalProps) {
 
   const handleRestore = async () => {
     setRestoring(true);
-    const restored = await restorePurchases();
+    const status = await restorePurchases();
     setRestoring(false);
     await refresh();
-    if (restored) {
+    if (status.bannerRemoved || status.aiPro) {
+      setPurchaseMessage("구매 내역이 복원되었습니다!");
       setPurchased(true);
     } else {
       Alert.alert("복원 실패", "복원할 구매 내역이 없습니다.");
     }
   };
+
+  /* ─── 패키지 분류 ─── */
+  const bannerPkg = offering?.availablePackages.find(
+    (p) =>
+      p.packageType === "LIFETIME" ||
+      p.identifier.toLowerCase().includes("banner")
+  );
+  const aiMonthlyPkg = offering?.availablePackages.find(
+    (p) =>
+      p.packageType === "MONTHLY" ||
+      p.identifier.toLowerCase().includes("monthly")
+  );
+  const aiAnnualPkg = offering?.availablePackages.find(
+    (p) =>
+      p.packageType === "ANNUAL" ||
+      p.identifier.toLowerCase().includes("annual")
+  );
+  const beerPkgs =
+    offering?.availablePackages.filter(
+      (p) =>
+        p.identifier.toLowerCase().includes("beer") ||
+        p.identifier.toLowerCase().includes("tip") ||
+        p.identifier.toLowerCase().includes("donate")
+    ) ?? [];
 
   return (
     <Modal
@@ -116,6 +141,7 @@ export function PaywallModal({ visible, onClose }: PaywallModalProps) {
       <View style={st.overlay}>
         <View style={st.sheet}>
           {purchased ? (
+            /* ─── 구매 성공 화면 ─── */
             <Animated.View
               style={[
                 st.successContainer,
@@ -125,28 +151,19 @@ export function PaywallModal({ visible, onClose }: PaywallModalProps) {
               <View style={st.successCircle}>
                 <Text style={st.successCheckmark}>✓</Text>
               </View>
-              <Text style={st.successTitle}>PRO 업그레이드 완료!</Text>
-              <Text style={st.successSub}>
-                이제 모든 프리미엄 기능을 사용할 수 있어요
-              </Text>
-              <View style={st.unlockedList}>
-                {UNLOCKED_ITEMS.map((item) => (
-                  <View key={item} style={st.unlockedRow}>
-                    <View style={st.unlockedDot} />
-                    <Text style={st.unlockedText}>{item}</Text>
-                  </View>
-                ))}
-              </View>
+              <Text style={st.successTitle}>구매 완료!</Text>
+              <Text style={st.successSub}>{purchaseMessage}</Text>
               <TouchableOpacity style={st.successBtn} onPress={onClose}>
-                <Text style={st.successBtnText}>시작하기 🚀</Text>
+                <Text style={st.successBtnText}>확인 🎉</Text>
               </TouchableOpacity>
             </Animated.View>
           ) : (
             <>
+              {/* ─── 헤더 ─── */}
               <View style={st.header}>
-                <Text style={st.headerEmoji}>⭐</Text>
-                <Text style={st.headerTitle}>fullweight PRO</Text>
-                <Text style={st.headerSub}>광고 없이, 제한 없이</Text>
+                <Text style={st.headerEmoji}>🛒</Text>
+                <Text style={st.headerTitle}>fullweight 스토어</Text>
+                <Text style={st.headerSub}>필요한 기능만 골라 구매하세요</Text>
                 <TouchableOpacity style={st.closeBtn} onPress={onClose}>
                   <Text style={st.closeBtnText}>✕</Text>
                 </TouchableOpacity>
@@ -154,69 +171,280 @@ export function PaywallModal({ visible, onClose }: PaywallModalProps) {
 
               <ScrollView
                 showsVerticalScrollIndicator={false}
-                contentContainerStyle={{ paddingBottom: 20 }}
+                contentContainerStyle={{ paddingBottom: 40 }}
               >
-                <View style={st.featureList}>
-                  {PRO_FEATURES.map((f) => (
-                    <View key={f.text} style={st.featureRow}>
-                      <Text style={st.featureEmoji}>{f.emoji}</Text>
-                      <Text style={st.featureText}>{f.text}</Text>
-                    </View>
-                  ))}
-                </View>
+                {loadingOffering ? (
+                  <ActivityIndicator
+                    size="large"
+                    color="#4CAF50"
+                    style={{ marginVertical: 40 }}
+                  />
+                ) : (
+                  <>
+                    {/* ═══ 1. 배너 광고 제거 ═══ */}
+                    <View style={st.section}>
+                      <View style={st.sectionHeader}>
+                        <Text style={st.sectionEmoji}>🚫</Text>
+                        <View style={{ flex: 1 }}>
+                          <Text style={st.sectionTitle}>배너 광고 제거</Text>
+                          <Text style={st.sectionDesc}>
+                            하단 배너 광고를 영구적으로 제거합니다
+                          </Text>
+                        </View>
+                      </View>
 
-                <View style={st.packagesSection}>
-                  {loadingOffering ? (
-                    <ActivityIndicator
-                      size="large"
-                      color="#4CAF50"
-                      style={{ marginVertical: 24 }}
-                    />
-                  ) : offering?.availablePackages.length ? (
-                    offering.availablePackages.map((pkg) => (
-                      <TouchableOpacity
-                        key={pkg.identifier}
-                        style={[
-                          st.packageBtn,
-                          purchasing && st.packageBtnDisabled,
-                        ]}
-                        onPress={() => handlePurchase(pkg)}
-                        disabled={purchasing}
-                      >
-                        {purchasing ? (
-                          <ActivityIndicator color="#fff" />
-                        ) : (
-                          <>
-                            <Text style={st.packageTitle}>
-                              {pkg.packageType === "MONTHLY"
-                                ? "월간 구독"
-                                : pkg.packageType === "ANNUAL"
-                                  ? "연간 구독"
-                                  : pkg.packageType === "LIFETIME"
-                                    ? "평생 이용권"
-                                    : pkg.product.title}
-                            </Text>
-                            <Text style={st.packagePrice}>
-                              {pkg.product.priceString}
-                              {pkg.packageType === "MONTHLY"
-                                ? " / 월"
-                                : pkg.packageType === "ANNUAL"
-                                  ? " / 년"
-                                  : ""}
-                            </Text>
-                          </>
+                      {bannerRemoved ? (
+                        <View style={st.purchasedBadge}>
+                          <Text style={st.purchasedText}>✅ 구매 완료</Text>
+                        </View>
+                      ) : bannerPkg ? (
+                        <TouchableOpacity
+                          style={[st.buyBtn, st.buyBtnGray]}
+                          onPress={() =>
+                            handlePurchase(
+                              bannerPkg,
+                              "배너 광고가 제거되었습니다!"
+                            )
+                          }
+                          disabled={purchasing}
+                        >
+                          {purchasing ? (
+                            <ActivityIndicator color="#fff" />
+                          ) : (
+                            <>
+                              <Text style={st.buyBtnTitle}>평생 이용권</Text>
+                              <Text style={st.buyBtnPrice}>
+                                {bannerPkg.product.priceString}
+                              </Text>
+                            </>
+                          )}
+                        </TouchableOpacity>
+                      ) : (
+                        <View
+                          style={[st.buyBtn, st.buyBtnGray, { opacity: 0.5 }]}
+                        >
+                          <Text style={st.buyBtnTitle}>평생 이용권</Text>
+                          <Text style={st.buyBtnPrice}>$1.49</Text>
+                        </View>
+                      )}
+                    </View>
+
+                    {/* ═══ 2. AI 모델 구독 ═══ */}
+                    <View style={st.section}>
+                      <View style={st.sectionHeader}>
+                        <Text style={st.sectionEmoji}>🤖</Text>
+                        <View style={{ flex: 1 }}>
+                          <Text style={st.sectionTitle}>AI 모델 구독</Text>
+                          <Text style={st.sectionDesc}>
+                            모든 기능의 프리미엄 경험
+                          </Text>
+                        </View>
+                        {aiPro && (
+                          <View style={st.activeBadge}>
+                            <Text style={st.activeBadgeText}>구독 중</Text>
+                          </View>
                         )}
-                      </TouchableOpacity>
-                    ))
-                  ) : (
-                    <View style={st.noProductBox}>
-                      <Text style={st.noProductText}>
-                        {"🛠️ 현재 개발 중입니다.\n곧 출시될 예정이에요!"}
-                      </Text>
-                    </View>
-                  )}
-                </View>
+                      </View>
 
+                      <View style={st.featureList}>
+                        {[
+                          "🔓  AI 음식 분석 무제한 (일 2회 → 무제한)",
+                          "🧠  고성능 모델 gpt-4o 잠금 해제",
+                          "🚫  모든 광고 제거 (배너 + 전면)",
+                        ].map((f) => (
+                          <Text key={f} style={st.featureItem}>
+                            {f}
+                          </Text>
+                        ))}
+                      </View>
+
+                      {aiPro ? (
+                        <View style={st.purchasedBadge}>
+                          <Text style={st.purchasedText}>✅ 구독 중</Text>
+                        </View>
+                      ) : (
+                        <View style={{ gap: 10 }}>
+                          {aiMonthlyPkg && (
+                            <TouchableOpacity
+                              style={[st.buyBtn, st.buyBtnGreen]}
+                              onPress={() =>
+                                handlePurchase(
+                                  aiMonthlyPkg,
+                                  "AI PRO 구독이 활성화되었습니다!\n모든 프리미엄 기능을 사용할 수 있어요."
+                                )
+                              }
+                              disabled={purchasing}
+                            >
+                              {purchasing ? (
+                                <ActivityIndicator color="#fff" />
+                              ) : (
+                                <>
+                                  <Text style={st.buyBtnTitle}>월간 구독</Text>
+                                  <Text style={st.buyBtnPrice}>
+                                    {aiMonthlyPkg.product.priceString} / 월
+                                  </Text>
+                                </>
+                              )}
+                            </TouchableOpacity>
+                          )}
+                          {aiAnnualPkg && (
+                            <TouchableOpacity
+                              style={[st.buyBtn, st.buyBtnPurple]}
+                              onPress={() =>
+                                handlePurchase(
+                                  aiAnnualPkg,
+                                  "AI PRO 연간 구독이 활성화되었습니다!\n모든 프리미엄 기능을 사용할 수 있어요."
+                                )
+                              }
+                              disabled={purchasing}
+                            >
+                              {purchasing ? (
+                                <ActivityIndicator color="#fff" />
+                              ) : (
+                                <>
+                                  <View
+                                    style={{
+                                      flexDirection: "row",
+                                      alignItems: "center",
+                                      gap: 6,
+                                    }}
+                                  >
+                                    <Text style={st.buyBtnTitle}>
+                                      연간 구독
+                                    </Text>
+                                    <View style={st.saveBadge}>
+                                      <Text style={st.saveBadgeText}>
+                                        17% 할인
+                                      </Text>
+                                    </View>
+                                  </View>
+                                  <Text style={st.buyBtnPrice}>
+                                    {aiAnnualPkg.product.priceString} / 년
+                                  </Text>
+                                </>
+                              )}
+                            </TouchableOpacity>
+                          )}
+                          {!aiMonthlyPkg && !aiAnnualPkg && (
+                            <View style={{ gap: 10 }}>
+                              <View
+                                style={[
+                                  st.buyBtn,
+                                  st.buyBtnGreen,
+                                  { opacity: 0.5 },
+                                ]}
+                              >
+                                <Text style={st.buyBtnTitle}>월간 구독</Text>
+                                <Text style={st.buyBtnPrice}>$1.99 / 월</Text>
+                              </View>
+                              <View
+                                style={[
+                                  st.buyBtn,
+                                  st.buyBtnPurple,
+                                  { opacity: 0.5 },
+                                ]}
+                              >
+                                <View
+                                  style={{
+                                    flexDirection: "row",
+                                    alignItems: "center",
+                                    gap: 6,
+                                  }}
+                                >
+                                  <Text style={st.buyBtnTitle}>연간 구독</Text>
+                                  <View style={st.saveBadge}>
+                                    <Text style={st.saveBadgeText}>
+                                      17% 할인
+                                    </Text>
+                                  </View>
+                                </View>
+                                <Text style={st.buyBtnPrice}>$19.9 / 년</Text>
+                              </View>
+                            </View>
+                          )}
+                        </View>
+                      )}
+                    </View>
+
+                    {/* ═══ 3. 개발자에게 맥주 사주기 ═══ */}
+                    <View style={st.section}>
+                      <View style={st.sectionHeader}>
+                        <Text style={st.sectionEmoji}>🍺</Text>
+                        <View style={{ flex: 1 }}>
+                          <Text style={st.sectionTitle}>
+                            개발자에게 맥주 사주기
+                          </Text>
+                          <Text style={st.sectionDesc}>
+                            앱 개발을 응원해 주세요!
+                          </Text>
+                        </View>
+                      </View>
+
+                      {beerPkgs.length > 0 ? (
+                        <View style={{ gap: 10 }}>
+                          {beerPkgs.map((pkg) => (
+                            <TouchableOpacity
+                              key={pkg.identifier}
+                              style={[st.buyBtn, st.buyBtnBeer]}
+                              onPress={() =>
+                                handlePurchase(
+                                  pkg,
+                                  "맥주 한 잔 감사히 마시겠습니다! 🍻"
+                                )
+                              }
+                              disabled={purchasing}
+                            >
+                              {purchasing ? (
+                                <ActivityIndicator color="#fff" />
+                              ) : (
+                                <>
+                                  <Text style={st.buyBtnTitle}>
+                                    {pkg.product.title || pkg.identifier}
+                                  </Text>
+                                  <Text style={st.buyBtnPrice}>
+                                    {pkg.product.priceString}
+                                  </Text>
+                                </>
+                              )}
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      ) : (
+                        <View style={{ gap: 10 }}>
+                          {/* RevenueCat에 상품 등록 전 표시용 */}
+                          {[
+                            { label: "🍺 330ml", price: "$1.49" },
+                            { label: "🍺 500ml", price: "$1.99" },
+                            { label: "🍺 1000ml", price: "$3.49" },
+                          ].map((item) => (
+                            <View
+                              key={item.label}
+                              style={[
+                                st.buyBtn,
+                                st.buyBtnBeer,
+                                { opacity: 0.5 },
+                              ]}
+                            >
+                              <Text style={st.buyBtnTitle}>{item.label}</Text>
+                              <Text style={st.buyBtnPrice}>{item.price}</Text>
+                            </View>
+                          ))}
+                          <Text
+                            style={{
+                              fontSize: 12,
+                              color: "#A0AEC0",
+                              textAlign: "center",
+                            }}
+                          >
+                            곧 출시 예정입니다
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  </>
+                )}
+
+                {/* ─── 복원 & 법적 고지 ─── */}
                 <TouchableOpacity
                   style={st.restoreBtn}
                   onPress={handleRestore}
@@ -263,11 +491,11 @@ const st = StyleSheet.create({
     paddingHorizontal: 20,
     borderBottomWidth: 1,
     borderBottomColor: "#F0F4F8",
-    backgroundColor: "#F7FFFB",
+    backgroundColor: "#FAFBFC",
   },
-  headerEmoji: { fontSize: 40, marginBottom: 8 },
-  headerTitle: { fontSize: 24, fontWeight: "800", color: "#1A202C" },
-  headerSub: { fontSize: 15, color: "#718096", marginTop: 4 },
+  headerEmoji: { fontSize: 36, marginBottom: 8 },
+  headerTitle: { fontSize: 22, fontWeight: "800", color: "#1A202C" },
+  headerSub: { fontSize: 14, color: "#718096", marginTop: 4 },
   closeBtn: {
     position: "absolute",
     top: 16,
@@ -280,46 +508,98 @@ const st = StyleSheet.create({
     justifyContent: "center",
   },
   closeBtnText: { fontSize: 14, color: "#718096", fontWeight: "700" },
-  featureList: { paddingHorizontal: 24, paddingTop: 20, gap: 12 },
-  featureRow: { flexDirection: "row", alignItems: "center", gap: 12 },
-  featureEmoji: { fontSize: 22, width: 30, textAlign: "center" },
-  featureText: { fontSize: 15, color: "#2D3748", fontWeight: "500", flex: 1 },
-  packagesSection: { paddingHorizontal: 20, paddingTop: 24, gap: 12 },
-  packageBtn: {
-    backgroundColor: "#4CAF50",
-    borderRadius: 16,
-    paddingVertical: 18,
-    alignItems: "center",
-    shadowColor: "#4CAF50",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  packageBtnDisabled: { opacity: 0.7 },
-  packageTitle: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: "#fff",
-    marginBottom: 2,
-  },
-  packagePrice: { fontSize: 14, color: "rgba(255,255,255,0.85)" },
-  noProductBox: {
+
+  /* ─── 섹션 ─── */
+  section: {
+    marginHorizontal: 20,
+    marginTop: 20,
     backgroundColor: "#F7FAFC",
-    borderRadius: 12,
-    padding: 24,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 14,
+  },
+  sectionEmoji: { fontSize: 28, width: 36, textAlign: "center" },
+  sectionTitle: { fontSize: 16, fontWeight: "700", color: "#1A202C" },
+  sectionDesc: { fontSize: 13, color: "#718096", marginTop: 2 },
+
+  /* ─── 기능 목록 ─── */
+  featureList: {
+    backgroundColor: "#EBF8FF",
+    borderRadius: 10,
+    padding: 12,
+    gap: 6,
+    marginBottom: 14,
+  },
+  featureItem: { fontSize: 13, color: "#2B6CB0", lineHeight: 20 },
+
+  /* ─── 구매 버튼 ─── */
+  buyBtn: {
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  buyBtnGray: { backgroundColor: "#4A5568" },
+  buyBtnGreen: { backgroundColor: "#38A169" },
+  buyBtnPurple: { backgroundColor: "#667EEA" },
+  buyBtnBeer: { backgroundColor: "#D69E2E" },
+  buyBtnTitle: { fontSize: 16, fontWeight: "700", color: "#fff" },
+  buyBtnPrice: { fontSize: 13, color: "rgba(255,255,255,0.8)", marginTop: 2 },
+
+  /* ─── 할인 뱃지 ─── */
+  saveBadge: {
+    backgroundColor: "rgba(255,255,255,0.25)",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  saveBadgeText: { fontSize: 11, fontWeight: "700", color: "#fff" },
+
+  /* ─── 구매 완료 뱃지 ─── */
+  purchasedBadge: {
+    backgroundColor: "#F0FFF4",
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#C6F6D5",
+  },
+  purchasedText: { fontSize: 14, fontWeight: "600", color: "#38A169" },
+
+  /* ─── 활성 뱃지 ─── */
+  activeBadge: {
+    backgroundColor: "#38A169",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  activeBadgeText: { fontSize: 11, fontWeight: "700", color: "#fff" },
+
+  /* ─── 준비 중 ─── */
+  comingSoon: {
+    backgroundColor: "#F7FAFC",
+    borderRadius: 10,
+    padding: 16,
     alignItems: "center",
     borderWidth: 1,
     borderColor: "#E2E8F0",
     borderStyle: "dashed",
   },
-  noProductText: {
-    fontSize: 14,
-    color: "#718096",
-    textAlign: "center",
-    lineHeight: 22,
-  },
-  restoreBtn: { alignItems: "center", paddingVertical: 16, marginTop: 8 },
+  comingSoonText: { fontSize: 13, color: "#A0AEC0" },
+
+  /* ─── 복원 ─── */
+  restoreBtn: { alignItems: "center", paddingVertical: 16, marginTop: 16 },
   restoreBtnText: {
     fontSize: 14,
     color: "#718096",
@@ -333,6 +613,8 @@ const st = StyleSheet.create({
     lineHeight: 16,
     marginBottom: 8,
   },
+
+  /* ─── 성공 화면 ─── */
   successContainer: {
     alignItems: "center",
     paddingHorizontal: 32,
@@ -366,22 +648,6 @@ const st = StyleSheet.create({
     lineHeight: 22,
     marginBottom: 32,
   },
-  unlockedList: {
-    width: "100%",
-    backgroundColor: "#F0FFF4",
-    borderRadius: 16,
-    padding: 20,
-    gap: 12,
-    marginBottom: 32,
-  },
-  unlockedRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  unlockedDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#4CAF50",
-  },
-  unlockedText: { fontSize: 14, color: "#276749", fontWeight: "500", flex: 1 },
   successBtn: {
     backgroundColor: "#1A202C",
     borderRadius: 16,

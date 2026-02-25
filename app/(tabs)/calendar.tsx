@@ -4,6 +4,7 @@ import { PhotoZoomModal } from "@/components/photo-zoom-modal";
 import { memoStyles } from "@/constants/common-styles";
 import { useKeyboardOffset } from "@/hooks/use-keyboard-offset";
 import { useMealInputModal, useMealListEditor } from "@/hooks/use-meal-editor";
+import { usePro } from "@/hooks/use-pro";
 import { DailyToggles, MealEntry, UserSettings, WeightRecord } from "@/types";
 import {
   fmtDate,
@@ -46,6 +47,7 @@ const { width } = Dimensions.get("window");
 const DAY_SIZE = Math.floor((width - 56) / 7);
 
 export default function CalendarScreen() {
+  const { aiPro } = usePro();
   const now = new Date();
   const kbOffset = useKeyboardOffset();
   const [year, setYear] = useState(now.getFullYear());
@@ -91,6 +93,7 @@ export default function CalendarScreen() {
   const mealModal = useMealInputModal({
     aiModel: userSettings.aiModel,
     foodPhotoQuality: userSettings.foodPhotoQuality,
+    aiPro,
   });
   const [zoomPhotoUri, setZoomPhotoUri] = useState<string | null>(null);
   const [allToggles, setAllToggles] = useState<Record<string, DailyToggles>>(

@@ -11,6 +11,7 @@ import {
   CustomMetric,
   FoodPhotoQuality,
 } from "@/types";
+import { getAiRemainingCount, resetAllAdCounters } from "@/utils/ad-manager";
 import {
   getBackupIntervalDays,
   getBackupList,
@@ -34,6 +35,7 @@ import {
   WEEKDAY_LABELS,
 } from "@/utils/format";
 import { importInBodyCSV } from "@/utils/inbody-import";
+import { logoutPurchases } from "@/utils/purchases";
 import {
   clearAllRecords,
   loadRecords,
@@ -483,9 +485,15 @@ function CalendarPopup({
 /* ───── 메인 화면 ───── */
 
 export default function SettingsScreen() {
-  const { isPro, loading: proLoading, refresh: refreshPro } = usePro();
+  const {
+    aiPro,
+    bannerRemoved,
+    loading: proLoading,
+    refresh: refreshPro,
+  } = usePro();
   const [paywallVisible, setPaywallVisible] = useState(false);
   const [recordCount, setRecordCount] = useState(0);
+  const [aiRemaining, setAiRemaining] = useState(2); // AI 남은 횟수
   const [height, setHeight] = useState("");
   const [birthDate, setBirthDate] = useState("");
   const [gender, setGender] = useState<"male" | "female" | undefined>(
@@ -594,6 +602,8 @@ export default function SettingsScreen() {
       loadRecords().then((data) => {
         setRecordCount(data.length);
       });
+      // AI 남은 횟수 로드
+      getAiRemainingCount().then(setAiRemaining);
       loadUserSettings().then((settings) => {
         setHeight(settings.height != null ? String(settings.height) : "");
         setBirthDate(settings.birthDate ?? "");
@@ -905,20 +915,38 @@ export default function SettingsScreen() {
   const handleClearAll = () => {
     Alert.alert(
       "전체 데이터 삭제",
-      "모든 기록이 영구적으로 삭제됩니다.\n이 작업은 되돌릴 수 없습니다.",
+      "모든 기록, 프로필, 광고 카운터, 멤버십 상태가 영구적으로 삭제됩니다.\n이 작업은 되돌릴 수 없습니다.",
       [
         { text: "취소", style: "cancel" },
         {
           text: "삭제",
           style: "destructive",
           onPress: async () => {
+            // 1) 체중·식사·챌린지·사용자정의 삭제
             await clearAllRecords();
+            // 2) 광고 카운터 초기화 (AI 일일횟수, 체중저장 누적)
+            await resetAllAdCounters();
+            // 3) RevenueCat 로그아웃 (익명으로 전환)
+            await logoutPurchases();
+            // 4) Google 로그인 해제
+            try {
+              await signOut();
+            } catch {}
+            // 5) 상태 초기화
             setRecordCount(0);
             setCustomMetrics([]);
             setCustomBoolMetrics([]);
+            setAiRemaining(2);
+            // 프로필 UI 초기화
+            setHeight("");
+            setBirthDate("");
+            setGender(undefined);
+            setAiModel("gpt-4o-mini");
+            setLockEnabled(false);
+            await refreshPro();
             Alert.alert(
               "삭제 완료",
-              "모든 기록 및 사용자 정의 항목이 삭제되었습니다."
+              "모든 기록, 프로필, 멤버십이 초기화되었습니다."
             );
           },
         },
@@ -936,11 +964,11 @@ export default function SettingsScreen() {
         }}
       />
       <ScrollView style={s.container} contentContainerStyle={s.content}>
-        {/* ─── PRO 구독 ─── */}
+        {/* ─── 멤버십 상태 ─── */}
         {!proLoading && (
           <>
-            {isPro ? (
-              /* 구독 중인 경우 */
+            {aiPro ? (
+              /* AI PRO 구독 중 */
               <View
                 style={[
                   s.card,
@@ -955,7 +983,7 @@ export default function SettingsScreen() {
                   },
                 ]}
               >
-                <Text style={{ fontSize: 28 }}>⭐</Text>
+                <Text style={{ fontSize: 28 }}>🤖</Text>
                 <View style={{ flex: 1 }}>
                   <Text
                     style={{
@@ -964,17 +992,54 @@ export default function SettingsScreen() {
                       color: "#276749",
                     }}
                   >
-                    PRO 구독 중
+                    AI PRO 구독 중
                   </Text>
                   <Text
                     style={{ fontSize: 13, color: "#48BB78", marginTop: 2 }}
                   >
-                    모든 기능을 자유롭게 사용할 수 있어요
+                    무제한 AI · gpt-4o · 모든 광고 제거
                   </Text>
                 </View>
               </View>
+            ) : bannerRemoved ? (
+              /* 배너 광고 제거만 구매 */
+              <TouchableOpacity
+                style={[
+                  s.card,
+                  {
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 12,
+                    backgroundColor: "#EBF8FF",
+                    borderWidth: 1,
+                    borderColor: "#90CDF4",
+                    marginBottom: 16,
+                  },
+                ]}
+                onPress={() => setPaywallVisible(true)}
+                activeOpacity={0.85}
+              >
+                <Text style={{ fontSize: 28 }}>🚫</Text>
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{
+                      fontSize: 15,
+                      fontWeight: "700",
+                      color: "#2B6CB0",
+                    }}
+                  >
+                    배너 광고 제거됨
+                  </Text>
+                  <Text
+                    style={{ fontSize: 13, color: "#4299E1", marginTop: 2 }}
+                  >
+                    AI PRO 구독으로 더 많은 혜택을 받아보세요
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#90CDF4" />
+              </TouchableOpacity>
             ) : (
-              /* 미구독 — 업그레이드 배너 */
+              /* 미구매 — 스토어 배너 */
               <TouchableOpacity
                 style={[
                   s.card,
@@ -994,7 +1059,7 @@ export default function SettingsScreen() {
                     gap: 12,
                   }}
                 >
-                  <Text style={{ fontSize: 30 }}>⭐</Text>
+                  <Text style={{ fontSize: 30 }}>🛒</Text>
                   <View style={{ flex: 1 }}>
                     <Text
                       style={{
@@ -1003,7 +1068,7 @@ export default function SettingsScreen() {
                         color: "#fff",
                       }}
                     >
-                      PRO로 업그레이드
+                      스토어
                     </Text>
                     <Text
                       style={{
@@ -1012,7 +1077,7 @@ export default function SettingsScreen() {
                         marginTop: 3,
                       }}
                     >
-                      광고 제거 · AI 분석 무제한 · 모든 기능 개방
+                      광고 제거 · AI 구독 · 개발자 응원
                     </Text>
                   </View>
                   <Ionicons
@@ -3860,6 +3925,7 @@ export default function SettingsScreen() {
           <Text style={s.subSectionLabel}>AI 음식 분석 모델</Text>
           <Text style={[s.backupDesc, { marginBottom: 12 }]}>
             음식 사진 분석 시 사용할 AI 모델을 선택합니다.
+            {!aiPro && `\n오늘 남은 무료 분석: ${aiRemaining}/2회`}
           </Text>
           <View style={{ flexDirection: "row", gap: 8 }}>
             <TouchableOpacity
@@ -3897,6 +3963,7 @@ export default function SettingsScreen() {
                 }}
               >
                 gpt-4o-mini
+                {!aiPro && ` (${aiRemaining}/2)`}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -3908,13 +3975,13 @@ export default function SettingsScreen() {
                 backgroundColor:
                   aiModel === "gpt-4o"
                     ? "#667EEA"
-                    : isPro
+                    : aiPro
                       ? "#EDF2F7"
                       : "#F7F7F7",
-                opacity: !isPro && aiModel !== "gpt-4o" ? 0.75 : 1,
+                opacity: !aiPro && aiModel !== "gpt-4o" ? 0.75 : 1,
               }}
               onPress={async () => {
-                if (!isPro) {
+                if (!aiPro) {
                   setPaywallVisible(true);
                   return;
                 }
@@ -3935,7 +4002,7 @@ export default function SettingsScreen() {
                 >
                   고성능 모델
                 </Text>
-                {!isPro && <Text style={{ fontSize: 12 }}>⭐</Text>}
+                {!aiPro && <Text style={{ fontSize: 12 }}>🤖</Text>}
               </View>
               <Text
                 style={{
@@ -4386,6 +4453,48 @@ export default function SettingsScreen() {
                   전체 데이터 삭제
                 </Text>
                 <Text style={s.actionDesc}>모든 기록을 영구 삭제합니다</Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={s.actionBtn}
+              onPress={() => {
+                Alert.alert(
+                  "멤버십 초기화",
+                  "배너 제거, AI 구독 등 모든 유료 결제 상태를 비구독자로 되돌립니다.\n(실제 구독 취소는 Google Play/App Store에서 해야 합니다)",
+                  [
+                    { text: "취소", style: "cancel" },
+                    {
+                      text: "초기화",
+                      style: "destructive",
+                      onPress: async () => {
+                        // RevenueCat 로그아웃 → 익명 전환 (bannerRemoved, aiPro 모두 false)
+                        await logoutPurchases();
+                        // 광고 카운터도 리셋 (AI 일일횟수, 체중저장 누적)
+                        await resetAllAdCounters();
+                        setAiRemaining(2);
+                        // gpt-4o → gpt-4o-mini 전환 (PRO 모델 잠금)
+                        setAiModel("gpt-4o-mini");
+                        await saveUserSettings({
+                          ...(await loadUserSettings()),
+                          aiModel: "gpt-4o-mini",
+                        });
+                        await refreshPro();
+                        Alert.alert(
+                          "완료",
+                          "배너 제거·AI 구독 등 모든 유료 결제가 비구독자 상태로 초기화되었습니다."
+                        );
+                      },
+                    },
+                  ]
+                );
+              }}
+            >
+              <Text style={s.actionIcon}>🔄</Text>
+              <View style={s.actionTextWrap}>
+                <Text style={[s.actionTitle, { color: "#D69E2E" }]}>
+                  멤버십 초기화
+                </Text>
+                <Text style={s.actionDesc}>비구독자 상태로 되돌립니다</Text>
               </View>
             </TouchableOpacity>
           </View>

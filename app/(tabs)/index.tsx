@@ -1,3 +1,4 @@
+import { AdBanner } from "@/components/ad-banner";
 import { MealCardList } from "@/components/meal-card-list";
 import { MealInputModal } from "@/components/meal-input-modal";
 import { MiniCalendar } from "@/components/mini-calendar";
@@ -5,6 +6,7 @@ import { PhotoZoomModal } from "@/components/photo-zoom-modal";
 import { mealCardStyles, memoStyles } from "@/constants/common-styles";
 import { useKeyboardOffset } from "@/hooks/use-keyboard-offset";
 import { useMealInputModal, useMealListEditor } from "@/hooks/use-meal-editor";
+import { usePro } from "@/hooks/use-pro";
 import {
   Challenge,
   DailyToggles,
@@ -14,6 +16,7 @@ import {
   UserSettings,
   WeightRecord,
 } from "@/types";
+import { recordWeightSave, showInterstitialAd } from "@/utils/ad-manager";
 import {
   calcDailyNutrition,
   daysBetween,
@@ -61,6 +64,7 @@ const { width } = Dimensions.get("window");
 /* ───── MAIN ───── */
 
 export default function HomeScreen() {
+  const { aiPro } = usePro();
   const [selectedDate, setSelectedDate] = useState(() => getLocalDateString());
   const kbOffset = useKeyboardOffset();
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -96,6 +100,7 @@ export default function HomeScreen() {
   const mealModal = useMealInputModal({
     aiModel: userSettings.aiModel,
     foodPhotoQuality: userSettings.foodPhotoQuality,
+    aiPro,
   });
 
   /* 편집 모달 식사 편집 (공용 훅) */
@@ -383,6 +388,14 @@ export default function HomeScreen() {
       return next;
     });
     Alert.alert("저장 완료", `${fmtDate(selectedDate)} 기록이 저장되었습니다.`);
+
+    // 무료 유저: 체중 저장 3회마다 전면 광고
+    if (!aiPro) {
+      const shouldShowAd = await recordWeightSave();
+      if (shouldShowAd) {
+        await showInterstitialAd();
+      }
+    }
   };
 
   /* ───── 토글 즉시 저장 핸들러 ───── */
@@ -1735,6 +1748,9 @@ export default function HomeScreen() {
           </Modal>
         )}
       </KeyboardAvoidingView>
+
+      {/* 하단 배너 광고 (PRO는 자동 숨김) */}
+      <AdBanner />
 
       {/* 사진 확대 모달 */}
       <PhotoZoomModal
