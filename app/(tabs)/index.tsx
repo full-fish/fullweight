@@ -603,10 +603,6 @@ export default function HomeScreen() {
       setPhotoUri(emPhotoUri);
       setMemo(emMemo);
     }
-    Alert.alert(
-      "저장 완료",
-      `${fmtDate(editRecord.date)} 기록이 수정되었습니다.`
-    );
   };
 
   const isToday = selectedDate === getLocalDateString();

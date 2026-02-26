@@ -1,3 +1,4 @@
+import { AdBanner } from "@/components/ad-banner";
 import { MealCardList } from "@/components/meal-card-list";
 import { MealInputModal } from "@/components/meal-input-modal";
 import { PhotoZoomModal } from "@/components/photo-zoom-modal";
@@ -337,7 +338,6 @@ export default function CalendarScreen() {
     await eMealEditor.saveAll(selectedRecord.date);
     loadMeals().then(setAllMeals);
     setEditMode(false);
-    Alert.alert("저장 완료", "기록이 수정되었습니다.");
   };
 
   /* 삭제 */
@@ -428,7 +428,6 @@ export default function CalendarScreen() {
     }
     setAddMode(false);
     setAddDate("");
-    Alert.alert("저장 완료", `${fmtDate(addDate)} 기록이 추가되었습니다.`);
   };
 
   return (
@@ -2041,6 +2040,7 @@ export default function CalendarScreen() {
           onClose={() => setZoomPhotoUri(null)}
         />
       </ScrollView>
+      <AdBanner />
     </View>
   );
 }

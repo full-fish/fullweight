@@ -1,3 +1,4 @@
+import { AdBanner } from "@/components/ad-banner";
 import { CalendarModal } from "@/components/calendar-modal";
 import { DatePickerRow } from "@/components/date-picker-row";
 import {
@@ -1602,6 +1603,7 @@ export default function ChartScreen() {
           />
         )}
       </ScrollView>
+      <AdBanner />
     </View>
   );
 }

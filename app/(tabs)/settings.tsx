@@ -183,6 +183,7 @@ const POPULAR_ICONS: { name: string; label: string; library?: "mci" }[] = [
   { name: "smoking-off", label: "금연", library: "mci" },
   { name: "pill", label: "알약", library: "mci" },
   { name: "meditation", label: "명상", library: "mci" },
+  { name: "yoga", label: "요가", library: "mci" },
 ];
 
 /* ───── 캘린더 팝업 컴포넌트 ───── */
@@ -579,6 +580,8 @@ export default function SettingsScreen() {
   const [backupIntervalDays, setBackupIntervalDaysState] = useState(1);
   const [devTapCount, setDevTapCount] = useState(0);
   const [showDevTools, setShowDevTools] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteInput, setDeleteInput] = useState("");
 
   // ── 내보내기 상태 ──
   const [showExportModal, setShowExportModal] = useState(false);
@@ -826,7 +829,6 @@ export default function SettingsScreen() {
       age,
     });
     setIsEditing(false);
-    Alert.alert("저장 완료", "프로필 정보가 저장되었습니다.");
   };
 
   const handleSeedDummy = () => {
@@ -912,46 +914,32 @@ export default function SettingsScreen() {
     }
   };
 
-  const handleClearAll = () => {
-    Alert.alert(
-      "전체 데이터 삭제",
-      "모든 기록, 프로필, 광고 카운터, 멤버십 상태가 영구적으로 삭제됩니다.\n이 작업은 되돌릴 수 없습니다.",
-      [
-        { text: "취소", style: "cancel" },
-        {
-          text: "삭제",
-          style: "destructive",
-          onPress: async () => {
-            // 1) 체중·식사·챌린지·사용자정의 삭제
-            await clearAllRecords();
-            // 2) 광고 카운터 초기화 (AI 일일횟수, 체중저장 누적)
-            await resetAllAdCounters();
-            // 3) RevenueCat 로그아웃 (익명으로 전환)
-            await logoutPurchases();
-            // 4) Google 로그인 해제
-            try {
-              await signOut();
-            } catch {}
-            // 5) 상태 초기화
-            setRecordCount(0);
-            setCustomMetrics([]);
-            setCustomBoolMetrics([]);
-            setAiRemaining(2);
-            // 프로필 UI 초기화
-            setHeight("");
-            setBirthDate("");
-            setGender(undefined);
-            setAiModel("gpt-4o-mini");
-            setLockEnabled(false);
-            await refreshPro();
-            Alert.alert(
-              "삭제 완료",
-              "모든 기록, 프로필, 멤버십이 초기화되었습니다."
-            );
-          },
-        },
-      ]
-    );
+  const handleClearAll = async () => {
+    // 1) 체중·식사·챌린지·사용자정의 삭제
+    await clearAllRecords();
+    // 2) 광고 카운터 초기화 (AI 일일횟수, 체중저장 누적)
+    await resetAllAdCounters();
+    // 3) RevenueCat 로그아웃 (익명으로 전환)
+    await logoutPurchases();
+    // 4) Google 로그인 해제
+    try {
+      await signOut();
+    } catch {}
+    // 5) 상태 초기화
+    setRecordCount(0);
+    setCustomMetrics([]);
+    setCustomBoolMetrics([]);
+    setAiRemaining(2);
+    // 프로필 UI 초기화
+    setHeight("");
+    setBirthDate("");
+    setGender(undefined);
+    setAiModel("gpt-4o-mini");
+    setLockEnabled(false);
+    await refreshPro();
+    setShowDeleteConfirm(false);
+    setDeleteInput("");
+    Alert.alert("삭제 완료", "모든 기록, 프로필, 멤버십이 초기화되었습니다.");
   };
 
   return (
@@ -3584,7 +3572,160 @@ export default function SettingsScreen() {
             <Text style={s.infoLabel}>저장 위치</Text>
             <Text style={s.infoValue}>로컬 (AsyncStorage)</Text>
           </View>
+
+          <TouchableOpacity
+            style={[s.actionBtn, { marginTop: 8 }]}
+            onPress={() => {
+              setDeleteInput("");
+              setShowDeleteConfirm(true);
+            }}
+          >
+            <Text style={s.actionIcon}>🗑️</Text>
+            <View style={s.actionTextWrap}>
+              <Text style={[s.actionTitle, { color: "#E53E3E" }]}>
+                전체 데이터 삭제
+              </Text>
+              <Text style={s.actionDesc}>모든 기록을 영구 삭제합니다</Text>
+            </View>
+          </TouchableOpacity>
         </View>
+
+        {/* 전체 데이터 삭제 확인 모달 */}
+        <Modal
+          visible={showDeleteConfirm}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowDeleteConfirm(false)}
+        >
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: "rgba(0,0,0,0.55)",
+              justifyContent: "center",
+              alignItems: "center",
+              padding: 24,
+            }}
+          >
+            <View
+              style={{
+                backgroundColor: "#1E2A3A",
+                borderRadius: 16,
+                padding: 24,
+                width: "100%",
+                maxWidth: 340,
+              }}
+            >
+              <Text
+                style={{
+                  color: "#E53E3E",
+                  fontSize: 18,
+                  fontWeight: "700",
+                  textAlign: "center",
+                  marginBottom: 12,
+                }}
+              >
+                ⚠️ 전체 데이터 삭제
+              </Text>
+              <Text
+                style={{
+                  color: "#A0AEC0",
+                  fontSize: 14,
+                  textAlign: "center",
+                  lineHeight: 20,
+                  marginBottom: 20,
+                }}
+              >
+                모든 기록, 프로필, 광고 카운터, 멤버십 상태가{"\n"}영구적으로
+                삭제됩니다.{"\n"}이 작업은 되돌릴 수 없습니다.
+              </Text>
+              <Text
+                style={{
+                  color: "#CBD5E0",
+                  fontSize: 13,
+                  textAlign: "center",
+                  marginBottom: 8,
+                }}
+              >
+                확인을 위해 아래에{" "}
+                <Text style={{ color: "#E53E3E", fontWeight: "700" }}>
+                  삭제
+                </Text>
+                를 입력하세요
+              </Text>
+              <TextInput
+                style={{
+                  backgroundColor: "#2D3748",
+                  borderRadius: 10,
+                  padding: 12,
+                  color: "#fff",
+                  fontSize: 16,
+                  textAlign: "center",
+                  borderWidth: 1,
+                  borderColor: deleteInput === "삭제" ? "#E53E3E" : "#4A5568",
+                  marginBottom: 20,
+                }}
+                placeholder='"삭제" 입력'
+                placeholderTextColor="#4A5568"
+                value={deleteInput}
+                onChangeText={setDeleteInput}
+                autoCorrect={false}
+              />
+              <View
+                style={{
+                  flexDirection: "row",
+                  gap: 12,
+                }}
+              >
+                <TouchableOpacity
+                  style={{
+                    flex: 1,
+                    backgroundColor: "#2D3748",
+                    borderRadius: 10,
+                    paddingVertical: 14,
+                    alignItems: "center",
+                  }}
+                  onPress={() => {
+                    setShowDeleteConfirm(false);
+                    setDeleteInput("");
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: "#A0AEC0",
+                      fontSize: 15,
+                      fontWeight: "600",
+                    }}
+                  >
+                    취소
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={{
+                    flex: 1,
+                    backgroundColor:
+                      deleteInput === "삭제" ? "#E53E3E" : "#4A5568",
+                    borderRadius: 10,
+                    paddingVertical: 14,
+                    alignItems: "center",
+                    opacity: deleteInput === "삭제" ? 1 : 0.5,
+                  }}
+                  disabled={deleteInput !== "삭제"}
+                  onPress={handleClearAll}
+                >
+                  <Text
+                    style={{
+                      color: "#fff",
+                      fontSize: 15,
+                      fontWeight: "700",
+                    }}
+                  >
+                    삭제
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
 
         {/* Google 드라이브 백업 */}
         <View style={s.card}>
@@ -4444,15 +4585,6 @@ export default function SettingsScreen() {
                 <Text style={s.actionDesc}>
                   약 3년치 랜덤 테스트 데이터 삽입
                 </Text>
-              </View>
-            </TouchableOpacity>
-            <TouchableOpacity style={s.actionBtn} onPress={handleClearAll}>
-              <Text style={s.actionIcon}></Text>
-              <View style={s.actionTextWrap}>
-                <Text style={[s.actionTitle, { color: "#E53E3E" }]}>
-                  전체 데이터 삭제
-                </Text>
-                <Text style={s.actionDesc}>모든 기록을 영구 삭제합니다</Text>
               </View>
             </TouchableOpacity>
             <TouchableOpacity

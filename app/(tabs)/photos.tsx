@@ -1,3 +1,4 @@
+import { AdBanner } from "@/components/ad-banner";
 import { WeightRecord } from "@/types";
 import { loadRecords } from "@/utils/storage";
 import { useFocusEffect } from "@react-navigation/native";
@@ -390,6 +391,7 @@ export default function PhotosScreen() {
           </Modal>
         )}
       </View>
+      <AdBanner />
     </View>
   );
 }

@@ -1,3 +1,4 @@
+import { AdBanner } from "@/components/ad-banner";
 import { ProgressBar } from "@/components/progress-bar";
 import { useKeyboardOffset } from "@/hooks/use-keyboard-offset";
 import {
@@ -800,7 +801,6 @@ export default function ChallengeScreen() {
     await saveChallenge(newChallenge);
     setChallenge(newChallenge);
     setShowForm(false);
-    Alert.alert("저장 완료", "챌린지가 설정되었습니다!");
   };
 
   const handleDeleteChallenge = () => {
@@ -1747,6 +1747,7 @@ export default function ChallengeScreen() {
           </View>
         )}
       </ScrollView>
+      <AdBanner />
     </View>
   );
 }
