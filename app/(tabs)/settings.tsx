@@ -35,7 +35,11 @@ import {
   WEEKDAY_LABELS,
 } from "@/utils/format";
 import { importInBodyCSV } from "@/utils/inbody-import";
-import { logoutPurchases } from "@/utils/purchases";
+import {
+  devGrantAiPro,
+  devGrantBannerRemoval,
+  logoutPurchases,
+} from "@/utils/purchases";
 import {
   clearAllRecords,
   loadRecords,
@@ -4584,6 +4588,53 @@ export default function SettingsScreen() {
                 <Text style={s.actionTitle}>더미 데이터 생성</Text>
                 <Text style={s.actionDesc}>
                   약 3년치 랜덤 테스트 데이터 삽입
+                </Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={s.actionBtn}
+              onPress={async () => {
+                await devGrantBannerRemoval();
+                await refreshPro();
+                Alert.alert(
+                  "개발자 모드",
+                  "배너 광고 제거 활성화됨 (재시작 시 유지)"
+                );
+              }}
+            >
+              <Text style={s.actionIcon}>🚩</Text>
+              <View style={s.actionTextWrap}>
+                <Text style={[s.actionTitle, { color: "#48BB78" }]}>
+                  배너 광고 제거 활성화
+                </Text>
+                <Text style={s.actionDesc}>
+                  배너 광고 제거를 구매한 것처럼 시뮬레이션
+                </Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={s.actionBtn}
+              onPress={async () => {
+                await devGrantAiPro();
+                setAiModel("gpt-4o");
+                await saveUserSettings({
+                  ...(await loadUserSettings()),
+                  aiModel: "gpt-4o",
+                });
+                await refreshPro();
+                Alert.alert(
+                  "개발자 모드",
+                  "AI Pro 연간 구독 활성화됨 (재시작 시 유지)"
+                );
+              }}
+            >
+              <Text style={s.actionIcon}>🤖</Text>
+              <View style={s.actionTextWrap}>
+                <Text style={[s.actionTitle, { color: "#63B3ED" }]}>
+                  AI Pro 연간 구독 활성화
+                </Text>
+                <Text style={s.actionDesc}>
+                  gpt-4o + 광고 전체 제거를 구독한 것처럼 시뮬레이션
                 </Text>
               </View>
             </TouchableOpacity>

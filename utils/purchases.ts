@@ -31,6 +31,10 @@ export const ENTITLEMENT_AI_PRO = "ai_pro";
 // 이 값이 "1"이면 RevenueCat 응답과 무관하게 무료 유저로 취급
 const MEMBERSHIP_FREE_OVERRIDE_KEY = "membership_free_override";
 
+// ─── 개발자 PRO 오버라이드 ─────────────────────────────────────────────────
+export const DEV_BANNER_OVERRIDE_KEY = "dev_banner_removed";
+export const DEV_AIPRO_OVERRIDE_KEY = "dev_ai_pro";
+
 /** 유저의 현재 구매 상태 */
 export type MembershipStatus = {
   /** 배너 광고 제거 여부 (lifetime 또는 AI 구독 포함) */
@@ -73,6 +77,18 @@ export async function getMembershipStatus(): Promise<MembershipStatus> {
     const override = await AsyncStorage.getItem(MEMBERSHIP_FREE_OVERRIDE_KEY);
     if (override === "1") {
       return { bannerRemoved: false, aiPro: false };
+    }
+
+    // 개발자 PRO 오버라이드 확인
+    const [devBanner, devAiPro] = await Promise.all([
+      AsyncStorage.getItem(DEV_BANNER_OVERRIDE_KEY),
+      AsyncStorage.getItem(DEV_AIPRO_OVERRIDE_KEY),
+    ]);
+    if (devBanner === "1" || devAiPro === "1") {
+      return {
+        bannerRemoved: devBanner === "1" || devAiPro === "1",
+        aiPro: devAiPro === "1",
+      };
     }
 
     const info = await Purchases.getCustomerInfo();
@@ -149,6 +165,22 @@ export async function restorePurchases(): Promise<MembershipStatus> {
 }
 
 /**
+ * [개발자 전용] 배너 광고 제거 구매한 것처럼 처리
+ */
+export async function devGrantBannerRemoval(): Promise<void> {
+  await AsyncStorage.removeItem(MEMBERSHIP_FREE_OVERRIDE_KEY);
+  await AsyncStorage.setItem(DEV_BANNER_OVERRIDE_KEY, "1");
+}
+
+/**
+ * [개발자 전용] AI Pro 연간 구독한 것처럼 처리
+ */
+export async function devGrantAiPro(): Promise<void> {
+  await AsyncStorage.removeItem(MEMBERSHIP_FREE_OVERRIDE_KEY);
+  await AsyncStorage.setItem(DEV_AIPRO_OVERRIDE_KEY, "1");
+}
+
+/**
  * 현재 유저를 로그아웃 (데이터 삭제 시)
  * 익명 유저로 전환됨
  */
@@ -162,4 +194,7 @@ export async function logoutPurchases(): Promise<void> {
   // RevenueCat 캐시와 무관하게 즉시 무료 상태로 전환
   // (익명 유저이거나 logOut이 실패해도 강제로 free 처리)
   await AsyncStorage.setItem(MEMBERSHIP_FREE_OVERRIDE_KEY, "1");
+  // 개발자 override도 함께 초기화
+  await AsyncStorage.removeItem(DEV_BANNER_OVERRIDE_KEY);
+  await AsyncStorage.removeItem(DEV_AIPRO_OVERRIDE_KEY);
 }
