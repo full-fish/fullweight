@@ -1,4 +1,3 @@
-import { AdBanner } from "@/components/ad-banner";
 import { MealCardList } from "@/components/meal-card-list";
 import { MealInputModal } from "@/components/meal-input-modal";
 import { MiniCalendar } from "@/components/mini-calendar";
@@ -1744,9 +1743,6 @@ export default function HomeScreen() {
           </Modal>
         )}
       </KeyboardAvoidingView>
-
-      {/* 하단 배너 광고 (PRO는 자동 숨김) */}
-      <AdBanner />
 
       {/* 사진 확대 모달 */}
       <PhotoZoomModal

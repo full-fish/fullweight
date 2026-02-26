@@ -1,4 +1,3 @@
-import { AdBanner } from "@/components/ad-banner";
 import { MealCardList } from "@/components/meal-card-list";
 import { MealInputModal } from "@/components/meal-input-modal";
 import { PhotoZoomModal } from "@/components/photo-zoom-modal";
@@ -2040,7 +2039,6 @@ export default function CalendarScreen() {
           onClose={() => setZoomPhotoUri(null)}
         />
       </ScrollView>
-      <AdBanner />
     </View>
   );
 }

@@ -1,4 +1,3 @@
-import { AdBanner } from "@/components/ad-banner";
 import { ProgressBar } from "@/components/progress-bar";
 import { useKeyboardOffset } from "@/hooks/use-keyboard-offset";
 import {
@@ -1747,7 +1746,6 @@ export default function ChallengeScreen() {
           </View>
         )}
       </ScrollView>
-      <AdBanner />
     </View>
   );
 }
