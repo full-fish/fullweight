@@ -20,7 +20,7 @@ import Purchases, {
 } from "react-native-purchases";
 
 // ─── RevenueCat SDK 키 ───────────────────────────────────────────────────────
-const RC_ANDROID_KEY = "test_RGiASMcFasLVSKMYQWCddcZuWmP";
+const RC_ANDROID_KEY = "goog_bnVsZuOogtNyxYWxiiUEkZmzlLy";
 const RC_IOS_KEY = "";
 
 // ─── Entitlement 식별자 ────────────────────────────────────────────────────

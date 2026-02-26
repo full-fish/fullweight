@@ -161,7 +161,6 @@ export function PaywallModal({
             <>
               {/* ─── 헤더 ─── */}
               <View style={st.header}>
-                <Text style={st.headerEmoji}>🛒</Text>
                 <Text style={st.headerTitle}>fullweight 스토어</Text>
                 <Text style={st.headerSub}>필요한 기능만 골라 구매하세요</Text>
                 <TouchableOpacity style={st.closeBtn} onPress={onClose}>

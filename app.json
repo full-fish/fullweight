@@ -3,7 +3,7 @@
     "name": "fullweight",
     "slug": "fullweight",
     "owner": "choimanseon",
-    "version": "1.0.0",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "fullweight",
@@ -14,7 +14,7 @@
     },
     "android": {
       "package": "com.choimanseon.fullweight",
-      "versionCode": 1,
+      "versionCode": 4,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
