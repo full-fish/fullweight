@@ -10,6 +10,7 @@ import {
   purchasePackage,
   restorePurchases,
 } from "@/utils/purchases";
+import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -123,13 +124,14 @@ export function PaywallModal({
       p.packageType === "ANNUAL" ||
       p.identifier.toLowerCase().includes("annual")
   );
-  const beerPkgs =
+  const beerPkgs = (
     offering?.availablePackages.filter(
       (p) =>
         p.identifier.toLowerCase().includes("beer") ||
         p.identifier.toLowerCase().includes("tip") ||
         p.identifier.toLowerCase().includes("donate")
-    ) ?? [];
+    ) ?? []
+  ).sort((a, b) => a.product.price - b.product.price);
 
   return (
     <Modal
@@ -149,22 +151,29 @@ export function PaywallModal({
               ]}
             >
               <View style={st.successCircle}>
-                <Text style={st.successCheckmark}>✓</Text>
+                <Ionicons name="checkmark" size={52} color="#fff" />
               </View>
               <Text style={st.successTitle}>구매 완료!</Text>
               <Text style={st.successSub}>{purchaseMessage}</Text>
-              <TouchableOpacity style={st.successBtn} onPress={onClose}>
-                <Text style={st.successBtnText}>확인 🎉</Text>
+              <TouchableOpacity
+                style={[
+                  st.successBtn,
+                  { flexDirection: "row", alignItems: "center", gap: 8 },
+                ]}
+                onPress={onClose}
+              >
+                <Text style={st.successBtnText}>확인</Text>
+                <Ionicons name="sparkles" size={18} color="#fff" />
               </TouchableOpacity>
             </Animated.View>
           ) : (
             <>
               {/* ─── 헤더 ─── */}
               <View style={st.header}>
-                <Text style={st.headerTitle}>fullweight 스토어</Text>
+                <Text style={st.headerTitle}>스토어</Text>
                 <Text style={st.headerSub}>필요한 기능만 골라 구매하세요</Text>
                 <TouchableOpacity style={st.closeBtn} onPress={onClose}>
-                  <Text style={st.closeBtnText}>✕</Text>
+                  <Ionicons name="close" size={18} color="#718096" />
                 </TouchableOpacity>
               </View>
 
@@ -183,7 +192,13 @@ export function PaywallModal({
                     {/* ═══ 1. 배너 광고 제거 ═══ */}
                     <View style={st.section}>
                       <View style={st.sectionHeader}>
-                        <Text style={st.sectionEmoji}>🚫</Text>
+                        <View style={{ width: 36, alignItems: "center" }}>
+                          <Ionicons
+                            name="eye-off-outline"
+                            size={26}
+                            color="#4A5568"
+                          />
+                        </View>
                         <View style={{ flex: 1 }}>
                           <Text style={st.sectionTitle}>배너 광고 제거</Text>
                           <Text style={st.sectionDesc}>
@@ -193,8 +208,18 @@ export function PaywallModal({
                       </View>
 
                       {bannerRemoved ? (
-                        <View style={st.purchasedBadge}>
-                          <Text style={st.purchasedText}>✅ 구매 완료</Text>
+                        <View
+                          style={[
+                            st.purchasedBadge,
+                            { flexDirection: "row", gap: 6 },
+                          ]}
+                        >
+                          <Ionicons
+                            name="checkmark-circle"
+                            size={18}
+                            color="#38A169"
+                          />
+                          <Text style={st.purchasedText}>구매 완료</Text>
                         </View>
                       ) : bannerPkg ? (
                         <TouchableOpacity
@@ -231,7 +256,13 @@ export function PaywallModal({
                     {/* ═══ 2. AI 모델 구독 ═══ */}
                     <View style={st.section}>
                       <View style={st.sectionHeader}>
-                        <Text style={st.sectionEmoji}>🤖</Text>
+                        <View style={{ width: 36, alignItems: "center" }}>
+                          <Ionicons
+                            name="sparkles-outline"
+                            size={26}
+                            color="#667EEA"
+                          />
+                        </View>
                         <View style={{ flex: 1 }}>
                           <Text style={st.sectionTitle}>AI 모델 구독</Text>
                           <Text style={st.sectionDesc}>
@@ -247,19 +278,50 @@ export function PaywallModal({
 
                       <View style={st.featureList}>
                         {[
-                          "🔓  AI 음식 분석 무제한 (일 2회 → 무제한)",
-                          "🧠  고성능 모델 gpt-4o 잠금 해제",
-                          "🚫  모든 광고 제거 (배너 + 전면)",
+                          {
+                            icon: "lock-open-outline",
+                            text: "AI 음식 분석 무제한 (일 2회 → 무제한)",
+                          },
+                          {
+                            icon: "hardware-chip-outline",
+                            text: "고성능 모델 gpt-4o 잠금 해제",
+                          },
+                          {
+                            icon: "eye-off-outline",
+                            text: "모든 광고 제거 (배너 + 전면)",
+                          },
                         ].map((f) => (
-                          <Text key={f} style={st.featureItem}>
-                            {f}
-                          </Text>
+                          <View
+                            key={f.text}
+                            style={{
+                              flexDirection: "row",
+                              alignItems: "center",
+                              gap: 8,
+                            }}
+                          >
+                            <Ionicons
+                              name={f.icon as any}
+                              size={15}
+                              color="#2B6CB0"
+                            />
+                            <Text style={st.featureItem}>{f.text}</Text>
+                          </View>
                         ))}
                       </View>
 
                       {aiPro ? (
-                        <View style={st.purchasedBadge}>
-                          <Text style={st.purchasedText}>✅ 구독 중</Text>
+                        <View
+                          style={[
+                            st.purchasedBadge,
+                            { flexDirection: "row", gap: 6 },
+                          ]}
+                        >
+                          <Ionicons
+                            name="checkmark-circle"
+                            size={18}
+                            color="#38A169"
+                          />
+                          <Text style={st.purchasedText}>구독 중</Text>
                         </View>
                       ) : (
                         <View style={{ gap: 10 }}>
@@ -368,7 +430,13 @@ export function PaywallModal({
                     {/* ═══ 3. 개발자에게 맥주 사주기 ═══ */}
                     <View style={st.section}>
                       <View style={st.sectionHeader}>
-                        <Text style={st.sectionEmoji}>🍺</Text>
+                        <View style={{ width: 36, alignItems: "center" }}>
+                          <Ionicons
+                            name="beer-outline"
+                            size={26}
+                            color="#D69E2E"
+                          />
+                        </View>
                         <View style={{ flex: 1 }}>
                           <Text style={st.sectionTitle}>
                             개발자에게 맥주 사주기
@@ -398,7 +466,9 @@ export function PaywallModal({
                               ) : (
                                 <>
                                   <Text style={st.buyBtnTitle}>
-                                    {pkg.product.title || pkg.identifier}
+                                    {(pkg.product.title || pkg.identifier)
+                                      .replace(/\s*\([^)]*\)\s*$/, "")
+                                      .trim()}
                                   </Text>
                                   <Text style={st.buyBtnPrice}>
                                     {pkg.product.priceString}
