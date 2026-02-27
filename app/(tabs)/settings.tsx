@@ -3584,7 +3584,12 @@ export default function SettingsScreen() {
               setShowDeleteConfirm(true);
             }}
           >
-            <Ionicons name="trash-outline" size={22} color="#E53E3E" style={{ marginRight: 14 }} />
+            <Ionicons
+              name="trash-outline"
+              size={22}
+              color="#E53E3E"
+              style={{ marginRight: 14 }}
+            />
             <View style={s.actionTextWrap}>
               <Text style={[s.actionTitle, { color: "#E53E3E" }]}>
                 전체 데이터 삭제
@@ -4147,7 +4152,9 @@ export default function SettingsScreen() {
                 >
                   고성능 모델
                 </Text>
-                {!aiPro && <Ionicons name="sparkles-outline" size={13} color="#667EEA" />}
+                {!aiPro && (
+                  <Ionicons name="sparkles-outline" size={13} color="#667EEA" />
+                )}
               </View>
               <Text
                 style={{
