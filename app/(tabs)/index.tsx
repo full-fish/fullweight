@@ -1885,8 +1885,8 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: "#fff",
     borderRadius: 16,
-    padding: 20,
-    marginBottom: 24,
+    padding: 18,
+    marginBottom: 20,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
@@ -1897,13 +1897,13 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "600",
     color: "#2D3748",
-    marginBottom: 16,
+    marginBottom: 14,
   },
   cardTitleRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 14,
   },
   cardDateSelector: {
     flexDirection: "row",
@@ -1942,10 +1942,10 @@ const styles = StyleSheet.create({
     color: "#4A5568",
     marginBottom: 6,
   },
-  inputRow: { flexDirection: "row", alignItems: "center", marginBottom: 16 },
+  inputRow: { flexDirection: "row", alignItems: "center", marginBottom: 14 },
   input: {
     flex: 1,
-    height: 48,
+    height: 44,
     borderWidth: 1.5,
     borderColor: "#E2E8F0",
     borderRadius: 10,
@@ -1966,7 +1966,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: "#F7FAFC",
   },
@@ -1974,7 +1974,7 @@ const styles = StyleSheet.create({
   saveBtn: {
     backgroundColor: "#4CAF50",
     borderRadius: 12,
-    paddingVertical: 14,
+    paddingVertical: 12,
     alignItems: "center",
     marginTop: 4,
   },
@@ -1989,12 +1989,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#2D3748",
     backgroundColor: "#F7FAFC",
-    minHeight: 48,
-    marginBottom: 16,
+    minHeight: 44,
+    marginBottom: 14,
   },
 
   /* photo */
-  photoSection: { marginBottom: 16 },
+  photoSection: { marginBottom: 14 },
   photoPreviewWrap: { position: "relative", marginBottom: 8 },
   photoPreview: { width: "100%", height: 200, borderRadius: 12 },
   photoRemoveBtn: {
