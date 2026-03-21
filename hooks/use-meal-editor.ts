@@ -9,7 +9,11 @@ import {
   MealEntry,
   MealType,
 } from "@/types";
-import { recordAiUsage, showInterstitialAd } from "@/utils/ad-manager";
+import {
+  getAiRemainingCount,
+  recordAiUsage,
+  showRewardedAdForAi,
+} from "@/utils/ad-manager";
 import { analyzeFood } from "@/utils/food-ai";
 import { captureFoodPhoto, deletePhoto } from "@/utils/photo";
 import { addMeal, deleteMeal, loadMeals, saveMeals } from "@/utils/storage";
@@ -61,13 +65,40 @@ export function useMealInputModal(options: MealEditorOptions = {}) {
       setPhotoUri(captured.savedUri);
       setAiAnalyzing(true);
       try {
-        // AI 사용량 기록 (PRO가 아닌 경우)
+        // AI 사용량 체크 (PRO가 아닌 경우)
         if (!options.aiPro) {
-          const isFree = await recordAiUsage();
-          if (!isFree) {
-            // 3회차부터 전면 광고 표시
-            await showInterstitialAd();
+          const remaining = await getAiRemainingCount();
+          if (remaining <= 0) {
+            // 무료 횟수 소진 → 리워드 광고 제안
+            setAiAnalyzing(false);
+            const userChoice = await new Promise<boolean>((res) => {
+              Alert.alert(
+                "무료 횟수 소진",
+                "오늘 무료 AI 분석 횟수를 모두 사용했습니다.\n광고를 시청하면 2회가 다시 충전됩니다.",
+                [
+                  { text: "취소", style: "cancel", onPress: () => res(false) },
+                  { text: "광고 보기", onPress: () => res(true) },
+                ]
+              );
+            });
+            if (!userChoice) {
+              deletePhoto(captured.aiUri).catch(() => {});
+              return;
+            }
+            setAiAnalyzing(true);
+            const rewarded = await showRewardedAdForAi();
+            if (!rewarded) {
+              setAiAnalyzing(false);
+              Alert.alert(
+                "광고 실패",
+                "광고 로딩에 실패했습니다. 잠시 후 다시 시도해주세요."
+              );
+              deletePhoto(captured.aiUri).catch(() => {});
+              return;
+            }
           }
+          // 사용량 기록
+          await recordAiUsage();
         }
 
         const result = await analyzeFood(captured.aiUri, options.aiModel);

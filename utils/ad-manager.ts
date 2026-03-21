@@ -184,6 +184,91 @@ export function showInterstitialAd(): Promise<void> {
   });
 }
 
+/* ═══════════════════════════════════════════════════
+   리워드 광고 (Rewarded)
+   ═══════════════════════════════════════════════════ */
+
+let RewardedAd: any = null;
+let RewardedAdEventType: any = null;
+
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const m = require("react-native-google-mobile-ads");
+  RewardedAd = m.RewardedAd;
+  RewardedAdEventType = m.RewardedAdEventType;
+} catch {}
+
+function getRewardedUnitId(): string | null {
+  if (!TestIds) return null;
+  if (__DEV__) return TestIds.REWARDED;
+  return (
+    Platform.select({
+      android: "ca-app-pub-1379550026930118/9813815068",
+      ios: "ca-app-pub-1379550026930118/9813815068",
+      default: TestIds.REWARDED,
+    }) ?? null
+  );
+}
+
+/**
+ * 리워드 광고를 로드·표시하고, 시청 완료 시 AI 일일 카운터를 리셋
+ * @returns 리워드 획득 성공 여부
+ */
+export function showRewardedAdForAi(): Promise<boolean> {
+  return new Promise((resolve) => {
+    const unitId = getRewardedUnitId();
+    if (!RewardedAd || !RewardedAdEventType || !AdEventType || !unitId) {
+      resolve(false);
+      return;
+    }
+
+    try {
+      const ad = RewardedAd.createForAdRequest(unitId, {
+        requestNonPersonalizedAdsOnly: false,
+      });
+
+      let resolved = false;
+      let rewarded = false;
+      const done = (success: boolean) => {
+        if (!resolved) {
+          resolved = true;
+          resolve(success);
+        }
+      };
+
+      // 보상 획득
+      ad.addAdEventListener(RewardedAdEventType.EARNED_REWARD, async () => {
+        rewarded = true;
+        // AI 일일 카운터 리셋 → 다시 2회 사용 가능
+        await resetAiCount();
+      });
+
+      // 광고 닫힘
+      ad.addAdEventListener(AdEventType.CLOSED, () => {
+        done(rewarded);
+      });
+
+      // 로드 실패
+      ad.addAdEventListener(AdEventType.ERROR, () => {
+        console.log("[RewardedAd] 로드 실패");
+        done(false);
+      });
+
+      // 로드 완료 → 표시
+      ad.addAdEventListener(AdEventType.LOADED, () => {
+        ad.show().catch(() => done(false));
+      });
+
+      ad.load();
+
+      // 15초 타임아웃
+      setTimeout(() => done(false), 15000);
+    } catch {
+      resolve(false);
+    }
+  });
+}
+
 /**
  * 모든 광고 카운터 초기화 (데이터 삭제 시 호출)
  */
