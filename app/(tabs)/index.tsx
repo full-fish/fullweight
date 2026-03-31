@@ -174,7 +174,7 @@ export default function HomeScreen() {
           .filter((r) => r.weight)
           .sort((a, b) => b.date.localeCompare(a.date));
         const latestWeight =
-          sorted.length > 0 ? sorted[0].weight!.toString() : "";
+          sorted.length > 0 ? (sorted[0].weight?.toString() ?? "") : "";
         setWeight(latestWeight);
         setSkipWeight(false);
         setWaist("");
