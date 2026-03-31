@@ -28,18 +28,24 @@ import { useFocusEffect } from "@react-navigation/native";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
   Dimensions,
+  Modal,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
 import { LineChart } from "react-native-chart-kit";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import {
+  Gesture,
+  GestureDetector,
+  GestureHandlerRootView,
+} from "react-native-gesture-handler";
 import Svg, { Line as SvgLine, Text as SvgText } from "react-native-svg";
 
-const { width } = Dimensions.get("window");
-const CHART_WIDTH = width - 48;
+const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
+const CHART_WIDTH = SCREEN_W - 48;
 
 /** 영양소 수치별 고유 색상 (METRIC_COLORS에 없는 키) */
 const NUTRITION_COLORS: Record<string, string> = {
@@ -97,6 +103,23 @@ export default function ChartScreen() {
   const [showStatsEndCal, setShowStatsEndCal] = useState(false);
   const [showActivityCal, setShowActivityCal] = useState(false);
   const [showActivityEndCal, setShowActivityEndCal] = useState(false);
+  const [showFullscreenChart, setShowFullscreenChart] = useState(false);
+
+  /* ── 전체화면 차트 줌 상태 ── */
+  const [fsZoom, setFsZoom] = useState(30);
+  const [fsOffset, setFsOffset] = useState(0);
+  const [fsYPad, setFsYPad] = useState(10);
+  const fsPinchBaseZoom = useRef(30);
+  const fsPinchBaseYPad = useRef(10);
+  const fsPinchBaseOffset = useRef(0);
+  const fsIsVerticalPinch = useRef(false);
+  const fsPanBaseOffset = useRef(0);
+  const fsLatestZoom = useRef(30);
+  const fsLatestYPad = useRef(10);
+  const fsLatestOffset = useRef(0);
+  fsLatestZoom.current = fsZoom;
+  fsLatestYPad.current = fsYPad;
+  fsLatestOffset.current = fsOffset;
 
   /* ── 식사 데이터 (일별 합산) ── */
   const [dailyMealMap, setDailyMealMap] = useState<
@@ -935,10 +958,29 @@ export default function ChartScreen() {
         {/* 차트 카드 */}
         <GestureDetector gesture={composedGesture}>
           <View style={s.chartCard}>
-            <Text style={s.chartTitle}>
-              {selectedMetrics.map((k) => getMetricInfo(k).label).join(" · ")}{" "}
-              추이
-            </Text>
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <Text style={s.chartTitle}>
+                {selectedMetrics.map((k) => getMetricInfo(k).label).join(" · ")}{" "}
+                추이
+              </Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setFsZoom(chartZoom);
+                  setFsOffset(chartOffset);
+                  setFsYPad(yPadding);
+                  setShowFullscreenChart(true);
+                }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="expand-outline" size={20} color="#718096" />
+              </TouchableOpacity>
+            </View>
 
             {/* 오버레이 토글 (다중 선택 시) */}
             {isMulti && (
@@ -1422,10 +1464,10 @@ export default function ChartScreen() {
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={s.summaryRow}
-              snapToInterval={(width - 48) / 5}
+              snapToInterval={(SCREEN_W - 48) / 5}
               decelerationRate="fast"
             >
-              <View style={[s.summaryItem, { width: (width - 48) / 5 }]}>
+              <View style={[s.summaryItem, { width: (SCREEN_W - 48) / 5 }]}>
                 <View
                   style={{
                     height: 36,
@@ -1440,7 +1482,7 @@ export default function ChartScreen() {
                 <Text style={s.summaryLabel}>총 기록일</Text>
               </View>
               {userSettings.metricInputVisibility?.["exercised"] !== false && (
-                <View style={[s.summaryItem, { width: (width - 48) / 5 }]}>
+                <View style={[s.summaryItem, { width: (SCREEN_W - 48) / 5 }]}>
                   <View
                     style={{
                       height: 36,
@@ -1475,7 +1517,7 @@ export default function ChartScreen() {
                 </View>
               )}
               {userSettings.metricInputVisibility?.["drank"] !== false && (
-                <View style={[s.summaryItem, { width: (width - 48) / 5 }]}>
+                <View style={[s.summaryItem, { width: (SCREEN_W - 48) / 5 }]}>
                   <View
                     style={{
                       height: 36,
@@ -1524,7 +1566,7 @@ export default function ChartScreen() {
                   return (
                     <View
                       key={cbm.key}
-                      style={[s.summaryItem, { width: (width - 48) / 5 }]}
+                      style={[s.summaryItem, { width: (SCREEN_W - 48) / 5 }]}
                     >
                       <View
                         style={{
@@ -1625,9 +1667,488 @@ export default function ChartScreen() {
           />
         )}
       </ScrollView>
+
+      {/* ── 전체화면 차트 모달 ── */}
+      {showFullscreenChart &&
+        (() => {
+          // 세로 화면을 90도 돌려서 가로처럼 표시
+          const portraitW = Math.min(SCREEN_W, SCREEN_H);
+          const portraitH = Math.max(SCREEN_W, SCREEN_H);
+          const FS_W = portraitH - 32; // 회전 후 가로 = 세로화면 높이
+          const FS_H = portraitW - 80; // 회전 후 세로 = 세로화면 너비
+          const fsLen = chartData.length;
+          const fsEnd = Math.max(fsZoom, fsLen - fsOffset);
+          const fsStart = Math.max(0, fsEnd - fsZoom);
+          const fsSliced = chartData.slice(fsStart, fsEnd);
+
+          const fsLabels = (() => {
+            const step =
+              fsSliced.length > 12 ? Math.ceil(fsSliced.length / 8) : 1;
+            return fsSliced.map((r, i) => {
+              if (i % step !== 0) return "";
+              if (periodMode === "monthly") return fmtMonthLabel(r.date);
+              if (periodMode === "weekly") return fmtWeekLabel(r.date);
+              return fmtLabel(r.date);
+            });
+          })();
+
+          const fsPinch = Gesture.Pinch()
+            .runOnJS(true)
+            .onTouchesDown((e) => {
+              if (e.allTouches.length >= 2) {
+                const t1 = e.allTouches[0];
+                const t2 = e.allTouches[1];
+                fsIsVerticalPinch.current =
+                  Math.abs(t2.y - t1.y) > Math.abs(t2.x - t1.x);
+              }
+            })
+            .onBegin(() => {
+              fsPinchBaseZoom.current = fsLatestZoom.current;
+              fsPinchBaseYPad.current = fsLatestYPad.current;
+              fsPinchBaseOffset.current = fsLatestOffset.current;
+            })
+            .onUpdate((e) => {
+              if (fsIsVerticalPinch.current) {
+                const yDelta = Math.round((1 - e.scale) * 20);
+                setFsYPad(
+                  Math.max(0, Math.min(30, fsPinchBaseYPad.current + yDelta))
+                );
+              } else {
+                const newZoom = Math.round(fsPinchBaseZoom.current / e.scale);
+                const clamped = Math.max(5, Math.min(fsLen, newZoom));
+                setFsZoom(clamped);
+                const focalR = Math.min(1, Math.max(0, e.focalY / portraitH));
+                const offShift = Math.round(
+                  (clamped - fsPinchBaseZoom.current) * (1 - focalR)
+                );
+                setFsOffset(
+                  Math.max(
+                    0,
+                    Math.min(
+                      fsLen - clamped,
+                      fsPinchBaseOffset.current - offShift
+                    )
+                  )
+                );
+              }
+            });
+
+          const fsPan = Gesture.Pan()
+            .runOnJS(true)
+            .minDistance(10)
+            .minPointers(1)
+            .maxPointers(1)
+            .onBegin(() => {
+              fsPanBaseOffset.current = fsLatestOffset.current;
+            })
+            .onUpdate((e) => {
+              const ppx = fsLatestZoom.current / FS_W;
+              const shift = Math.round(e.translationY * ppx);
+              setFsOffset(
+                Math.max(
+                  0,
+                  Math.min(
+                    fsLen - fsLatestZoom.current,
+                    fsPanBaseOffset.current + shift
+                  )
+                )
+              );
+            });
+
+          const fsGesture = Gesture.Simultaneous(fsPinch, fsPan);
+
+          // 단일 수치 데이터
+          const fsKey =
+            selectedMetrics.length === 1 ? selectedMetrics[0] : null;
+          const fsSingleFiltered = fsKey
+            ? fsSliced.filter((r) => getVal(r, fsKey) !== null)
+            : [];
+          const fsSingleValues = fsKey
+            ? fsSingleFiltered.map((r) => getVal(r, fsKey)!)
+            : [];
+          const fsSingleLabels = (() => {
+            const recs = fsSingleFiltered;
+            const step = recs.length > 12 ? Math.ceil(recs.length / 8) : 1;
+            return recs.map((r, i) => {
+              if (i % step !== 0) return "";
+              if (periodMode === "monthly") return fmtMonthLabel(r.date);
+              if (periodMode === "weekly") return fmtWeekLabel(r.date);
+              return fmtLabel(r.date);
+            });
+          })();
+
+          const isFsSingle = selectedMetrics.length === 1;
+
+          // 다중 수치 오버레이
+          const fsOverlayInfo =
+            !isFsSingle && overlayMode
+              ? (() => {
+                  const raw = fsSliced;
+                  if (raw.length < 2) return null;
+                  const ranges: Record<string, { min: number; max: number }> =
+                    {};
+                  const datasets: any[] = [];
+                  const nullMasks: boolean[][] = [];
+                  selectedMetrics.forEach((key) => {
+                    const vals = raw.map((r) => getVal(r, key));
+                    const validVals = vals.filter(
+                      (v): v is number => v !== null
+                    );
+                    if (validVals.length === 0) return;
+                    const min = Math.min(...validVals);
+                    const max = Math.max(...validVals);
+                    ranges[key] = { min, max };
+                    const range = max - min || 1;
+                    const mask: boolean[] = [];
+                    const interp = vals.map((v, i) => {
+                      if (v !== null) {
+                        mask.push(false);
+                        return ((v - min) / range) * 100;
+                      }
+                      mask.push(true);
+                      let prev: number | null = null,
+                        next: number | null = null;
+                      for (let j = i - 1; j >= 0; j--) {
+                        if (vals[j] !== null) {
+                          prev = ((vals[j]! - min) / range) * 100;
+                          break;
+                        }
+                      }
+                      for (let j = i + 1; j < vals.length; j++) {
+                        if (vals[j] !== null) {
+                          next = ((vals[j]! - min) / range) * 100;
+                          break;
+                        }
+                      }
+                      if (prev !== null && next !== null)
+                        return (prev + next) / 2;
+                      return prev ?? next ?? 50;
+                    });
+                    nullMasks.push(mask);
+                    const mi = getMetricInfo(key);
+                    datasets.push({
+                      data: interp,
+                      color: (opacity = 1) => hexToRGBA(mi.color, opacity),
+                      strokeWidth: 2,
+                    });
+                  });
+                  if (datasets.length === 0) return null;
+                  return {
+                    datasets,
+                    nullMasks,
+                    labels: fsLabels,
+                    ranges,
+                    filtered: raw,
+                  };
+                })()
+              : null;
+
+          return (
+            <Modal
+              visible
+              animationType="fade"
+              supportedOrientations={["portrait"]}
+              onRequestClose={() => setShowFullscreenChart(false)}
+            >
+              <GestureHandlerRootView style={{ flex: 1 }}>
+                <StatusBar hidden />
+                <View
+                  style={{
+                    width: portraitW,
+                    height: portraitH,
+                    backgroundColor: "#fff",
+                  }}
+                >
+                  <View
+                    style={{
+                      width: portraitH,
+                      height: portraitW,
+                      transform: [
+                        { rotate: "90deg" },
+                        { translateX: (portraitH - portraitW) / 2 },
+                        { translateY: (portraitH - portraitW) / 2 },
+                      ],
+                      paddingTop: 16,
+                      paddingLeft: 16,
+                      paddingRight: 52,
+                    }}
+                  >
+                    <View style={fsStyles.header}>
+                      <Text style={fsStyles.title}>
+                        {selectedMetrics
+                          .map((k) => getMetricInfo(k).label)
+                          .join(" · ")}{" "}
+                        추이
+                      </Text>
+                      <TouchableOpacity
+                        onPress={() => setShowFullscreenChart(false)}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      >
+                        <Ionicons name="close" size={24} color="#2D3748" />
+                      </TouchableOpacity>
+                    </View>
+
+                    <GestureDetector gesture={fsGesture}>
+                      <View style={fsStyles.chartArea}>
+                        {isFsSingle &&
+                          fsSingleFiltered.length >= 2 &&
+                          fsKey && (
+                            <LineChart
+                              data={{
+                                labels: fsSingleLabels,
+                                datasets: [
+                                  {
+                                    data: fsSingleValues,
+                                    color: (opacity = 1) =>
+                                      hexToRGBA(
+                                        getMetricInfo(fsKey).color,
+                                        opacity
+                                      ),
+                                    strokeWidth: 2,
+                                  },
+                                  ...(() => {
+                                    const pad = fsYPad * 0.01;
+                                    const tgt = NUTRITION_KEYS.has(fsKey)
+                                      ? NUTRITION_TARGET_MAP[fsKey]
+                                      : undefined;
+                                    const allV =
+                                      tgt != null
+                                        ? [...fsSingleValues, tgt]
+                                        : fsSingleValues;
+                                    return [
+                                      {
+                                        data: [Math.min(...allV) * (1 - pad)],
+                                        withDots: false,
+                                        strokeWidth: 0,
+                                        color: () => "transparent",
+                                      },
+                                      {
+                                        data: [Math.max(...allV) * (1 + pad)],
+                                        withDots: false,
+                                        strokeWidth: 0,
+                                        color: () => "transparent",
+                                      },
+                                    ];
+                                  })(),
+                                ],
+                              }}
+                              width={FS_W}
+                              height={FS_H}
+                              chartConfig={{
+                                backgroundGradientFrom: "#fff",
+                                backgroundGradientTo: "#fff",
+                                color: (opacity = 1) =>
+                                  hexToRGBA(
+                                    getMetricInfo(fsKey).color,
+                                    opacity
+                                  ),
+                                labelColor: (opacity = 1) =>
+                                  `rgba(113,128,150,${opacity})`,
+                                strokeWidth: 2,
+                                propsForDots: {
+                                  r: "4",
+                                  strokeWidth: "1.5",
+                                  stroke: getMetricInfo(fsKey).color,
+                                  fill: getMetricInfo(fsKey).color,
+                                },
+                                propsForBackgroundLines: { stroke: "#F0F4F8" },
+                                decimalPlaces: NUTRITION_KEYS.has(fsKey)
+                                  ? 0
+                                  : 1,
+                              }}
+                              bezier
+                              style={{ borderRadius: 8 }}
+                              withVerticalLines={false}
+                              withShadow={false}
+                              formatYLabel={(v) =>
+                                NUTRITION_KEYS.has(fsKey)
+                                  ? Math.round(parseFloat(v)).toString()
+                                  : parseFloat(v).toFixed(1)
+                              }
+                            />
+                          )}
+
+                        {isFsSingle && fsSingleFiltered.length < 2 && (
+                          <View
+                            style={{
+                              flex: 1,
+                              justifyContent: "center",
+                              alignItems: "center",
+                            }}
+                          >
+                            <Text style={{ color: "#A0AEC0", fontSize: 14 }}>
+                              데이터가 부족합니다.
+                            </Text>
+                          </View>
+                        )}
+
+                        {!isFsSingle &&
+                          overlayMode &&
+                          fsOverlayInfo &&
+                          (() => {
+                            let dotIdx = 0;
+                            const N = fsOverlayInfo.filtered.length;
+                            return (
+                              <LineChart
+                                data={{
+                                  labels: fsOverlayInfo.labels,
+                                  datasets: fsOverlayInfo.datasets,
+                                }}
+                                width={FS_W}
+                                height={FS_H}
+                                getDotProps={(_: unknown, j: number) => {
+                                  const dsIdx = Math.floor(dotIdx / N);
+                                  dotIdx++;
+                                  const isNull =
+                                    fsOverlayInfo.nullMasks[dsIdx]?.[j] ??
+                                    false;
+                                  if (isNull)
+                                    return {
+                                      r: "0",
+                                      strokeWidth: "0",
+                                      fill: "transparent",
+                                    };
+                                  const c =
+                                    fsOverlayInfo.datasets[dsIdx]?.color(1) ??
+                                    "#718096";
+                                  return {
+                                    r: "3.5",
+                                    strokeWidth: "0",
+                                    fill: c,
+                                  };
+                                }}
+                                chartConfig={
+                                  {
+                                    backgroundGradientFrom: "#fff",
+                                    backgroundGradientTo: "#fff",
+                                    color: (opacity = 1) =>
+                                      `rgba(113,128,150,${opacity})`,
+                                    labelColor: (opacity = 1) =>
+                                      `rgba(113,128,150,${opacity})`,
+                                    strokeWidth: 2,
+                                    propsForBackgroundLines: {
+                                      stroke: "#F0F4F8",
+                                    },
+                                    decimalPlaces: 0,
+                                  } as any
+                                }
+                                bezier
+                                style={{ borderRadius: 8 }}
+                                withVerticalLines={false}
+                                withShadow={false}
+                                formatYLabel={(v) =>
+                                  `${parseFloat(v).toFixed(0)}%`
+                                }
+                              />
+                            );
+                          })()}
+
+                        {!isFsSingle && overlayMode && !fsOverlayInfo && (
+                          <View
+                            style={{
+                              flex: 1,
+                              justifyContent: "center",
+                              alignItems: "center",
+                            }}
+                          >
+                            <Text style={{ color: "#A0AEC0", fontSize: 14 }}>
+                              데이터가 부족합니다.
+                            </Text>
+                          </View>
+                        )}
+
+                        {!isFsSingle && !overlayMode && (
+                          <View
+                            style={{
+                              flex: 1,
+                              justifyContent: "center",
+                              alignItems: "center",
+                            }}
+                          >
+                            <Text style={{ color: "#A0AEC0", fontSize: 14 }}>
+                              전체화면은 겹쳐보기 모드에서 지원됩니다.
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                    </GestureDetector>
+
+                    {/* 범례 */}
+                    {!isFsSingle && fsOverlayInfo && (
+                      <View style={fsStyles.legend}>
+                        {selectedMetrics.map((key) => {
+                          const range = fsOverlayInfo.ranges[key];
+                          if (!range) return null;
+                          const mi = getMetricInfo(key);
+                          return (
+                            <View
+                              key={key}
+                              style={{
+                                flexDirection: "row",
+                                alignItems: "center",
+                                marginRight: 16,
+                              }}
+                            >
+                              <View
+                                style={{
+                                  width: 8,
+                                  height: 8,
+                                  borderRadius: 4,
+                                  backgroundColor: mi.color,
+                                  marginRight: 5,
+                                }}
+                              />
+                              <Text style={{ fontSize: 12, color: "#718096" }}>
+                                {mi.label} ({range.min.toFixed(1)}~
+                                {range.max.toFixed(1)}
+                                {mi.unit})
+                              </Text>
+                            </View>
+                          );
+                        })}
+                      </View>
+                    )}
+                  </View>
+                </View>
+              </GestureHandlerRootView>
+            </Modal>
+          );
+        })()}
     </View>
   );
 }
+
+/* ───── fullscreen chart styles ───── */
+const fsStyles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#fff",
+    paddingTop: 16,
+    paddingHorizontal: 16,
+  },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  title: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#2D3748",
+  },
+  chartArea: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  legend: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    paddingVertical: 12,
+  },
+});
 
 /* ───── styles ───── */
 
