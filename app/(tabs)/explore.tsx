@@ -132,7 +132,8 @@ export default function ChartScreen() {
     const s = userSettings;
     if (!s.height || !s.gender || !s.birthDate || allRecords.length === 0)
       return null;
-    const latest = allRecords[allRecords.length - 1];
+    const latest = [...allRecords].reverse().find((r) => r.weight != null);
+    if (!latest || !latest.weight) return null;
     return calcDailyNutrition({
       weight: latest.weight,
       targetWeight: latest.weight,
@@ -223,7 +224,7 @@ export default function ChartScreen() {
         const rec = {
           id: key,
           date: key,
-          weight: avg(recs.map((r) => r.weight)) ?? 0,
+          weight: avg(recs.map((r) => r.weight ?? null)) ?? undefined,
           waist: avg(recs.map((r) => r.waist ?? null)) ?? undefined,
           muscleMass: avg(recs.map((r) => r.muscleMass ?? null)) ?? undefined,
           bodyFatPercent:
@@ -537,11 +538,12 @@ export default function ChartScreen() {
     return { current, max, min, avg, diff, unit };
   }, [statsRecords, statsMetric, userSettings.customMetrics, getVal]);
 
-  /* ── 활동 요약 ── */
+  /* ── 활동 요약 (체중기록 + 토글전용 기록 병합) ── */
   const activityRecords = useMemo(() => {
     let recs = allRecords;
     if (activityStart) recs = recs.filter((r) => r.date >= activityStart);
     if (activityEnd) recs = recs.filter((r) => r.date <= activityEnd);
+
     return recs;
   }, [allRecords, activityStart, activityEnd]);
 
@@ -571,7 +573,8 @@ export default function ChartScreen() {
     );
 
     const metrics: { icon: string; val: string }[] = [];
-    metrics.push({ icon: "", val: `${record.weight} kg` });
+    if (record.weight != null)
+      metrics.push({ icon: "", val: `${record.weight} kg` });
     if (record.waist != null)
       metrics.push({ icon: "허리", val: `${record.waist} cm` });
     if (record.muscleMass != null)
@@ -1436,116 +1439,136 @@ export default function ChartScreen() {
                 <Text style={s.summaryCount}>{activityRecords.length}</Text>
                 <Text style={s.summaryLabel}>총 기록일</Text>
               </View>
-              <View style={[s.summaryItem, { width: (width - 48) / 5 }]}>
-                <View
-                  style={{
-                    height: 36,
-                    justifyContent: "center",
-                    alignItems: "center",
-                    marginBottom: 6,
-                  }}
-                >
-                  <FontAwesome5 name="running" size={26} color="#4CAF50" />
-                </View>
-                <Text style={s.summaryCount}>
-                  {activityRecords.filter((r) => r.exercised).length}
-                  <Text style={s.summaryPercent}>
-                    (
-                    {activityRecords.length > 0
-                      ? Math.round(
-                          (activityRecords.filter((r) => r.exercised).length /
-                            activityRecords.length) *
-                            100
-                        )
-                      : 0}
-                    %)
-                  </Text>
-                </Text>
-                <Text style={s.summaryLabel}>운동일</Text>
-              </View>
-              <View style={[s.summaryItem, { width: (width - 48) / 5 }]}>
-                <View
-                  style={{
-                    height: 36,
-                    justifyContent: "center",
-                    alignItems: "center",
-                    marginBottom: 6,
-                  }}
-                >
-                  <Ionicons name="beer-outline" size={26} color="#e6e02d" />
-                </View>
-                <Text style={s.summaryCount}>
-                  {activityRecords.filter((r) => r.drank).length}
-                  <Text style={s.summaryPercent}>
-                    (
-                    {activityRecords.length > 0
-                      ? Math.round(
-                          (activityRecords.filter((r) => r.drank).length /
-                            activityRecords.length) *
-                            100
-                        )
-                      : 0}
-                    %)
-                  </Text>
-                </Text>
-                <Text style={s.summaryLabel}>음주일</Text>
-              </View>
-              {(userSettings.customBoolMetrics ?? []).map((cbm) => {
-                const count = activityRecords.filter(
-                  (r) => r.customBoolValues?.[cbm.key]
-                ).length;
-                const pct =
-                  activityRecords.length > 0
-                    ? Math.round((count / activityRecords.length) * 100)
-                    : 0;
-                return (
+              {userSettings.metricInputVisibility?.["exercised"] !== false && (
+                <View style={[s.summaryItem, { width: (width - 48) / 5 }]}>
                   <View
-                    key={cbm.key}
-                    style={[s.summaryItem, { width: (width - 48) / 5 }]}
+                    style={{
+                      height: 36,
+                      justifyContent: "center",
+                      alignItems: "center",
+                      marginBottom: 6,
+                    }}
                   >
-                    <View
-                      style={{
-                        height: 36,
-                        justifyContent: "center",
-                        alignItems: "center",
-                        marginBottom: 6,
-                      }}
-                    >
-                      {cbm.iconName ? (
-                        cbm.iconLibrary === "mci" ? (
-                          <MaterialCommunityIcons
-                            name={cbm.iconName as any}
-                            size={26}
-                            color={cbm.iconColor || cbm.color}
-                          />
-                        ) : (
-                          <Ionicons
-                            name={cbm.iconName as any}
-                            size={26}
-                            color={cbm.iconColor || cbm.color}
-                          />
-                        )
-                      ) : cbm.emoji ? (
-                        <Text style={{ fontSize: 26 }}>{cbm.emoji}</Text>
-                      ) : (
-                        <View
-                          style={{
-                            width: 26,
-                            height: 26,
-                            borderRadius: 13,
-                            backgroundColor: cbm.color,
-                          }}
-                        />
-                      )}
-                    </View>
-                    <Text style={s.summaryCount}>
-                      {count}
-                      <Text style={s.summaryPercent}>({pct}%)</Text>
-                    </Text>
-                    <Text style={s.summaryLabel}>{cbm.label}일</Text>
+                    <FontAwesome5 name="running" size={26} color="#4CAF50" />
                   </View>
-                );
-              })}
+                  <Text style={s.summaryCount}>
+                    {activityRecords.filter((r) => r.exercised).length}
+                    <Text style={s.summaryPercent}>
+                      (
+                      {(() => {
+                        const avail = activityRecords.filter(
+                          (r) => r.exercised !== undefined
+                        ).length;
+                        return avail > 0
+                          ? Math.round(
+                              (activityRecords.filter((r) => r.exercised)
+                                .length /
+                                avail) *
+                                100
+                            )
+                          : 0;
+                      })()}
+                      %)
+                    </Text>
+                  </Text>
+                  <Text style={s.summaryLabel}>운동일</Text>
+                </View>
+              )}
+              {userSettings.metricInputVisibility?.["drank"] !== false && (
+                <View style={[s.summaryItem, { width: (width - 48) / 5 }]}>
+                  <View
+                    style={{
+                      height: 36,
+                      justifyContent: "center",
+                      alignItems: "center",
+                      marginBottom: 6,
+                    }}
+                  >
+                    <Ionicons name="beer-outline" size={26} color="#e6e02d" />
+                  </View>
+                  <Text style={s.summaryCount}>
+                    {activityRecords.filter((r) => r.drank).length}
+                    <Text style={s.summaryPercent}>
+                      (
+                      {(() => {
+                        const avail = activityRecords.filter(
+                          (r) => r.drank !== undefined
+                        ).length;
+                        return avail > 0
+                          ? Math.round(
+                              (activityRecords.filter((r) => r.drank).length /
+                                avail) *
+                                100
+                            )
+                          : 0;
+                      })()}
+                      %)
+                    </Text>
+                  </Text>
+                  <Text style={s.summaryLabel}>음주일</Text>
+                </View>
+              )}
+              {(userSettings.customBoolMetrics ?? [])
+                .filter(
+                  (cbm) =>
+                    userSettings.metricInputVisibility?.[cbm.key] !== false
+                )
+                .map((cbm) => {
+                  const avail = activityRecords.filter(
+                    (r) => r.customBoolValues?.[cbm.key] !== undefined
+                  ).length;
+                  const count = activityRecords.filter(
+                    (r) => r.customBoolValues?.[cbm.key]
+                  ).length;
+                  const pct = avail > 0 ? Math.round((count / avail) * 100) : 0;
+                  return (
+                    <View
+                      key={cbm.key}
+                      style={[s.summaryItem, { width: (width - 48) / 5 }]}
+                    >
+                      <View
+                        style={{
+                          height: 36,
+                          justifyContent: "center",
+                          alignItems: "center",
+                          marginBottom: 6,
+                        }}
+                      >
+                        {cbm.iconName ? (
+                          cbm.iconLibrary === "mci" ? (
+                            <MaterialCommunityIcons
+                              name={cbm.iconName as any}
+                              size={26}
+                              color={cbm.iconColor || cbm.color}
+                            />
+                          ) : (
+                            <Ionicons
+                              name={cbm.iconName as any}
+                              size={26}
+                              color={cbm.iconColor || cbm.color}
+                            />
+                          )
+                        ) : cbm.emoji ? (
+                          <Text style={{ fontSize: 26 }}>{cbm.emoji}</Text>
+                        ) : (
+                          <View
+                            style={{
+                              width: 26,
+                              height: 26,
+                              borderRadius: 13,
+                              backgroundColor: cbm.color,
+                            }}
+                          />
+                        )}
+                      </View>
+                      <Text style={s.summaryCount}>
+                        {count}
+                        <Text style={s.summaryPercent}>({pct}%)</Text>
+                      </Text>
+                      <Text style={s.summaryLabel}>{cbm.label}일</Text>
+                    </View>
+                  );
+                })}
             </ScrollView>
           </View>
         )}

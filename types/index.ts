@@ -1,13 +1,13 @@
 export type WeightRecord = {
   id: string;
   date: string; // YYYY-MM-DD (로컬 날짜)
-  weight: number; // kg
+  weight?: number; // kg (선택 — 미입력 가능)
   waist?: number; // cm (선택)
   muscleMass?: number; // 골격근량 kg (선택)
   bodyFatPercent?: number; // 체지방률 % (선택)
   bodyFatMass?: number; // 체지방량 kg (선택)
-  exercised: boolean;
-  drank: boolean;
+  exercised?: boolean;
+  drank?: boolean;
   photoUri?: string; // 바디 사진 로컬 URI (선택)
   memo?: string; // 메모 (선택)
   customValues?: Record<string, number>; // 사용자 정의 수치
@@ -207,11 +207,3 @@ export type BodyPhotoQuality = "compressed" | "original";
 
 /** 음식 사진 화질: low(썸네일) / compressed(현재 ~700KB) / original(원본) */
 export type FoodPhotoQuality = "low" | "compressed" | "original";
-
-/** 일별 토글 데이터 (체중 기록 없는 날의 운동/음주/체크항목) */
-export type DailyToggles = {
-  date: string;
-  exercised: boolean;
-  drank: boolean;
-  customBoolValues?: Record<string, boolean>;
-};

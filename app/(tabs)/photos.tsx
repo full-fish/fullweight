@@ -170,11 +170,13 @@ export default function PhotosScreen() {
                   <Text style={s.compareDate}>
                     {fmtDateShort(recordA.date)}
                   </Text>
-                  <Text style={s.compareWeight}>{recordA.weight}kg</Text>
+                  <Text style={s.compareWeight}>{recordA.weight ?? "-"}kg</Text>
                 </TouchableOpacity>
                 <View style={s.compareArrow}>
                   <Text style={{ fontSize: 20, color: "#A0AEC0" }}>→</Text>
                   {(() => {
+                    if (recordA.weight == null || recordB.weight == null)
+                      return null;
                     const diff = recordB.weight - recordA.weight;
                     return (
                       <Text
@@ -203,7 +205,7 @@ export default function PhotosScreen() {
                   <Text style={s.compareDate}>
                     {fmtDateShort(recordB.date)}
                   </Text>
-                  <Text style={s.compareWeight}>{recordB.weight}kg</Text>
+                  <Text style={s.compareWeight}>{recordB.weight ?? "-"}kg</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -371,7 +373,9 @@ export default function PhotosScreen() {
                         </Text>
                       </View>
                       <Text style={s.viewerDate}>{fmtDate(item.date)}</Text>
-                      <Text style={s.viewerWeight}>{item.weight} kg</Text>
+                      <Text style={s.viewerWeight}>
+                        {item.weight != null ? `${item.weight} kg` : ""}
+                      </Text>
                       {item.muscleMass != null && (
                         <Text style={s.viewerMeta}>{item.muscleMass}kg</Text>
                       )}

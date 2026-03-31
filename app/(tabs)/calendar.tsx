@@ -5,7 +5,7 @@ import { memoStyles } from "@/constants/common-styles";
 import { useKeyboardOffset } from "@/hooks/use-keyboard-offset";
 import { useMealInputModal, useMealListEditor } from "@/hooks/use-meal-editor";
 import { usePro } from "@/hooks/use-pro";
-import { DailyToggles, MealEntry, UserSettings, WeightRecord } from "@/types";
+import { MealEntry, UserSettings, WeightRecord } from "@/types";
 import {
   fmtDate,
   getBmiInfo,
@@ -17,7 +17,6 @@ import {
 import { pickPhoto, takePhoto } from "@/utils/photo";
 import {
   deleteRecord,
-  loadAllToggles,
   loadMeals,
   loadRecords,
   loadUserSettings,
@@ -96,16 +95,11 @@ export default function CalendarScreen() {
     aiPro,
   });
   const [zoomPhotoUri, setZoomPhotoUri] = useState<string | null>(null);
-  const [allToggles, setAllToggles] = useState<Record<string, DailyToggles>>(
-    {}
-  );
-
   useFocusEffect(
     useCallback(() => {
       loadRecords().then(setRecords);
       loadUserSettings().then(setUserSettings);
       loadMeals().then(setAllMeals);
-      loadAllToggles().then(setAllToggles);
     }, [])
   );
 
@@ -237,11 +231,20 @@ export default function CalendarScreen() {
       ).length;
     });
 
+    const findWeightRange = () => {
+      const withWeight = sorted.filter((r) => r.weight != null);
+      if (withWeight.length === 0) return null;
+      if (withWeight.length === 1)
+        return { first: withWeight[0], last: null as WeightRecord | null };
+      return { first: withWeight[0], last: withWeight[withWeight.length - 1] };
+    };
+
     return {
       records: filtered,
       periodLabel,
       first,
       last,
+      weightRange: findWeightRange(),
       muscleMassRange: findMetricRange("muscleMass"),
       bodyFatPercentRange: findMetricRange("bodyFatPercent"),
       bodyFatMassRange: findMetricRange("bodyFatMass"),
@@ -273,7 +276,7 @@ export default function CalendarScreen() {
   /* 편집 모드 시작 */
   const startEdit = () => {
     if (!selectedRecord) return;
-    setEWeight(selectedRecord.weight.toString());
+    setEWeight(selectedRecord.weight?.toString() ?? "");
     setEWaist(selectedRecord.waist?.toString() ?? "");
     setEMuscleMass(selectedRecord.muscleMass?.toString() ?? "");
     setEBodyFatPercent(selectedRecord.bodyFatPercent?.toString() ?? "");
@@ -634,48 +637,50 @@ export default function CalendarScreen() {
               >
                 {summaryData.periodLabel} 변화
               </Text>
-              {/* 몸무게 (항상 표시) */}
-              <View
-                style={{
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  paddingVertical: 4,
-                  alignItems: "center",
-                }}
-              >
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: 4,
-                  }}
-                >
-                  <Text style={{ fontSize: 13, color: "#718096" }}>몸무게</Text>
-                  <Text style={{ fontSize: 10, color: "#A0AEC0" }}>
-                    {summaryData.first.date.slice(2).replace(/-/g, ".")}~
-                    {summaryData.last.date.slice(2).replace(/-/g, ".")}
-                  </Text>
-                </View>
-                <Text
-                  style={{
-                    fontSize: 13,
-                    fontWeight: "600",
-                    color:
-                      summaryData.last.weight - summaryData.first.weight <= 0
-                        ? "#38A169"
-                        : "#E53E3E",
-                  }}
-                >
-                  {summaryData.first.weight}→{summaryData.last.weight}kg (
-                  {summaryData.last.weight - summaryData.first.weight > 0
-                    ? "+"
-                    : ""}
-                  {(summaryData.last.weight - summaryData.first.weight).toFixed(
-                    1
-                  )}
-                  )
-                </Text>
-              </View>
+              {/* 몸무게 */}
+              {summaryData.weightRange &&
+                summaryData.weightRange.last &&
+                (() => {
+                  const wr = summaryData.weightRange;
+                  const fw = wr.first.weight!;
+                  const lw = wr.last!.weight!;
+                  return (
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        justifyContent: "space-between",
+                        paddingVertical: 4,
+                        alignItems: "center",
+                      }}
+                    >
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 4,
+                        }}
+                      >
+                        <Text style={{ fontSize: 13, color: "#718096" }}>
+                          몸무게
+                        </Text>
+                        <Text style={{ fontSize: 10, color: "#A0AEC0" }}>
+                          {wr.first.date.slice(2).replace(/-/g, ".")}~
+                          {wr.last!.date.slice(2).replace(/-/g, ".")}
+                        </Text>
+                      </View>
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          fontWeight: "600",
+                          color: lw - fw <= 0 ? "#38A169" : "#E53E3E",
+                        }}
+                      >
+                        {fw}→{lw}kg ({lw - fw > 0 ? "+" : ""}
+                        {(lw - fw).toFixed(1)})
+                      </Text>
+                    </View>
+                  );
+                })()}
               {/* 골격근량 */}
               {userSettings.metricDisplayVisibility?.muscleMass !== false &&
                 (() => {
@@ -1036,14 +1041,7 @@ export default function CalendarScreen() {
                               drank: rec.drank,
                               customBoolValues: rec.customBoolValues,
                             }
-                          : allToggles[dateStr]
-                            ? {
-                                exercised: allToggles[dateStr].exercised,
-                                drank: allToggles[dateStr].drank,
-                                customBoolValues:
-                                  allToggles[dateStr].customBoolValues,
-                              }
-                            : null;
+                          : null;
                         if (!toggleData) return null;
                         const dots: React.ReactNode[] = [];
                         if (
@@ -1156,12 +1154,14 @@ export default function CalendarScreen() {
                     <Text style={s.modalDate}>
                       {fmtDate(selectedRecord.date)}
                     </Text>
-                    <View style={s.modalRow}>
-                      <Text style={s.modalLabel}>몸무게</Text>
-                      <Text style={s.modalValue}>
-                        {selectedRecord.weight} kg
-                      </Text>
-                    </View>
+                    {selectedRecord.weight != null && (
+                      <View style={s.modalRow}>
+                        <Text style={s.modalLabel}>몸무게</Text>
+                        <Text style={s.modalValue}>
+                          {selectedRecord.weight} kg
+                        </Text>
+                      </View>
+                    )}
                     {userSettings.metricDisplayVisibility?.waist !== false &&
                       selectedRecord.waist != null && (
                         <View style={s.modalRow}>
@@ -1221,6 +1221,7 @@ export default function CalendarScreen() {
                         );
                       })}
                     {userSettings.height &&
+                      selectedRecord.weight != null &&
                       (() => {
                         const info = getBmiInfo(
                           selectedRecord.weight,

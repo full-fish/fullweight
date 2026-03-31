@@ -860,7 +860,11 @@ export default function ChallengeScreen() {
     const items: number[] = [];
 
     const effStartWeight = challenge.startWeight ?? startValues?.weight;
-    if (challenge.targetWeight != null && effStartWeight != null) {
+    if (
+      challenge.targetWeight != null &&
+      effStartWeight != null &&
+      currentValues.weight != null
+    ) {
       const total = challenge.targetWeight - effStartWeight;
       if (total !== 0) {
         items.push(

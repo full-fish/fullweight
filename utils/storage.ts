@@ -1,7 +1,6 @@
 import {
   Challenge,
   ChallengeHistory,
-  DailyToggles,
   MealEntry,
   MealType,
   UserSettings,
@@ -14,7 +13,6 @@ const CHALLENGE_KEY = "weight_challenge_v1";
 const CHALLENGE_HISTORY_KEY = "weight_challenge_history_v1";
 const USER_SETTINGS_KEY = "user_settings_v1";
 const MEAL_STORAGE_KEY = "meal_entries_v1";
-const TOGGLES_KEY = "daily_toggles_v1";
 
 /** 로컬 날짜를 YYYY-MM-DD 형식으로 반환 */
 export function getLocalDateString(date: Date = new Date()): string {
@@ -69,7 +67,6 @@ export async function clearAllRecords(): Promise<void> {
   await AsyncStorage.removeItem(MEAL_STORAGE_KEY);
   await AsyncStorage.removeItem(CHALLENGE_KEY);
   await AsyncStorage.removeItem(CHALLENGE_HISTORY_KEY);
-  await AsyncStorage.removeItem(TOGGLES_KEY);
   // 프로필 포함 사용자 설정 전체 초기화
   await AsyncStorage.removeItem(USER_SETTINGS_KEY);
 }
@@ -77,7 +74,7 @@ export async function clearAllRecords(): Promise<void> {
 /**
  * 약 3년치 더미 데이터 생성 및 저장
  * - 일주일마다 1~7일 랜덤 기록
- * - 몸무게: 78kg 근방에서 완만한 변화 + 노이즈
+ * - 몸무게: 78kg 근방에서 완만한 변화 + 노이즈 (15% 확률로 체중 없이 토글만)
  * - 허리: 82cm 근방, 65% 확률로 기록
  * - 골격근량: 60% 확률
  * - 체지방률: 55% 확률
@@ -114,7 +111,7 @@ export async function seedDummyData(): Promise<WeightRecord[]> {
   }
   selectedDates.sort();
 
-  // 기록 생성 (몸무게 트렌드: 완만하게 감량 후 유지)
+  // 기록 생성 (몸무게 트렌드: 완만하게 감량 후 유지, 15% 확률로 체중 없이 토글만)
   let baseWeight = 78.0;
   const records: WeightRecord[] = selectedDates.map((date, idx) => {
     // 매 40개마다 기저 체중 살짝 이동 (전체적으로 감량 트렌드)
@@ -122,25 +119,33 @@ export async function seedDummyData(): Promise<WeightRecord[]> {
       baseWeight += rand(-0.6, 0.3);
       baseWeight = Math.max(65, Math.min(90, baseWeight));
     }
-    const weight = Math.round((baseWeight + rand(-1.5, 1.5)) * 10) / 10;
-    const clampedWeight = Math.max(60, Math.min(95, weight));
+
+    // 15% 확률로 체중 없이 토글만 기록
+    const skipWeight = Math.random() < 0.15;
+
+    const weight = skipWeight
+      ? undefined
+      : Math.max(
+          60,
+          Math.min(95, Math.round((baseWeight + rand(-1.5, 1.5)) * 10) / 10)
+        );
 
     const hasWaist = Math.random() < 0.65;
-    const hasMuscleMass = Math.random() < 0.6;
-    const hasBodyFatPercent = Math.random() < 0.55;
-    const hasBodyFatMass = Math.random() < 0.45;
+    const hasMuscleMass = !skipWeight && Math.random() < 0.6;
+    const hasBodyFatPercent = !skipWeight && Math.random() < 0.55;
+    const hasBodyFatMass = !skipWeight && Math.random() < 0.45;
 
     const bodyFatPercent = hasBodyFatPercent ? rand(14, 28) : undefined;
     const bodyFatMass = hasBodyFatMass
       ? Math.round(
-          ((clampedWeight * (bodyFatPercent ?? rand(14, 28))) / 100) * 10
+          (((weight ?? 75) * (bodyFatPercent ?? rand(14, 28))) / 100) * 10
         ) / 10
       : undefined;
 
     return {
       id: date,
       date,
-      weight: clampedWeight,
+      weight,
       waist: hasWaist ? rand(78, 88) : undefined,
       muscleMass: hasMuscleMass ? rand(28, 38) : undefined,
       bodyFatPercent,
@@ -687,32 +692,4 @@ export async function deleteMeal(id: string): Promise<MealEntry[]> {
   const filtered = all.filter((m) => m.id !== id);
   await saveMeals(filtered);
   return filtered;
-}
-
-/* ───── 일별 토글 (운동/음주/체크항목 — 체중 기록 없는 날용) ───── */
-
-export async function loadAllToggles(): Promise<Record<string, DailyToggles>> {
-  try {
-    const data = await AsyncStorage.getItem(TOGGLES_KEY);
-    return data ? JSON.parse(data) : {};
-  } catch {
-    return {};
-  }
-}
-
-export async function loadToggle(date: string): Promise<DailyToggles | null> {
-  const all = await loadAllToggles();
-  return all[date] ?? null;
-}
-
-export async function saveToggle(toggle: DailyToggles): Promise<void> {
-  const all = await loadAllToggles();
-  all[toggle.date] = toggle;
-  await AsyncStorage.setItem(TOGGLES_KEY, JSON.stringify(all));
-}
-
-export async function deleteToggle(date: string): Promise<void> {
-  const all = await loadAllToggles();
-  delete all[date];
-  await AsyncStorage.setItem(TOGGLES_KEY, JSON.stringify(all));
 }

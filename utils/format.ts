@@ -116,7 +116,8 @@ export function hexToRGBA(hex: string, opacity: number): string {
 
 /** WeightRecord에서 특정 메트릭 값 추출 (커스텀 수치 키도 지원) */
 export function getMetricValue(r: WeightRecord, key: string): number | null {
-  if (key === "weight") return r.weight > 0 ? r.weight : null;
+  if (key === "weight")
+    return r.weight != null && r.weight > 0 ? r.weight : null;
   if (key === "waist") return r.waist ?? null;
   if (key === "muscleMass") return r.muscleMass ?? null;
   if (key === "bodyFatPercent") return r.bodyFatPercent ?? null;
