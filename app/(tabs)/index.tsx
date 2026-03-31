@@ -38,6 +38,7 @@ import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useFocusEffect } from "@react-navigation/native";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Dimensions,
   Image,
@@ -74,6 +75,7 @@ export default function HomeScreen() {
   const [photoUri, setPhotoUri] = useState<string | undefined>(undefined);
   const [memo, setMemo] = useState("");
   const scrollRef = useRef<ScrollView>(null);
+  const recordListLengthRef = useRef(0);
   const weightLongPressRef = useRef<ReturnType<typeof setInterval> | null>(
     null
   );
@@ -326,6 +328,7 @@ export default function HomeScreen() {
     );
     extraDates.forEach((d) => items.push({ date: d }));
     items.sort((a, b) => b.date.localeCompare(a.date));
+    recordListLengthRef.current = items.length;
     return items;
   }, [records, allMeals]);
 
@@ -553,6 +556,18 @@ export default function HomeScreen() {
           ref={scrollRef}
           style={styles.container}
           contentContainerStyle={styles.content}
+          onScroll={useCallback(({ nativeEvent }: any) => {
+            const { layoutMeasurement, contentOffset, contentSize } =
+              nativeEvent;
+            const distanceFromBottom =
+              contentSize.height - layoutMeasurement.height - contentOffset.y;
+            if (distanceFromBottom < 200) {
+              setVisibleRecordCount((c) =>
+                c < recordListLengthRef.current ? c + RECORDS_PER_PAGE : c
+              );
+            }
+          }, [])}
+          scrollEventThrottle={16}
         >
           {/* 입력 카드 */}
           <View style={styles.card}>
@@ -1273,31 +1288,11 @@ export default function HomeScreen() {
                 );
               })}
               {visibleRecordCount < recordListItems.length && (
-                <TouchableOpacity
-                  style={{
-                    alignItems: "center",
-                    paddingVertical: 14,
-                    marginBottom: 8,
-                    backgroundColor: "#fff",
-                    borderRadius: 14,
-                    borderWidth: 1,
-                    borderColor: "#E2E8F0",
-                  }}
-                  onPress={() =>
-                    setVisibleRecordCount((c) => c + RECORDS_PER_PAGE)
-                  }
-                >
-                  <Text
-                    style={{
-                      fontSize: 14,
-                      fontWeight: "600",
-                      color: "#4CAF50",
-                    }}
-                  >
-                    더보기 ({recordListItems.length - visibleRecordCount}개
-                    남음)
-                  </Text>
-                </TouchableOpacity>
+                <ActivityIndicator
+                  size="small"
+                  color="#4CAF50"
+                  style={{ paddingVertical: 16, marginBottom: 8 }}
+                />
               )}
             </>
           )}
