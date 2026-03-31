@@ -23,6 +23,7 @@ import {
   loadRecords,
   loadUserSettings,
   saveChallenge,
+  saveChallengeHistory,
   saveUserSettings,
 } from "@/utils/storage";
 import { useFocusEffect } from "@react-navigation/native";
@@ -1171,7 +1172,7 @@ export default function ChallengeScreen() {
 
         {/* 하루 권장 영양소 */}
         {dailyNutrition ? (
-          <View style={st.card}>
+          <View style={[st.card, { marginTop: 16 }]}>
             <Text style={st.cardTitle}>
               하루 권장 영양소
               {challenge?.targetWeight ? " (챌린지)" : " (유지)"}
@@ -1659,9 +1660,9 @@ export default function ChallengeScreen() {
                     },
                   ]}
                 >
-                  {/* 상단: 날짜 + 큰 퍼센트 */}
+                  {/* 상단: 날짜 + 퍼센트 + 삭제 */}
                   <View style={st.hCardTop}>
-                    <View>
+                    <View style={{ flex: 1 }}>
                       <Text style={st.hCardDate}>
                         {fmtDate(c.startDate)} → {fmtDate(c.endDate)}
                       </Text>
@@ -1672,6 +1673,31 @@ export default function ChallengeScreen() {
                         {avgPct}%
                       </Text>
                     </View>
+                    <TouchableOpacity
+                      style={{ padding: 4, marginLeft: 8 }}
+                      onPress={() => {
+                        Alert.alert(
+                          "챌린지 삭제",
+                          `${fmtDate(c.startDate)} ~ ${fmtDate(c.endDate)} 챌린지를 삭제하시겠습니까?`,
+                          [
+                            { text: "취소", style: "cancel" },
+                            {
+                              text: "삭제",
+                              style: "destructive",
+                              onPress: async () => {
+                                const updated = history.filter(
+                                  (_, i) => i !== idx
+                                );
+                                await saveChallengeHistory(updated);
+                                setHistory(updated);
+                              },
+                            },
+                          ]
+                        );
+                      }}
+                    >
+                      <Text style={{ fontSize: 16, color: "#A0AEC0" }}>✕</Text>
+                    </TouchableOpacity>
                   </View>
 
                   {/* 수치별 상세 */}

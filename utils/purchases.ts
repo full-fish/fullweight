@@ -19,6 +19,9 @@ import Purchases, {
   PurchasesPackage,
 } from "react-native-purchases";
 
+// ─── 개발자 이메일 (프로덕션에서도 무조건 PRO) ──────────────────────────────
+const OWNER_EMAIL = "manseon94@gmail.com";
+
 // ─── RevenueCat SDK 키 ───────────────────────────────────────────────────────
 const RC_ANDROID_KEY = "goog_bnVsZuOogtNyxYWxiiUEkZmzlLy";
 const RC_IOS_KEY = "";
@@ -73,6 +76,14 @@ export async function initPurchases(userId?: string) {
  */
 export async function getMembershipStatus(): Promise<MembershipStatus> {
   try {
+    // 앱 소유자 이메일이면 무조건 PRO (프로덕션 빌드에서만)
+    if (!__DEV__) {
+      const ownerEmail = await AsyncStorage.getItem("google_user_email");
+      if (ownerEmail === OWNER_EMAIL) {
+        return { bannerRemoved: true, aiPro: true };
+      }
+    }
+
     // 개발자 도구로 강제 무료 전환된 경우 → RevenueCat 무시하고 즉시 free 반환
     const override = await AsyncStorage.getItem(MEMBERSHIP_FREE_OVERRIDE_KEY);
     if (override === "1") {

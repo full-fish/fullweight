@@ -783,6 +783,7 @@ export default function SettingsScreen() {
           setGoogleEmail(null);
           setLastBackupStr(null);
           setBackupList([]);
+          await refreshPro();
         },
       },
     ]);
@@ -975,7 +976,7 @@ export default function SettingsScreen() {
                   },
                 ]}
               >
-                <Text style={{ fontSize: 28 }}>🤖</Text>
+                <Ionicons name="sparkles-outline" size={28} color="#667EEA" />
                 <View style={{ flex: 1 }}>
                   <Text
                     style={{
@@ -3633,7 +3634,7 @@ export default function SettingsScreen() {
                   marginBottom: 12,
                 }}
               >
-                ⚠️ 전체 데이터 삭제
+                전체 데이터 삭제
               </Text>
               <Text
                 style={{
@@ -4152,9 +4153,9 @@ export default function SettingsScreen() {
                 >
                   고성능 모델
                 </Text>
-                {!aiPro && (
+                {/* {!aiPro && (
                   <Ionicons name="sparkles-outline" size={13} color="#667EEA" />
-                )}
+                )} */}
               </View>
               <Text
                 style={{
@@ -4548,13 +4549,17 @@ export default function SettingsScreen() {
         <View style={s.card}>
           <TouchableOpacity
             activeOpacity={1}
-            onPress={() => {
-              const next = devTapCount + 1;
-              setDevTapCount(next);
-              if (next >= 10) {
-                setShowDevTools(true);
-              }
-            }}
+            onPress={
+              __DEV__
+                ? () => {
+                    const next = devTapCount + 1;
+                    setDevTapCount(next);
+                    if (next >= 10) {
+                      setShowDevTools(true);
+                    }
+                  }
+                : undefined
+            }
           >
             <Text style={s.cardTitle}>개발자 정보</Text>
           </TouchableOpacity>
@@ -4564,8 +4569,8 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* 개발자 도구 (숨김 - 개발자 10회 탭 후 표시) */}
-        {showDevTools && (
+        {/* 개발자 도구 (숨김 - 개발 빌드에서만 10회 탭 후 표시) */}
+        {__DEV__ && showDevTools && (
           <View style={s.card}>
             <View
               style={{
@@ -4609,7 +4614,7 @@ export default function SettingsScreen() {
                 );
               }}
             >
-              <Text style={s.actionIcon}>🚩</Text>
+              <Text style={s.actionIcon}></Text>
               <View style={s.actionTextWrap}>
                 <Text style={[s.actionTitle, { color: "#48BB78" }]}>
                   배너 광고 제거 활성화
@@ -4635,7 +4640,7 @@ export default function SettingsScreen() {
                 );
               }}
             >
-              <Text style={s.actionIcon}>🤖</Text>
+              <Text style={s.actionIcon}></Text>
               <View style={s.actionTextWrap}>
                 <Text style={[s.actionTitle, { color: "#63B3ED" }]}>
                   AI Pro 연간 구독 활성화
@@ -4679,7 +4684,7 @@ export default function SettingsScreen() {
                 );
               }}
             >
-              <Text style={s.actionIcon}>🔄</Text>
+              <Text style={s.actionIcon}></Text>
               <View style={s.actionTextWrap}>
                 <Text style={[s.actionTitle, { color: "#D69E2E" }]}>
                   멤버십 초기화
