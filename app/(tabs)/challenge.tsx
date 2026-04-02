@@ -1345,7 +1345,7 @@ export default function ChallengeScreen() {
             </Text>
           </View>
         ) : (
-          <View style={st.card}>
+          <View style={[st.card, { marginTop: 16 }]}>
             <Text style={st.cardTitle}>하루 권장 영양소</Text>
             <Text style={st.nutriHint}>
               설정 탭에서 성별·키·생년월일을 입력하고{"\n"}몸무게를 기록하면
@@ -1795,6 +1795,7 @@ const st = StyleSheet.create({
     backgroundColor: "#fff",
     borderRadius: 20,
     padding: 32,
+    marginBottom: 16,
     alignItems: "center",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
