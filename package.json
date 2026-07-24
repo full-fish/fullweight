@@ -9,11 +9,12 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "expo lint",
-    "build:dev:local": "eas build --profile development --platform android --local",
+    "start:dev": "npx expo start --dev-client",
+    "build:dev:local": "ANDROID_HOME=$HOME/Library/Android/sdk eas build --profile development --platform android --local",
     "build:dev": "eas build --profile development --platform android",
-    "build:preview:local": "eas build --profile preview --platform android --local",
+    "build:preview:local": "ANDROID_HOME=$HOME/Library/Android/sdk eas build --profile preview --platform android --local",
     "build:preview": "eas build --profile preview --platform android",
-    "build:prod:local": "eas build --profile production --platform android --local",
+    "build:prod:local": "ANDROID_HOME=$HOME/Library/Android/sdk eas build --profile production --platform android --local",
     "build:prod": "eas build --profile production --platform android"
   },
   "dependencies": {
