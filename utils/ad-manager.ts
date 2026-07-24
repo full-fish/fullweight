@@ -6,6 +6,7 @@
  * - 전면 광고(interstitial) 로드 & 노출
  */
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import Constants from "expo-constants";
 import { Platform } from "react-native";
 
 /* ─── Storage Keys ─── */
@@ -115,6 +116,13 @@ let InterstitialAd: any = null;
 let AdEventType: any = null;
 let TestIds: any = null;
 
+function isPreviewVariant() {
+  const appVariant = (
+    Constants.expoConfig?.extra as { appVariant?: string } | undefined
+  )?.appVariant;
+  return appVariant === "preview";
+}
+
 try {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const m = require("react-native-google-mobile-ads");
@@ -125,7 +133,7 @@ try {
 
 function getInterstitialUnitId(): string | null {
   if (!TestIds) return null;
-  if (__DEV__) return TestIds.INTERSTITIAL;
+  if (__DEV__ || isPreviewVariant()) return TestIds.INTERSTITIAL;
   return (
     Platform.select({
       android: "ca-app-pub-1379550026930118/2889199125",
@@ -200,7 +208,7 @@ try {
 
 function getRewardedUnitId(): string | null {
   if (!TestIds) return null;
-  if (__DEV__) return TestIds.REWARDED;
+  if (__DEV__ || isPreviewVariant()) return TestIds.REWARDED;
   return (
     Platform.select({
       android: "ca-app-pub-1379550026930118/9813815068",

@@ -1,13 +1,18 @@
 import { ConfigContext, ExpoConfig } from "expo/config";
 
-const IS_DEV = process.env.APP_VARIANT === "development";
+const APP_VARIANT = process.env.APP_VARIANT ?? "production";
+const IS_DEV = APP_VARIANT === "development";
+const IS_PREVIEW = APP_VARIANT === "preview";
+const ANDROID_ADMOB_APP_ID = IS_PREVIEW
+  ? "ca-app-pub-3940256099942544~3347511713"
+  : "ca-app-pub-1379550026930118~3984155926";
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: IS_DEV ? "fullweight (Dev)" : "fullweight",
   slug: "fullweight",
   owner: "choimanseon",
-  version: "1.0.5",
+  version: "1.0.0",
   orientation: "portrait",
   icon: "./assets/images/icon.png",
   scheme: IS_DEV ? "fullweight-dev" : "fullweight",
@@ -23,7 +28,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     package: IS_DEV
       ? "com.choimanseon.fullweight.dev"
       : "com.choimanseon.fullweight",
-    versionCode: 6,
+    versionCode: 7,
     adaptiveIcon: {
       backgroundColor: "#E6F4FE",
       foregroundImage: "./assets/images/android-icon-foreground.png",
@@ -41,7 +46,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     [
       "react-native-google-mobile-ads",
       {
-        androidAppId: "ca-app-pub-1379550026930118~3984155926",
+        androidAppId: ANDROID_ADMOB_APP_ID,
         iosAppId: "ca-app-pub-3940256099942544~1458002511",
       },
     ],
@@ -65,6 +70,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     reactCompiler: true,
   },
   extra: {
+    appVariant: APP_VARIANT,
     router: {},
     eas: {
       projectId: "7a2e9312-4cca-48e8-a317-ff4f60f651a4",

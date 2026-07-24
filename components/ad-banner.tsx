@@ -1,4 +1,5 @@
 import { usePro } from "@/hooks/use-pro";
+import Constants from "expo-constants";
 import React, { useState } from "react";
 import { Platform, View } from "react-native";
 
@@ -15,7 +16,10 @@ try {
 
 const getBannerUnitId = () => {
   if (!TestIds) return null;
-  if (__DEV__) return TestIds.ADAPTIVE_BANNER;
+  const appVariant = (
+    Constants.expoConfig?.extra as { appVariant?: string } | undefined
+  )?.appVariant;
+  if (__DEV__ || appVariant === "preview") return TestIds.ADAPTIVE_BANNER;
   return (
     Platform.select({
       android: "ca-app-pub-1379550026930118/3080770819",
