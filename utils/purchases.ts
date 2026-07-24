@@ -38,6 +38,10 @@ const MEMBERSHIP_FREE_OVERRIDE_KEY = "membership_free_override";
 export const DEV_BANNER_OVERRIDE_KEY = "dev_banner_removed";
 export const DEV_AIPRO_OVERRIDE_KEY = "dev_ai_pro";
 
+function shouldSkipPurchasesInDev() {
+  return __DEV__;
+}
+
 /** 유저의 현재 구매 상태 */
 export type MembershipStatus = {
   /** 배너 광고 제거 여부 (lifetime 또는 AI 구독 포함) */
@@ -52,6 +56,10 @@ export type MembershipStatus = {
  */
 export async function initPurchases(userId?: string) {
   try {
+    if (shouldSkipPurchasesInDev()) {
+      return;
+    }
+
     if (__DEV__) {
       Purchases.setLogLevel(LOG_LEVEL.DEBUG);
     }
@@ -102,6 +110,10 @@ export async function getMembershipStatus(): Promise<MembershipStatus> {
       };
     }
 
+    if (shouldSkipPurchasesInDev()) {
+      return { bannerRemoved: false, aiPro: false };
+    }
+
     const info = await Purchases.getCustomerInfo();
     const active = info.entitlements.active;
 
@@ -135,6 +147,10 @@ export async function hasAnyPurchase(): Promise<boolean> {
  */
 export async function getCurrentOffering(): Promise<PurchasesOffering | null> {
   try {
+    if (shouldSkipPurchasesInDev()) {
+      return null;
+    }
+
     const offerings = await Purchases.getOfferings();
     return offerings.current;
   } catch {
@@ -149,6 +165,14 @@ export async function getCurrentOffering(): Promise<PurchasesOffering | null> {
 export async function purchasePackage(
   pkg: PurchasesPackage
 ): Promise<{ success: boolean; error?: string }> {
+  if (shouldSkipPurchasesInDev()) {
+    return {
+      success: false,
+      error:
+        "개발 빌드에서는 결제가 비활성화됩니다. preview/prod 빌드에서 테스트하세요.",
+    };
+  }
+
   try {
     await Purchases.purchasePackage(pkg);
     // 구매 성공 → 강제 무료 오버라이드 해제
@@ -165,6 +189,10 @@ export async function purchasePackage(
  * @returns 복원 후 MembershipStatus
  */
 export async function restorePurchases(): Promise<MembershipStatus> {
+  if (shouldSkipPurchasesInDev()) {
+    return getMembershipStatus();
+  }
+
   try {
     // 복원 전 오버라이드 해제 → RevenueCat 실제 데이터 읽기
     await AsyncStorage.removeItem(MEMBERSHIP_FREE_OVERRIDE_KEY);
@@ -196,6 +224,13 @@ export async function devGrantAiPro(): Promise<void> {
  * 익명 유저로 전환됨
  */
 export async function logoutPurchases(): Promise<void> {
+  if (shouldSkipPurchasesInDev()) {
+    await AsyncStorage.setItem(MEMBERSHIP_FREE_OVERRIDE_KEY, "1");
+    await AsyncStorage.removeItem(DEV_BANNER_OVERRIDE_KEY);
+    await AsyncStorage.removeItem(DEV_AIPRO_OVERRIDE_KEY);
+    return;
+  }
+
   try {
     const isAnonymous = await Purchases.isAnonymous();
     if (!isAnonymous) {
