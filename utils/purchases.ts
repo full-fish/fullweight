@@ -23,8 +23,8 @@ import Purchases, {
 const OWNER_EMAIL = "manseon94@gmail.com";
 
 // ─── RevenueCat SDK 키 ───────────────────────────────────────────────────────
-const RC_ANDROID_KEY = "goog_bnVsZuOogtNyxYWxiiUEkZmzlLy";
-const RC_IOS_KEY = "";
+const RC_ANDROID_KEY = process.env.EXPO_PUBLIC_RC_ANDROID_KEY ?? "";
+const RC_IOS_KEY = process.env.EXPO_PUBLIC_RC_IOS_KEY ?? "";
 
 // ─── Entitlement 식별자 ────────────────────────────────────────────────────
 export const ENTITLEMENT_BANNER_REMOVAL = "banner_removal";

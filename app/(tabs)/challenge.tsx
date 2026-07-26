@@ -1795,7 +1795,6 @@ const st = StyleSheet.create({
     backgroundColor: "#fff",
     borderRadius: 20,
     padding: 32,
-    marginBottom: 16,
     alignItems: "center",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
