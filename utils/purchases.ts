@@ -123,10 +123,7 @@ export async function getMembershipStatus(): Promise<MembershipStatus> {
       info.activeSubscriptions.length > 0;
 
     const bannerRemoved =
-      aiPro ||
-      active[ENTITLEMENT_BANNER_REMOVAL] !== undefined ||
-      // nonSubscriptionTransactions에 배너 제거 구매가 있을 수 있음
-      info.nonSubscriptionTransactions.length > 0;
+      aiPro || active[ENTITLEMENT_BANNER_REMOVAL] !== undefined;
 
     return { bannerRemoved, aiPro };
   } catch {
