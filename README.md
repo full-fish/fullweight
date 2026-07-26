@@ -1,51 +1,295 @@
-# Welcome to your Expo app 👋
+# fullweight
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+체중·체성분·식단을 한 곳에서 관리하는 안드로이드 앱 (Expo / React Native)
 
-## Get started
+---
 
-1. Install dependencies
+## 목차
 
-   ```bash
-   npm install
-   ```
+1. [페이지별 기능](#페이지별-기능)
+2. [광고 정책](#광고-정책)
+3. [인앱 결제 상품](#인앱-결제-상품)
+4. [멤버십 등급별 차이](#멤버십-등급별-차이)
+5. [개발자 참고사항](#개발자-참고사항)
+6. [빌드 & 배포](#빌드--배포)
 
-2. Start the app
+---
 
-   ```bash
-   npx expo start
-   ```
+## 페이지별 기능
 
-In the output, you'll find options to open the app in a
+### 1. 기록 탭 (`/`)
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+날짜별 신체 데이터를 입력하고 저장하는 메인 화면.
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+| 항목                | 설명                                         |
+| ------------------- | -------------------------------------------- |
+| 날짜 선택           | 미니 캘린더로 날짜 이동. 기본값은 오늘       |
+| 몸무게              | kg 단위 입력. 입력 생략(체중 없이 저장) 가능 |
+| 허리둘레            | cm 단위 (선택)                               |
+| 골격근량            | kg 단위 (선택)                               |
+| 체지방률 / 체지방량 | % / kg 단위 (선택)                           |
+| 운동 여부           | 토글 스위치                                  |
+| 음주 여부           | 토글 스위치                                  |
+| 사진                | 카메라 촬영 또는 갤러리에서 선택             |
+| 메모                | 자유 텍스트                                  |
+| 사용자 정의 수치    | 설정에서 추가한 커스텀 수치 항목             |
+| 사용자 정의 체크    | 설정에서 추가한 커스텀 불리언 항목           |
+| 식단 기록           | 하단 식사 카드에 아침/점심/저녁/간식 입력    |
+| AI 음식 분석        | 음식 사진 촬영 → 칼로리·탄·단·지 자동 분석   |
+| 기록 목록           | 최근 7개 기록 표시. 더보기로 전체 조회       |
+| BMI 표시            | 신장 설정 시 현재 몸무게 기준 BMI 자동 계산  |
 
-## Get a fresh project
+---
 
-When you're ready, run:
+### 2. 그래프 탭 (`/explore`)
 
-```bash
-npm run reset-project
+저장된 기록을 선 그래프로 시각화.
+
+- **지표 선택**: 몸무게·허리둘레·골격근량·체지방률·체지방량·사용자 정의 수치·영양소(칼로리·탄·단·지)
+- **기간 모드**: 일별·주별·월별·사용자 지정 기간
+- **멀티 지표**: 여러 지표를 동시에 오버레이
+- **날짜 범위 선택**: 캘린더 팝업으로 커스텀 기간 지정
+- **그래프 스와이프**: 좌우 드래그로 데이터 탐색
+
+---
+
+### 3. 캘린더 탭 (`/calendar`)
+
+월 단위 달력으로 기록 현황 한눈에 보기.
+
+- 날짜 셀에 체중 표시. 운동·음주 여부 아이콘 표시
+- 날짜 탭 → 해당일 기록 상세 / 편집 / 삭제
+- 월·분기·연간 요약 통계 (평균 체중, 운동일수 등)
+- 스와이프로 월 이동
+
+---
+
+### 4. 챌린지 탭 (`/challenge`)
+
+목표 체중 달성을 위한 D-day 챌린지 기능.
+
+- 시작 체중·목표 체중·기간 설정
+- 진행률 바 시각화
+- 일별 필요 감량량 자동 계산
+- 챌린지 완료/포기 시 히스토리 저장
+- 과거 챌린지 목록 열람
+
+---
+
+### 5. 눈바디 탭 (`/photos`)
+
+날짜별로 촬영한 체형 사진 갤러리.
+
+- 3열 썸네일 그리드
+- 사진 탭 → 전체화면 뷰어 (날짜·체중 표시)
+- **비교 모드**: 두 날짜의 사진을 좌우 나란히 비교
+- 기록 탭에서 사진 첨부 시 자동 등록
+
+---
+
+### 6. 설정 탭 (`/settings`)
+
+앱 개인화 및 데이터 관리 전반.
+
+| 항목                | 설명                                                        |
+| ------------------- | ----------------------------------------------------------- |
+| 신장                | BMI 계산에 사용                                             |
+| 생년월일            | 나이 표시용                                                 |
+| 성별                | 체성분 참고용                                               |
+| AI 모델             | gpt-4o-mini (기본) / gpt-4o (PRO 전용)                      |
+| 바디 사진 화질      | 압축/원본                                                   |
+| 음식 사진 화질      | AI 분석용 압축/원본                                         |
+| 항목 표시 설정      | 기록 화면에서 각 입력 항목 표시·숨김                        |
+| 사용자 정의 수치    | 단위·색상 지정 가능한 커스텀 수치 추가                      |
+| 사용자 정의 체크    | 아이콘·색상 지정 가능한 커스텀 체크 추가                    |
+| 앱 잠금             | 4자리 PIN 설정. 생체인증 연동                               |
+| Google Drive 백업   | Google 계정 연동 → 자동/수동 백업 및 복원                   |
+| 데이터 내보내기     | CSV / JSON 형식 내보내기. 사진 포함 옵션                    |
+| InBody CSV 가져오기 | InBody 기기 CSV 파일에서 데이터 자동 import                 |
+| 데이터 삭제         | 전체 데이터 초기화 (DELETE 타이핑 확인)                     |
+| 스토어 (인앱 결제)  | 배너 광고 제거, AI PRO 구독, 후원 상품                      |
+| 개발자 도구         | 설정 하단 "개발자 정보" 10회 탭 → 숨김 메뉴 (dev 빌드 전용) |
+
+---
+
+## 광고 정책
+
+### 광고 종류
+
+| 종류                   | 위치                     | 조건                           |
+| ---------------------- | ------------------------ | ------------------------------ |
+| 배너 광고              | 하단 탭바 위 (항상 노출) | 무료 유저                      |
+| 전면 광고 (인터스티셜) | 전체화면 팝업            | 체중 저장 3회마다 1회          |
+| 리워드 광고            | 전체화면 팝업            | AI 무료 횟수 소진 시 시청 선택 |
+
+### 광고 트리거 상세
+
+**배너 광고**
+
+- 무료 유저에게 항상 노출
+- `bannerRemoved` 또는 `aiPro` 구매 시 완전 제거
+
+**전면 광고 (체중 저장)**
+
+- 누적 저장 횟수가 3의 배수(3, 6, 9...)일 때 1회 노출
+- 카운터는 앱 데이터 삭제 전까지 누적 (날짜 리셋 없음)
+- AI PRO 구독 시 표시 안 됨
+
+**리워드 광고 (AI 추가 사용)**
+
+- 하루 무료 AI 분석 2회 소진 후, 리워드 광고 시청으로 당일 카운터 리셋 가능
+- 시청 완료 시 → 당일 2회 다시 사용 가능
+- AI PRO 구독 시 횟수 제한 자체가 없어져 리워드 광고 미노출
+
+**AI 일일 카운터**
+
+- 기준: KST 자정(00:00) 리셋
+- 저장 키: `ad_ai_daily_count` (AsyncStorage)
+
+**체중 저장 카운터**
+
+- 누적 횟수 저장 키: `ad_weight_save_count` (AsyncStorage)
+- 날짜 무관, 앱 초기화 전까지 계속 누적
+
+### 광고 ID 환경 구분
+
+| 빌드 환경                       | 광고 App ID   | 광고 Unit ID  |
+| ------------------------------- | ------------- | ------------- |
+| development (`__DEV__`)         | 테스트        | 테스트        |
+| preview (`APP_VARIANT=preview`) | 테스트        | 테스트        |
+| production                      | 실제 AdMob ID | 실제 AdMob ID |
+
+---
+
+## 인앱 결제 상품
+
+결제 라이브러리: RevenueCat (`react-native-purchases`)
+
+### 상품 목록
+
+| 상품                  | 타입                | 가격     | Entitlement      |
+| --------------------- | ------------------- | -------- | ---------------- |
+| 배너 광고 제거        | lifetime (비소모성) | $1.49    | `banner_removal` |
+| AI PRO 월간           | subscription        | $1.99/월 | `ai_pro`         |
+| AI PRO 연간           | subscription        | $19.9/년 | `ai_pro`         |
+| 개발자 맥주 🍺 330ml  | consumable (소모성) | $1.49    | 없음             |
+| 개발자 맥주 🍺 500ml  | consumable (소모성) | $1.99    | 없음             |
+| 개발자 맥주 🍺 1000ml | consumable (소모성) | $3.49    | 없음             |
+
+---
+
+## 멤버십 등급별 차이
+
+| 기능                  | 무료        | 배너 제거   | AI PRO     |
+| --------------------- | ----------- | ----------- | ---------- |
+| 배너 광고             | 노출        | **제거**    | **제거**   |
+| 전면 광고 (체중 저장) | 3회마다     | 3회마다     | **없음**   |
+| AI 음식 분석          | 일 2회      | 일 2회      | **무제한** |
+| AI 모델               | gpt-4o-mini | gpt-4o-mini | **gpt-4o** |
+
+### 개발자 계정 처리
+
+`manseon94@gmail.com`으로 Google 로그인 시, production 빌드에서 자동으로 전체 PRO 상태 적용.
+
+---
+
+## 개발자 참고사항
+
+### 환경 변수 / 빌드 구분
+
+```
+APP_VARIANT=development  → fullweight (Dev), 패키지: .dev, 광고 테스트
+APP_VARIANT=preview      → fullweight, 패키지: 정식, 광고 테스트
+(미설정)                 → fullweight, 패키지: 정식, 실제 광고
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+### RevenueCat 키
 
-## Learn more
+- README에는 실제 키 값을 기록하지 않음
+- 키는 앱 코드 하드코딩 대신 환경변수(`EXPO_PUBLIC_RC_ANDROID_KEY`, `EXPO_PUBLIC_RC_IOS_KEY`) 또는 CI Secret으로 관리 권장
+- `__DEV__` 환경에서는 RevenueCat 초기화/구매/조회 전체 스킵
 
-To learn more about developing your project with Expo, look at the following resources:
+### 개발자 도구 (숨김 메뉴)
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+- 접근: 설정 → 하단 "개발자 정보" **10회 탭** → 도구 메뉴 표시
+- **dev 빌드(`__DEV__`)에서만 접근 가능**, production/preview에서는 완전 비활성
+- 기능:
+  - 더미 데이터 약 3년치 생성
+  - 배너 광고 제거 강제 활성 (`dev_banner_removed`)
+  - AI PRO 강제 활성 (`dev_ai_pro`)
+  - AI 카운터 초기화
+  - 체중 저장 카운터 초기화
+  - 멤버십 강제 무료 전환
 
-## Join the community
+### AsyncStorage 키 목록
 
-Join our community of developers creating universal apps.
+| 키                         | 용도                                    |
+| -------------------------- | --------------------------------------- |
+| `ad_ai_daily_count`        | AI 일일 사용 카운터 (JSON: date, count) |
+| `ad_weight_save_count`     | 체중 저장 누적 카운터                   |
+| `membership_free_override` | "1" 이면 무조건 무료로 취급             |
+| `dev_banner_removed`       | "1" 이면 배너 제거 시뮬레이션           |
+| `dev_ai_pro`               | "1" 이면 AI PRO 시뮬레이션              |
+| `google_user_email`        | Google 로그인 이메일                    |
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
-# fullweight
+### AI 분석 API
+
+- 엔드포인트: `https://fullweight.vercel.app/api/analyze-food`
+- 이미지는 최대 1024px로 리사이즈 후 base64로 전송
+- API 키는 Vercel 서버에만 존재 (앱 번들 미포함)
+- 모델: `gpt-4o-mini` (기본) / `gpt-4o` (PRO)
+
+### 앱 잠금
+
+- 4자리 PIN 기반. 생체인증(지문/Face ID) 연동 지원
+- 백그라운드 전환 후 30초 내 복귀 시 잠금 미적용 (카메라·크롭 등 단기 외부 전환 대비)
+
+### Google Drive 백업
+
+- 최대 5개 백업 보관, 초과 시 가장 오래된 것 자동 삭제
+- 자동 백업: 탭 포커스 시 마지막 백업 기준 지정일 이상 경과하면 자동 실행
+- 복원 시 현재 데이터 전체 덮어쓰기
+
+---
+
+## 빌드 & 배포
+
+### 스크립트
+
+```bash
+# 개발 서버 (Metro)
+npm run start
+
+# Dev Client 연결용 개발 서버
+npm run start:dev          # npx expo start --dev-client
+
+# 에뮬레이터 직접 실행
+npm run android
+
+# EAS 클라우드 빌드
+npm run build:dev          # development APK (Dev Client)
+npm run build:preview      # preview AAB (테스트 광고 적용)
+npm run build:prod         # production AAB (실제 광고 적용)
+
+# 로컬 빌드
+npm run build:dev:local
+npm run build:preview:local
+npm run build:prod:local
+```
+
+### 빌드 프로필 비교
+
+| 프로필      | 파일 형식 | 광고   | 결제             | 패키지 |
+| ----------- | --------- | ------ | ---------------- | ------ |
+| development | APK       | 테스트 | 스킵 (`__DEV__`) | `.dev` |
+| preview     | AAB       | 테스트 | 정상             | 정식   |
+| production  | AAB       | 실제   | 정상             | 정식   |
+
+> **주의**: 내부 테스트/비공개 테스트 배포 시 preview 프로필 사용 권장.  
+> 테스트 기간 중 실제 결제가 발생할 수 있으므로 테스터 계정은 반드시 라이선스 테스터로 등록.
+
+### 버전 관리
+
+- `app.config.ts` → `version` (사용자에게 보이는 버전, e.g. 1.0.0)
+- `app.config.ts` → `android.versionCode` (스토어 내부 버전 코드, 업로드마다 +1)
+- `eas.json` → `appVersionSource: local` (수동 관리 모드)
