@@ -281,8 +281,8 @@ export default function CalendarScreen() {
     setEMuscleMass(selectedRecord.muscleMass?.toString() ?? "");
     setEBodyFatPercent(selectedRecord.bodyFatPercent?.toString() ?? "");
     setEBodyFatMass(selectedRecord.bodyFatMass?.toString() ?? "");
-    setEExercised(selectedRecord.exercised);
-    setEDrank(selectedRecord.drank);
+    setEExercised(Boolean(selectedRecord.exercised));
+    setEDrank(Boolean(selectedRecord.drank));
     setEPhotoUri(selectedRecord.photoUri);
     setEMemo(selectedRecord.memo ?? "");
     const ci: Record<string, string> = {};

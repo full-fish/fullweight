@@ -28,7 +28,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     package: IS_DEV
       ? "com.choimanseon.fullweight.dev"
       : "com.choimanseon.fullweight",
-    versionCode: 7,
+    versionCode: 8,
     adaptiveIcon: {
       backgroundColor: "#E6F4FE",
       foregroundImage: "./assets/images/android-icon-foreground.png",

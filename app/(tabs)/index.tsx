@@ -631,7 +631,7 @@ export default function HomeScreen() {
                 justifyContent: "space-between",
               }}
             >
-              <Text style={styles.label}>몸무게</Text>
+              <Text style={styles.label}>* 몸무게</Text>
               <TouchableOpacity
                 onPress={() => setSkipWeight((p) => !p)}
                 style={{

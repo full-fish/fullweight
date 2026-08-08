@@ -51,6 +51,7 @@ app-example
 /android
 eas.json
 google-service-account.json
+**/.gradle/
 
 # APK builds
 *.apk

@@ -11,12 +11,14 @@ import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "react-native-reanimated";
 
+import AppOnboarding from "@/components/app-onboarding";
 import LockScreen from "@/components/lock-screen";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { ProProvider } from "@/hooks/use-pro";
 import { performBackup, shouldAutoBackup } from "@/utils/backup";
 import { initPurchases } from "@/utils/purchases";
 import { loadUserSettings } from "@/utils/storage";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, InteractionManager, View } from "react-native";
 
@@ -24,6 +26,7 @@ import { AppState, InteractionManager, View } from "react-native";
 SplashScreen.preventAutoHideAsync();
 
 const LOCK_GRACE_MS = 30_000; // 30초 이내 복귀 시 잠금 안 걸림 (카메라/크롭 등)
+const ONBOARDING_KEY = "app_onboarding_seen_v1";
 
 export const unstable_settings = {
   anchor: "(tabs)",
@@ -33,6 +36,7 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
   const [locked, setLocked] = useState(false);
   const [lockChecked, setLockChecked] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const bgTime = useRef<number>(0);
 
   // Ionicons 폰트 프리로딩 — 아이콘이 늦게 뜨는 현상 방지
@@ -50,6 +54,14 @@ export default function RootLayout() {
 
   useEffect(() => {
     checkLock();
+    (async () => {
+      try {
+        const seen = await AsyncStorage.getItem(ONBOARDING_KEY);
+        setShowOnboarding(seen !== "true");
+      } catch {
+        setShowOnboarding(true);
+      }
+    })();
   }, [checkLock]);
 
   // 폰트 로딩 + 잠금 확인이 모두 끝나면 스플래시 숨김
@@ -104,6 +116,15 @@ export default function RootLayout() {
   // 폰트 로딩 중이거나 잠금 확인 전에는 렌더 보류 (스플래시 화면이 덮고 있음)
   if ((!fontsLoaded && !fontError) || !lockChecked) return null;
 
+  const handleOnboardingStart = async () => {
+    try {
+      await AsyncStorage.setItem(ONBOARDING_KEY, "true");
+    } catch {
+      // 저장 실패해도 화면은 닫음
+    }
+    setShowOnboarding(false);
+  };
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ProProvider>
@@ -118,6 +139,7 @@ export default function RootLayout() {
             />
           </Stack>
           <StatusBar style="auto" />
+          <AppOnboarding visible={showOnboarding} onStart={handleOnboardingStart} />
         </ThemeProvider>
         {locked && (
           <View
