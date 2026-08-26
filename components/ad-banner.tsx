@@ -37,7 +37,18 @@ export function AdBanner() {
   const unitId = getBannerUnitId();
 
   // 배너 제거 구매 또는 AI PRO 구독 시 숨김
-  if (bannerRemoved || !BannerAd || !unitId) return null;
+  if (bannerRemoved) return null;
+
+  if (!BannerAd || !unitId) {
+    return (
+      <View
+        style={{
+          height: 0,
+          backgroundColor: "transparent",
+        }}
+      />
+    );
+  }
 
   return (
     <View style={{ alignItems: "center", backgroundColor: "#F0F4F8" }}>

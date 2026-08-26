@@ -23,7 +23,8 @@ import Purchases, {
 const OWNER_EMAIL = "manseon94@gmail.com";
 
 // ─── RevenueCat SDK 키 ───────────────────────────────────────────────────────
-const RC_ANDROID_KEY = process.env.EXPO_PUBLIC_RC_ANDROID_KEY ?? "";
+const RC_ANDROID_KEY =
+  process.env.EXPO_PUBLIC_RC_ANDROID_KEY || "goog_bnVsZuOogtNyxYWxiiUEkZmzlLy";
 const RC_IOS_KEY = process.env.EXPO_PUBLIC_RC_IOS_KEY ?? "";
 
 // ─── Entitlement 식별자 ────────────────────────────────────────────────────
@@ -42,6 +43,9 @@ function shouldSkipPurchasesInDev() {
   return __DEV__;
 }
 
+// RC 초기화 Promise — getCurrentOffering에서 race condition 방지용
+let _rcInitPromise: Promise<void> | null = null;
+
 /** 유저의 현재 구매 상태 */
 export type MembershipStatus = {
   /** 배너 광고 제거 여부 (lifetime 또는 AI 구독 포함) */
@@ -54,7 +58,7 @@ export type MembershipStatus = {
  * 앱 시작 시 RevenueCat 초기화 (앱 전역에서 1회만 호출)
  * ⚠️ 네이티브 모듈 필요 — Expo Go에서는 작동하지 않음 (dev client 빌드 필요)
  */
-export async function initPurchases(userId?: string) {
+async function _doInitPurchases(userId?: string): Promise<void> {
   try {
     if (shouldSkipPurchasesInDev()) {
       return;
@@ -67,7 +71,14 @@ export async function initPurchases(userId?: string) {
     const apiKey = Platform.select({
       android: RC_ANDROID_KEY,
       ios: RC_IOS_KEY || RC_ANDROID_KEY,
-    })!;
+    });
+
+    if (!apiKey) {
+      console.warn(
+        "[RevenueCat] 지원되지 않는 플랫폼이어서 결제 초기화를 건너뜁니다."
+      );
+      return;
+    }
 
     await Purchases.configure({ apiKey });
 
@@ -77,6 +88,13 @@ export async function initPurchases(userId?: string) {
   } catch (e) {
     console.warn("[RevenueCat] initPurchases 실패 (dev client 빌드 필요):", e);
   }
+}
+
+export function initPurchases(userId?: string): Promise<void> {
+  if (!_rcInitPromise) {
+    _rcInitPromise = _doInitPurchases(userId);
+  }
+  return _rcInitPromise;
 }
 
 /**
@@ -115,12 +133,12 @@ export async function getMembershipStatus(): Promise<MembershipStatus> {
     }
 
     const info = await Purchases.getCustomerInfo();
-    const active = info.entitlements.active;
+    const active = info?.entitlements?.active ?? {};
 
     const aiPro =
       active[ENTITLEMENT_AI_PRO] !== undefined ||
       // entitlement 연결 전 활성 구독이 있으면 ai_pro로 간주
-      info.activeSubscriptions.length > 0;
+      (info?.activeSubscriptions?.length ?? 0) > 0;
 
     const bannerRemoved =
       aiPro || active[ENTITLEMENT_BANNER_REMOVAL] !== undefined;
@@ -147,7 +165,8 @@ export async function getCurrentOffering(): Promise<PurchasesOffering | null> {
     if (shouldSkipPurchasesInDev()) {
       return null;
     }
-
+    // RC 초기화가 끝날 때까지 대기 (race condition 방지)
+    if (_rcInitPromise) await _rcInitPromise.catch(() => {});
     const offerings = await Purchases.getOfferings();
     return offerings.current;
   } catch {

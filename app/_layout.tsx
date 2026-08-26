@@ -13,12 +13,14 @@ import "react-native-reanimated";
 
 import AppOnboarding from "@/components/app-onboarding";
 import LockScreen from "@/components/lock-screen";
+import UpdateRequiredModal from "@/components/update-required-modal";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { ProProvider } from "@/hooks/use-pro";
 import { performBackup, shouldAutoBackup } from "@/utils/backup";
 import { initPurchases } from "@/utils/purchases";
 import { loadUserSettings } from "@/utils/storage";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import Constants from "expo-constants";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, InteractionManager, View } from "react-native";
 
@@ -37,6 +39,7 @@ export default function RootLayout() {
   const [locked, setLocked] = useState(false);
   const [lockChecked, setLockChecked] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showUpdateNotice, setShowUpdateNotice] = useState(false);
   const bgTime = useRef<number>(0);
 
   // Ionicons 폰트 프리로딩 — 아이콘이 늦게 뜨는 현상 방지
@@ -74,6 +77,30 @@ export default function RootLayout() {
   /* ── RevenueCat 초기화 (앱 시작 시 1회) ── */
   useEffect(() => {
     initPurchases();
+  }, []);
+
+  /* ── Google Mobile Ads SDK 초기화 (v16+ 필수) ── */
+  useEffect(() => {
+    try {
+      const { default: mobileAds } = require("react-native-google-mobile-ads");
+      mobileAds().initialize();
+    } catch {}
+  }, []);
+
+  /* ── 버전 체크: 구버전이면 업데이트 안내 ── */
+  useEffect(() => {
+    if (__DEV__) return;
+    fetch("https://fullweight.vercel.app/api/version")
+      .then((r) => r.json())
+      .then(({ minVersionCode }: { minVersionCode: number }) => {
+        const current = Constants.expoConfig?.android?.versionCode as
+          | number
+          | undefined;
+        if (current !== undefined && current < minVersionCode) {
+          setShowUpdateNotice(true);
+        }
+      })
+      .catch(() => {}); // 네트워크 실패는 조용히 스킵
   }, []);
 
   /* ── 앱 시작 시 자동 백업 (UI 렌더 완료 후, 백그라운드 실행) ── */
@@ -139,7 +166,14 @@ export default function RootLayout() {
             />
           </Stack>
           <StatusBar style="auto" />
-          <AppOnboarding visible={showOnboarding} onStart={handleOnboardingStart} />
+          <AppOnboarding
+            visible={showOnboarding}
+            onStart={handleOnboardingStart}
+          />
+          <UpdateRequiredModal
+            visible={showUpdateNotice}
+            onClose={() => setShowUpdateNotice(false)}
+          />
         </ThemeProvider>
         {locked && (
           <View

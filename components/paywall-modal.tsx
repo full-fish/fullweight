@@ -6,26 +6,26 @@
  */
 import { usePro } from "@/hooks/use-pro";
 import {
-  getCurrentOffering,
-  purchasePackage,
-  restorePurchases,
+    getCurrentOffering,
+    purchasePackage,
+    restorePurchases,
 } from "@/utils/purchases";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  Animated,
-  Modal,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    Animated,
+    Modal,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import type {
-  PurchasesOffering,
-  PurchasesPackage,
+    PurchasesOffering,
+    PurchasesPackage,
 } from "react-native-purchases";
 
 interface PaywallModalProps {
@@ -47,6 +47,7 @@ export function PaywallModal({
   const [restoring, setRestoring] = useState(false);
   const [purchased, setPurchased] = useState(false);
   const [purchaseMessage, setPurchaseMessage] = useState("");
+  const [offeringError, setOfferingError] = useState<string | null>(null);
 
   const scaleAnim = useRef(new Animated.Value(0.5)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
@@ -58,8 +59,17 @@ export function PaywallModal({
       return;
     }
     setLoadingOffering(true);
+    setOfferingError(null);
     getCurrentOffering()
-      .then(setOffering)
+      .then((result) => {
+        setOffering(result);
+        // null은 dev 모드에서는 정상(결제 스킵) — 예외 발생 시만 오류 표시
+      })
+      .catch(() => {
+        setOfferingError(
+          "스토어 연결에 실패했습니다. 잠시 후 다시 시도해 주세요."
+        );
+      })
       .finally(() => setLoadingOffering(false));
   }, [visible]);
 
@@ -187,6 +197,24 @@ export function PaywallModal({
                     color="#4CAF50"
                     style={{ marginVertical: 40 }}
                   />
+                ) : offeringError ? (
+                  <View
+                    style={{
+                      padding: 16,
+                      borderRadius: 12,
+                      backgroundColor: "#FFF7ED",
+                      marginVertical: 16,
+                    }}
+                  >
+                    <Text style={{ color: "#C2410C", fontSize: 14 }}>
+                      {offeringError}
+                    </Text>
+                    <Text
+                      style={{ color: "#9A2C2C", fontSize: 12, marginTop: 6 }}
+                    >
+                      잠시 후 다시 시도하거나 앱을 다시 실행해 주세요.
+                    </Text>
+                  </View>
                 ) : (
                   <>
                     {/* ═══ 1. 배너 광고 제거 ═══ */}
