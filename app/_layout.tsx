@@ -22,7 +22,7 @@ import { loadUserSettings } from "@/utils/storage";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { AppState, InteractionManager, View } from "react-native";
+import { AppState, InteractionManager, Platform, View } from "react-native";
 
 // 스플래시 화면 자동 숨김 방지 (폰트 로딩 완료까지 유지)
 SplashScreen.preventAutoHideAsync();
@@ -76,14 +76,21 @@ export default function RootLayout() {
 
   /* ── RevenueCat 초기화 (앱 시작 시 1회) ── */
   useEffect(() => {
+    if (Platform.OS === "web") return;
     initPurchases();
   }, []);
 
   /* ── Google Mobile Ads SDK 초기화 (v16+ 필수) ── */
   useEffect(() => {
+    if (Platform.OS === "web") return;
+
     try {
-      const { default: mobileAds } = require("react-native-google-mobile-ads");
-      mobileAds().initialize();
+      const nativeRequire = Function("return require")();
+      const adModule = nativeRequire("react-native-google-mobile-ads");
+      const mobileAds = adModule?.default ?? adModule;
+      if (typeof mobileAds === "function") {
+        mobileAds().initialize();
+      }
     } catch {}
   }, []);
 

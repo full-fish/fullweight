@@ -6,27 +6,25 @@
  */
 import { usePro } from "@/hooks/use-pro";
 import {
-    getCurrentOffering,
-    purchasePackage,
-    restorePurchases,
+  getCurrentOffering,
+  purchasePackage,
+  restorePurchases,
 } from "@/utils/purchases";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useRef, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Animated,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Animated,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import type {
-    PurchasesOffering,
-    PurchasesPackage,
-} from "react-native-purchases";
+type PurchasesOffering = any;
+type PurchasesPackage = any;
 
 interface PaywallModalProps {
   visible: boolean;
