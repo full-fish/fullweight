@@ -15,12 +15,14 @@ const PLAY_STORE_URL =
 
 interface UpdateRequiredModalProps {
   visible: boolean;
-  onClose: () => void;
+  onClose?: () => void;
+  forceUpdate?: boolean;
 }
 
 export default function UpdateRequiredModal({
   visible,
   onClose,
+  forceUpdate = false,
 }: UpdateRequiredModalProps) {
   if (!visible) return null;
 
@@ -34,20 +36,38 @@ export default function UpdateRequiredModal({
     );
   };
 
+  React.useEffect(() => {
+    if (forceUpdate) {
+      openStore();
+    }
+  }, [forceUpdate]);
+
   return (
-    <Modal transparent animationType="fade" visible={visible}>
+    <Modal
+      transparent
+      animationType="fade"
+      visible={visible}
+      onRequestClose={() => {
+        if (!forceUpdate) onClose?.();
+      }}
+      statusBarTranslucent
+    >
       <SafeAreaView style={styles.container}>
         <View style={styles.card}>
-          <Text style={styles.title}>새 버전이 있어요</Text>
+          <Text style={styles.title}>업데이트가 필요합니다</Text>
           <Text style={styles.subtitle}>
-            안정적인 이용을 위해 최신 버전으로 업데이트해 주세요.
+            {forceUpdate
+              ? "최신 앱으로 업데이트해야 계속 사용할 수 있습니다.\n플레이 스토어로 이동해 업데이트를 완료해 주세요."
+              : "안정적인 이용을 위해 최신 버전으로 업데이트해 주세요."}
           </Text>
           <Pressable style={styles.button} onPress={openStore}>
             <Text style={styles.buttonText}>플레이 스토어에서 업데이트</Text>
           </Pressable>
-          <Pressable style={styles.skip} onPress={onClose}>
-            <Text style={styles.skipText}>나중에 하기</Text>
-          </Pressable>
+          {!forceUpdate && (
+            <Pressable style={styles.skip} onPress={onClose}>
+              <Text style={styles.skipText}>나중에 하기</Text>
+            </Pressable>
+          )}
         </View>
       </SafeAreaView>
     </Modal>
