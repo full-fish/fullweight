@@ -3,25 +3,16 @@ import Constants from "expo-constants";
 import React, { useState } from "react";
 import { Platform, View } from "react-native";
 
-const getNativeRequire = () => Function("return require")();
-
-const getAdModule = () => {
-  if (Platform.OS === "web") return null;
-
-  try {
-    const nativeRequire = getNativeRequire();
-    const mod = nativeRequire("react-native-google-mobile-ads");
-    return mod?.default ?? mod ?? null;
-  } catch {
-    return null;
-  }
-};
-
 // 네이티브 모듈이 없는 구버전 dev client에서 크래시 방지
-const adModule = getAdModule();
-const BannerAd = adModule?.BannerAd ?? null;
-const BannerAdSize = adModule?.BannerAdSize ?? null;
-const TestIds = adModule?.TestIds ?? null;
+let BannerAd: any = null;
+let BannerAdSize: any = null;
+let TestIds: any = null;
+try {
+  const m = require("react-native-google-mobile-ads");
+  BannerAd = m.BannerAd;
+  BannerAdSize = m.BannerAdSize;
+  TestIds = m.TestIds;
+} catch {}
 
 const getBannerUnitId = () => {
   if (!TestIds) return null;
@@ -43,10 +34,10 @@ export function AdBanner() {
   const [adKey, setAdKey] = useState(0);
   const retryCount = React.useRef(0);
 
-  if (Platform.OS === "web") return null;
-  if (bannerRemoved) return null;
-
   const unitId = getBannerUnitId();
+
+  // 배너 제거 구매 또는 AI PRO 구독 시 숨김
+  if (bannerRemoved) return null;
 
   if (!BannerAd || !unitId) {
     return (

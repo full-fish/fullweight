@@ -9,19 +9,6 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
 import { Platform } from "react-native";
 
-const getNativeRequire = () => Function("return require")();
-
-const resolveNativeModule = (pkg: string): any => {
-  if (Platform.OS === "web") return null;
-
-  try {
-    const nativeRequire = getNativeRequire();
-    return nativeRequire(pkg);
-  } catch {
-    return null;
-  }
-};
-
 /* ─── Storage Keys ─── */
 const AI_COUNT_KEY = "ad_ai_daily_count"; // { date: "YYYY-MM-DD", count: number }
 const WEIGHT_SAVE_COUNT_KEY = "ad_weight_save_count"; // number (누적)
@@ -136,12 +123,13 @@ function isPreviewVariant() {
   return appVariant === "preview";
 }
 
-const adModule = resolveNativeModule("react-native-google-mobile-ads");
-if (adModule) {
-  InterstitialAd = adModule.InterstitialAd;
-  AdEventType = adModule.AdEventType;
-  TestIds = adModule.TestIds;
-}
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const m = require("react-native-google-mobile-ads");
+  InterstitialAd = m.InterstitialAd;
+  AdEventType = m.AdEventType;
+  TestIds = m.TestIds;
+} catch {}
 
 function getInterstitialUnitId(): string | null {
   if (!TestIds) return null;
@@ -211,11 +199,12 @@ export function showInterstitialAd(): Promise<void> {
 let RewardedAd: any = null;
 let RewardedAdEventType: any = null;
 
-const rewardedAdModule = resolveNativeModule("react-native-google-mobile-ads");
-if (rewardedAdModule) {
-  RewardedAd = rewardedAdModule.RewardedAd;
-  RewardedAdEventType = rewardedAdModule.RewardedAdEventType;
-}
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const m = require("react-native-google-mobile-ads");
+  RewardedAd = m.RewardedAd;
+  RewardedAdEventType = m.RewardedAdEventType;
+} catch {}
 
 function getRewardedUnitId(): string | null {
   if (!TestIds) return null;

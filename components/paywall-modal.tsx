@@ -23,8 +23,10 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-type PurchasesOffering = any;
-type PurchasesPackage = any;
+import type {
+  PurchasesOffering,
+  PurchasesPackage,
+} from "react-native-purchases";
 
 interface PaywallModalProps {
   visible: boolean;

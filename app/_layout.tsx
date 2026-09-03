@@ -16,13 +16,14 @@ import LockScreen from "@/components/lock-screen";
 import UpdateRequiredModal from "@/components/update-required-modal";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { ProProvider } from "@/hooks/use-pro";
+import { initMobileAds } from "@/utils/ads-init";
 import { performBackup, shouldAutoBackup } from "@/utils/backup";
 import { initPurchases } from "@/utils/purchases";
 import { loadUserSettings } from "@/utils/storage";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { AppState, InteractionManager, Platform, View } from "react-native";
+import { AppState, InteractionManager, View } from "react-native";
 
 // 스플래시 화면 자동 숨김 방지 (폰트 로딩 완료까지 유지)
 SplashScreen.preventAutoHideAsync();
@@ -76,22 +77,12 @@ export default function RootLayout() {
 
   /* ── RevenueCat 초기화 (앱 시작 시 1회) ── */
   useEffect(() => {
-    if (Platform.OS === "web") return;
     initPurchases();
   }, []);
 
   /* ── Google Mobile Ads SDK 초기화 (v16+ 필수) ── */
   useEffect(() => {
-    if (Platform.OS === "web") return;
-
-    try {
-      const nativeRequire = Function("return require")();
-      const adModule = nativeRequire("react-native-google-mobile-ads");
-      const mobileAds = adModule?.default ?? adModule;
-      if (typeof mobileAds === "function") {
-        mobileAds().initialize();
-      }
-    } catch {}
+    initMobileAds();
   }, []);
 
   /* ── 버전 체크: 구버전이면 업데이트 안내 ── */

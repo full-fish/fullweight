@@ -28,7 +28,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     package: IS_DEV
       ? "com.choimanseon.fullweight.dev"
       : "com.choimanseon.fullweight",
-    versionCode: 13,
+    versionCode: 15,
+    enableMinifyInReleaseBuilds: true,
+    enableShrinkResourcesInReleaseBuilds: true,
     adaptiveIcon: {
       backgroundColor: "#E6F4FE",
       foregroundImage: "./assets/images/android-icon-foreground.png",
@@ -43,6 +45,15 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   plugins: [
     "expo-router",
+    [
+      "expo-build-properties",
+      {
+        android: {
+          enableMinifyInReleaseBuilds: true,
+          enableShrinkResourcesInReleaseBuilds: true,
+        },
+      },
+    ],
     [
       "react-native-google-mobile-ads",
       {

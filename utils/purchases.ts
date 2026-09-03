@@ -13,26 +13,11 @@
  */
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
-
-type PurchasesOffering = any;
-type PurchasesPackage = any;
-
-const getNativeRequire = () => Function("return require")();
-
-const resolveNativeModule = (pkg: string): any => {
-  if (Platform.OS === "web") return null;
-
-  try {
-    const nativeRequire = getNativeRequire();
-    return nativeRequire(pkg);
-  } catch {
-    return null;
-  }
-};
-
-const purchasesModule = resolveNativeModule("react-native-purchases");
-const Purchases = purchasesModule?.default ?? purchasesModule ?? null;
-const LOG_LEVEL = purchasesModule?.LOG_LEVEL ?? { DEBUG: 3 };
+import Purchases, {
+  LOG_LEVEL,
+  PurchasesOffering,
+  PurchasesPackage,
+} from "react-native-purchases";
 
 // ─── 개발자 이메일 (프로덕션에서도 무조건 PRO) ──────────────────────────────
 const OWNER_EMAIL = "manseon94@gmail.com";
@@ -55,7 +40,7 @@ export const DEV_BANNER_OVERRIDE_KEY = "dev_banner_removed";
 export const DEV_AIPRO_OVERRIDE_KEY = "dev_ai_pro";
 
 function shouldSkipPurchasesInDev() {
-  return __DEV__ || Platform.OS === "web";
+  return __DEV__;
 }
 
 // RC 초기화 Promise — getCurrentOffering에서 race condition 방지용
@@ -75,7 +60,7 @@ export type MembershipStatus = {
  */
 async function _doInitPurchases(userId?: string): Promise<void> {
   try {
-    if (shouldSkipPurchasesInDev() || !Purchases) {
+    if (shouldSkipPurchasesInDev()) {
       return;
     }
 

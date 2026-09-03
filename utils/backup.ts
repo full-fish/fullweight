@@ -1,24 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import * as LegacyFileSystem from "expo-file-system/legacy";
 import JSZip from "jszip";
-import { Platform } from "react-native";
-
-const getNativeRequire = () => Function("return require")();
-
-const resolveNativeModule = (pkg: string): any => {
-  if (Platform.OS === "web") return null;
-
-  try {
-    const nativeRequire = getNativeRequire();
-    return nativeRequire(pkg);
-  } catch {
-    return null;
-  }
-};
-
-const GoogleSignin = resolveNativeModule(
-  "@react-native-google-signin/google-signin"
-);
 
 /* ────────────────────────────────────────────
    상수
@@ -44,13 +27,11 @@ const KEY_BACKUP_INTERVAL = "backup_interval_days"; // 자동 백업 주기 (일
 const DEFAULT_BACKUP_INTERVAL = 1; // 기본: 매일
 
 // Google Sign-In 초기 설정 — 토큰은 라이브러리가 직접 관리 (시크릿 불필요)
-if (GoogleSignin && typeof GoogleSignin.configure === "function") {
-  GoogleSignin.configure({
-    webClientId: GOOGLE_WEB_CLIENT_ID,
-    offlineAccess: true, // 제거하면 일부 환경에서 DEVELOPER_ERROR 발생
-    scopes: SCOPES,
-  });
-}
+GoogleSignin.configure({
+  webClientId: GOOGLE_WEB_CLIENT_ID,
+  offlineAccess: true, // 제거하면 일부 환경에서 DEVELOPER_ERROR 발생
+  scopes: SCOPES,
+});
 
 /* ────────────────────────────────────────────
    인증 (네이티브 Google Sign-In)
@@ -61,16 +42,11 @@ export async function googleSignIn(): Promise<{
   accessToken: string;
   email: string;
 }> {
-  const auth = resolveNativeModule("@react-native-google-signin/google-signin");
-  if (!auth || typeof auth.signIn !== "function") {
-    throw new Error("Google Sign-In is not available on web.");
-  }
-
-  await auth.hasPlayServices({ showPlayServicesUpdateDialog: true });
-  const signInResult = await auth.signIn();
+  await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+  const signInResult = await GoogleSignin.signIn();
   const email = signInResult.data?.user?.email ?? "";
 
-  const { accessToken } = await auth.getTokens();
+  const { accessToken } = await GoogleSignin.getTokens();
   await AsyncStorage.setItem(KEY_USER_EMAIL, email);
 
   return { accessToken, email };
@@ -79,12 +55,8 @@ export async function googleSignIn(): Promise<{
 /** 유효한 Access Token 획득 (라이브러리가 만료 시 자동 갱신) */
 export async function getValidAccessToken(): Promise<string | null> {
   try {
-    const auth = resolveNativeModule(
-      "@react-native-google-signin/google-signin"
-    );
-    if (!auth || typeof auth.hasPreviousSignIn !== "function") return null;
-    if (!auth.hasPreviousSignIn()) return null;
-    const { accessToken } = await auth.getTokens();
+    if (!GoogleSignin.hasPreviousSignIn()) return null;
+    const { accessToken } = await GoogleSignin.getTokens();
     return accessToken ?? null;
   } catch {
     return null;
@@ -94,12 +66,7 @@ export async function getValidAccessToken(): Promise<string | null> {
 /** 로그아웃 */
 export async function signOut(): Promise<void> {
   try {
-    const auth = resolveNativeModule(
-      "@react-native-google-signin/google-signin"
-    );
-    if (auth && typeof auth.signOut === "function") {
-      await auth.signOut();
-    }
+    await GoogleSignin.signOut();
   } catch {
     // 무시
   }
