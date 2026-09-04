@@ -1,13 +1,13 @@
 import React from "react";
 import {
-    Alert,
-    Linking,
-    Modal,
-    Pressable,
-    SafeAreaView,
-    StyleSheet,
-    Text,
-    View,
+  Alert,
+  Linking,
+  Modal,
+  Pressable,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
 
 const PLAY_STORE_URL =
