@@ -65,6 +65,7 @@ export default function HomeScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [records, setRecords] = useState<WeightRecord[]>([]);
   const [weight, setWeight] = useState("");
+  const [isAutoWeight, setIsAutoWeight] = useState(false);
   const [skipWeight, setSkipWeight] = useState(false);
   const [waist, setWaist] = useState("");
   const [muscleMass, setMuscleMass] = useState("");
@@ -143,6 +144,7 @@ export default function HomeScreen() {
       const existing = allRecords.find((r) => r.date === date);
       if (existing) {
         setSkipWeight(!existing.weight);
+        setIsAutoWeight(false);
         setWeight(existing.weight?.toString() ?? "");
         setWaist(existing.waist?.toString() ?? "");
         setMuscleMass(existing.muscleMass?.toString() ?? "");
@@ -169,13 +171,15 @@ export default function HomeScreen() {
         }
         setBoolCustomInputs(bi);
       } else {
-        // Pre-fill weight with most recent record
         const sorted = [...allRecords]
-          .filter((r) => r.weight)
+          .filter((r) => r.weight != null)
           .sort((a, b) => b.date.localeCompare(a.date));
-        const latestWeight =
-          sorted.length > 0 ? (sorted[0].weight?.toString() ?? "") : "";
-        setWeight(latestWeight);
+        const latest = sorted[0];
+        const latestWeight = latest?.weight?.toString() ?? "";
+        const shouldAutoFill = !!latest && date > latest.date;
+
+        setWeight(shouldAutoFill ? latestWeight : "");
+        setIsAutoWeight(shouldAutoFill);
         setSkipWeight(false);
         setWaist("");
         setMuscleMass("");
@@ -654,12 +658,25 @@ export default function HomeScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
+            {isAutoWeight && (
+              <Text
+                style={{
+                  color: "#A0AEC0",
+                  fontSize: 11,
+                  marginBottom: 6,
+                  marginTop: -2,
+                }}
+              >
+                최근 기록을 기준으로 자동 입력된 값입니다.
+              </Text>
+            )}
             <View style={[styles.inputRow, skipWeight && { opacity: 0.3 }]}>
               <TouchableOpacity
                 style={styles.stepBtn}
                 disabled={skipWeight}
                 onPress={() => {
                   const v = parseFloat(weight) || 0;
+                  setIsAutoWeight(false);
                   setWeight(Math.max(0, v - 0.1).toFixed(1));
                 }}
                 onLongPress={() => {
@@ -668,6 +685,7 @@ export default function HomeScreen() {
                       const v = parseFloat(prev) || 0;
                       return Math.max(0, v - 0.1).toFixed(1);
                     });
+                    setIsAutoWeight(false);
                   }, 80);
                 }}
                 onPressOut={() => {
@@ -681,9 +699,18 @@ export default function HomeScreen() {
                 <Text style={styles.stepBtnText}>▼</Text>
               </TouchableOpacity>
               <TextInput
-                style={[styles.input, { textAlign: "center" }]}
+                style={[
+                  styles.input,
+                  {
+                    textAlign: "center",
+                    color: isAutoWeight ? "#A0AEC0" : "#1A202C",
+                  },
+                ]}
                 value={skipWeight ? "" : weight}
-                onChangeText={setWeight}
+                onChangeText={(next) => {
+                  setWeight(next);
+                  setIsAutoWeight(false);
+                }}
                 placeholder={skipWeight ? "미입력" : "0.0"}
                 placeholderTextColor="#aaa"
                 keyboardType="decimal-pad"
@@ -694,6 +721,7 @@ export default function HomeScreen() {
                 disabled={skipWeight}
                 onPress={() => {
                   const v = parseFloat(weight) || 0;
+                  setIsAutoWeight(false);
                   setWeight((v + 0.1).toFixed(1));
                 }}
                 onLongPress={() => {
@@ -702,6 +730,7 @@ export default function HomeScreen() {
                       const v = parseFloat(prev) || 0;
                       return (v + 0.1).toFixed(1);
                     });
+                    setIsAutoWeight(false);
                   }, 80);
                 }}
                 onPressOut={() => {
