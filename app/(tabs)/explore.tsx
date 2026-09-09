@@ -1,5 +1,6 @@
 import { CalendarModal } from "@/components/calendar-modal";
 import { DatePickerRow } from "@/components/date-picker-row";
+import { usePro } from "@/hooks/use-pro";
 import {
   METRIC_COLORS,
   METRIC_UNITS,
@@ -28,7 +29,6 @@ import { useFocusEffect } from "@react-navigation/native";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
   Dimensions,
-  Modal,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -60,6 +60,7 @@ const NUTRITION_COLORS: Record<string, string> = {
 export default function ChartScreen() {
   const _now = new Date();
   const todayStr = `${_now.getFullYear()}-${String(_now.getMonth() + 1).padStart(2, "0")}-${String(_now.getDate()).padStart(2, "0")}`;
+  const { bannerRemoved } = usePro();
 
   const [allRecords, setAllRecords] = useState<WeightRecord[]>([]);
   const [userSettings, setUserSettings] = useState<UserSettings>({});
@@ -73,6 +74,12 @@ export default function ChartScreen() {
   const [activityStart, setActivityStart] = useState("");
   const [activityEnd, setActivityEnd] = useState("");
   const [tooltipPoint, setTooltipPoint] = useState<{
+    record: WeightRecord;
+    x: number;
+    y: number;
+    index: number;
+  } | null>(null);
+  const [fsTooltipPoint, setFsTooltipPoint] = useState<{
     record: WeightRecord;
     x: number;
     y: number;
@@ -1671,10 +1678,16 @@ export default function ChartScreen() {
       {/* ── 전체화면 차트 모달 ── */}
       {showFullscreenChart &&
         (() => {
+          const fsClosePad = 92;
+          const fsCloseRight = 18;
+          const fsCloseBottom = 18;
+
           // 세로 화면을 90도 돌려서 가로처럼 표시
           const portraitW = Math.min(SCREEN_W, SCREEN_H);
           const portraitH = Math.max(SCREEN_W, SCREEN_H);
-          const FS_W = portraitH - 32; // 회전 후 가로 = 세로화면 높이
+
+          // 하단 배너 광고(약 50~60px) + 안전 여백 고려하여 패딩 확보
+          const FS_W = portraitH - 100; // 회전 후 가로 = 세로화면 높이
           const FS_H = portraitW - 80; // 회전 후 세로 = 세로화면 너비
           const fsLen = chartData.length;
           const fsEnd = Math.max(fsZoom, fsLen - fsOffset);
@@ -1755,7 +1768,143 @@ export default function ChartScreen() {
               );
             });
 
-          const fsGesture = Gesture.Simultaneous(fsPinch, fsPan);
+          /* ── 전체화면 모달 내 탭 제스처 (점 클릭 → 인라인 툴팁) ── */
+          const fsTap = Gesture.Tap()
+            .runOnJS(true)
+            .maxDuration(250)
+            .onEnd((e) => {
+              const CHART_LEFT_PAD = 64;
+              const dataLen = fsSliced.length;
+
+              if (dataLen < 2) return;
+
+              const intervals = Math.max(1, dataLen - 1);
+              // e.y는 무시하고 e.x만 사용하여 위아래 아무 곳이나 터치해도 날짜를 찾도록 합니다.
+              const index = Math.round(
+                ((e.x - CHART_LEFT_PAD) * intervals) / (FS_W - CHART_LEFT_PAD)
+              );
+
+              if (index < 0 || index >= dataLen) return;
+
+              const rec = fsSliced[index];
+              if (!rec) return;
+
+              setFsTooltipPoint((prev) =>
+                prev && prev.record.date === rec.date
+                  ? null
+                  : {
+                      record: rec,
+                      x:
+                        CHART_LEFT_PAD +
+                        (index * (FS_W - CHART_LEFT_PAD)) / intervals,
+                      y: e.y,
+                      index,
+                    }
+              );
+            });
+
+          const fsGesture = Gesture.Simultaneous(
+            fsPinch,
+            Gesture.Exclusive(fsPan, fsTap)
+          );
+
+          /* ── 전체화면 차트 데코레이터: 세로 점선 ── */
+          const makeFsDecorator = (chartHeight: number) => {
+            if (!fsTooltipPoint) return undefined;
+            // eslint-disable-next-line react/display-name
+            return () => (
+              <Svg
+                width={FS_W}
+                height={chartHeight}
+                style={{ position: "absolute", left: 0, top: 0 }}
+                pointerEvents="none"
+              >
+                <SvgLine
+                  x1={fsTooltipPoint.x}
+                  y1={16}
+                  x2={fsTooltipPoint.x}
+                  y2={chartHeight - 32}
+                  stroke="#718096"
+                  strokeWidth={1}
+                  strokeDasharray="4,4"
+                />
+              </Svg>
+            );
+          };
+
+          /* ── 전체화면 툴팁 렌더링 ── */
+          const renderFsTooltip = () => {
+            if (!fsTooltipPoint) return null;
+            const { record, x } = fsTooltipPoint;
+            const tooltipW = 160;
+            const left = Math.max(
+              4,
+              Math.min(x - tooltipW / 2, FS_W - tooltipW - 4)
+            );
+
+            const metrics: { icon: string; val: string }[] = [];
+            if (record.weight != null)
+              metrics.push({ icon: "", val: `${record.weight} kg` });
+            if (record.waist != null)
+              metrics.push({ icon: "허리", val: `${record.waist} cm` });
+            if (record.muscleMass != null)
+              metrics.push({ icon: "골격근", val: `${record.muscleMass} kg` });
+            if (record.bodyFatPercent != null)
+              metrics.push({
+                icon: "체지방",
+                val: `${record.bodyFatPercent} %`,
+              });
+            if (record.bodyFatMass != null)
+              metrics.push({
+                icon: "체지방량",
+                val: `${record.bodyFatMass} kg`,
+              });
+
+            const dm = dailyMealMap[record.date];
+            if (dm) {
+              if (dm.kcal > 0)
+                metrics.push({
+                  icon: "칼로리",
+                  val: `${Math.round(dm.kcal)} kcal`,
+                });
+              if (dm.carb > 0)
+                metrics.push({
+                  icon: "탄수화물",
+                  val: `${Math.round(dm.carb)} g`,
+                });
+              if (dm.protein > 0)
+                metrics.push({
+                  icon: "단백질",
+                  val: `${Math.round(dm.protein)} g`,
+                });
+              if (dm.fat > 0)
+                metrics.push({ icon: "지방", val: `${Math.round(dm.fat)} g` });
+            }
+
+            return (
+              <TouchableOpacity
+                activeOpacity={1}
+                onPress={() => setFsTooltipPoint(null)}
+                style={[
+                  s.tooltip,
+                  {
+                    position: "absolute",
+                    left,
+                    width: tooltipW,
+                    top: 16,
+                    zIndex: 100,
+                  },
+                ]}
+              >
+                <Text style={s.tooltipDate}>{fmtDate(record.date)}</Text>
+                {metrics.map((m, i) => (
+                  <Text key={i} style={s.tooltipMetric}>
+                    {m.icon} {m.val}
+                  </Text>
+                ))}
+              </TouchableOpacity>
+            );
+          };
 
           // 단일 수치 데이터
           const fsKey =
@@ -1844,12 +1993,44 @@ export default function ChartScreen() {
               : null;
 
           return (
-            <Modal
-              visible
-              animationType="fade"
-              supportedOrientations={["portrait"]}
-              onRequestClose={() => setShowFullscreenChart(false)}
+            <View
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                zIndex: 9999,
+                backgroundColor: "#fff",
+              }}
             >
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => setShowFullscreenChart(false)}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                style={{
+                  position: "absolute",
+                  right: fsCloseRight,
+                  bottom: fsCloseBottom,
+                  width: 38,
+                  height: 38,
+                  borderRadius: 19,
+                  backgroundColor: "rgba(255,255,255,0.96)",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  zIndex: 10000,
+                  shadowColor: "#000",
+                  shadowOpacity: 0.1,
+                  shadowRadius: 6,
+                  shadowOffset: { width: 0, height: 3 },
+                  elevation: 5,
+                  borderWidth: 1,
+                  borderColor: "rgba(148,163,184,0.25)",
+                }}
+              >
+                <Ionicons name="close" size={20} color="#2D3748" />
+              </TouchableOpacity>
+
               <GestureHandlerRootView style={{ flex: 1 }}>
                 <StatusBar hidden />
                 <View
@@ -1870,7 +2051,7 @@ export default function ChartScreen() {
                       ],
                       paddingTop: 16,
                       paddingLeft: 16,
-                      paddingRight: 52,
+                      paddingRight: fsClosePad,
                     }}
                   >
                     <View style={fsStyles.header}>
@@ -1880,12 +2061,6 @@ export default function ChartScreen() {
                           .join(" · ")}{" "}
                         추이
                       </Text>
-                      <TouchableOpacity
-                        onPress={() => setShowFullscreenChart(false)}
-                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                      >
-                        <Ionicons name="close" size={24} color="#2D3748" />
-                      </TouchableOpacity>
                     </View>
 
                     <GestureDetector gesture={fsGesture}>
@@ -1965,6 +2140,7 @@ export default function ChartScreen() {
                                   ? Math.round(parseFloat(v)).toString()
                                   : parseFloat(v).toFixed(1)
                               }
+                              decorator={makeFsDecorator(FS_H)}
                             />
                           )}
 
@@ -2039,6 +2215,7 @@ export default function ChartScreen() {
                                 formatYLabel={(v) =>
                                   `${parseFloat(v).toFixed(0)}%`
                                 }
+                                decorator={makeFsDecorator(FS_H)}
                               />
                             );
                           })()}
@@ -2072,6 +2249,8 @@ export default function ChartScreen() {
                         )}
                       </View>
                     </GestureDetector>
+
+                    {renderFsTooltip()}
 
                     {/* 범례 */}
                     {!isFsSingle && fsOverlayInfo && (
@@ -2111,7 +2290,7 @@ export default function ChartScreen() {
                   </View>
                 </View>
               </GestureHandlerRootView>
-            </Modal>
+            </View>
           );
         })()}
     </View>
