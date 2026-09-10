@@ -134,13 +134,16 @@ try {
 } catch {}
 
 function getInterstitialUnitId(): string | null {
-  if (!TestIds) return null;
-  if (__DEV__ || isPreviewVariant()) return TestIds.INTERSTITIAL;
+  const testInterstitialId =
+    TestIds?.INTERSTITIAL ?? "ca-app-pub-3940256099942544/1033173712";
+
+  if (__DEV__ || isPreviewVariant()) return testInterstitialId;
+
   return (
     Platform.select({
       android: "ca-app-pub-1379550026930118/2889199125",
       ios: "ca-app-pub-1379550026930118/2889199125",
-      default: TestIds.INTERSTITIAL,
+      default: testInterstitialId,
     }) ?? null
   );
 }
@@ -214,8 +217,11 @@ try {
 
 function getRewardedUnitId(): string | null {
   const testRewardedId = "ca-app-pub-3940256099942544/5224354917";
-  if (TestIds?.REWARDED) return TestIds.REWARDED;
-  if (__DEV__ || isPreviewVariant()) return testRewardedId;
+
+  if (__DEV__ || isPreviewVariant()) {
+    return TestIds?.REWARDED ?? testRewardedId;
+  }
+
   return (
     Platform.select({
       android: "ca-app-pub-1379550026930118/9813815068",

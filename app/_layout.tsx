@@ -170,7 +170,7 @@ export default function RootLayout() {
           />
           <UpdateRequiredModal
             visible={showUpdateNotice}
-            forceUpdate={showUpdateNotice}
+            forceUpdate={false}
             onClose={() => setShowUpdateNotice(false)}
           />
         </ThemeProvider>

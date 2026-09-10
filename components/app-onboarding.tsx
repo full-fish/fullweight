@@ -39,6 +39,7 @@ export default function AppOnboarding({
             <Text style={styles.bullet}>
               • 그래프·캘린더·챌린지로 꾸준함을 이어가세요
             </Text>
+            <Text style={styles.bullet}>• 설정에서 도움말을 확인해 주세요</Text>
           </View>
 
           <Pressable style={styles.button} onPress={onStart}>

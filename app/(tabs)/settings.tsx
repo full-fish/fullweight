@@ -586,6 +586,7 @@ export default function SettingsScreen() {
   const [showDevTools, setShowDevTools] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteInput, setDeleteInput] = useState("");
+  const [helpOpen, setHelpOpen] = useState(false);
 
   // ── 내보내기 상태 ──
   const [showExportModal, setShowExportModal] = useState(false);
@@ -1083,6 +1084,64 @@ export default function SettingsScreen() {
             )}
           </>
         )}
+
+        {/* ─── 도움말 & 사용법 ─── */}
+        <Text style={s.sectionHeader}>도움말</Text>
+        <View style={s.card}>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            style={s.helpAccordionHeader}
+            onPress={() => setHelpOpen((prev) => !prev)}
+          >
+            <Text style={s.helpAccordionTitle}>앱 사용법</Text>
+            <Text style={s.helpAccordionArrow}>{helpOpen ? "▲" : "▼"}</Text>
+          </TouchableOpacity>
+
+          {helpOpen && (
+            <>
+              {[
+                {
+                  key: "기록",
+                  text: "기록 탭에서는 오늘의 체중, 식사, 운동, 수치 등을 빠르게 입력할 수 있습니다. 자주 먹는 음식은 즐겨찾기로 저장해두면 바로 불러와서 입력 속도를 높일 수 있습니다. 음식 사진을 찍으면 AI가 음식 사진을 분석해 영양성분을 자동으로 계산해줍니다.",
+                },
+                {
+                  key: "그래프",
+                  text: "그래프 탭에서는 몸무게, 체지방량, 근육량, 수치 변화 등을 시계열로 확인할 수 있습니다. 날짜별 추이를 보며 패턴을 파악하고, 원하는 지표를 조합해서 비교해볼 수 있습니다.",
+                },
+                {
+                  key: "캘린더",
+                  text: "캘린더 탭에서는 날짜별 기록을 한눈에 확인할 수 있습니다. 특정 날을 선택해 기록을 점검하거나, 월별 흐름을 보며 반복 패턴을 확인할 수 있습니다.",
+                },
+                {
+                  key: "챌린지",
+                  text: "챌린지 탭에서는 목표를 정하고, 꾸준히 실천할 수 있도록 작은 목표를 관리할 수 있습니다. 매일 또는 주 단위로 진행 상황을 확인하고 동기부여를 유지할 수 있습니다.",
+                },
+                {
+                  key: "눈바디",
+                  text: "눈바디 탭에서는 몸 사진을 찍고 비교할 수 있습니다. 사진은 기기에 저장되고, 본인 Google Drive 백업으로도 보관할 수 있습니다. 체형 변화를 시각적으로 확인하는 데 도움이 됩니다.",
+                },
+                {
+                  key: "설정",
+                  text: "설정에서는 프로필, 백업, Google Drive, 사용자 정의 항목, 알림/보안 옵션을 관리할 수 있습니다. 본인 데이터는 기기 로컬에 저장되며, 백업은 본인 Google Drive 계정으로 보관됩니다.",
+                },
+              ].map((item) => (
+                <View key={item.key} style={s.helpAccordionItem}>
+                  <Text style={s.helpTitle}>{item.key}</Text>
+                  <Text style={s.helpText}>{item.text}</Text>
+                </View>
+              ))}
+
+              <View style={s.helpSection}>
+                <Text style={s.helpTitle}>데이터 보관 원칙</Text>
+                <Text style={s.helpText}>
+                  모든 기록, 사진, 즐겨찾기, 사용자 설정은 기기 로컬에 저장되며,
+                  본인 Google Drive에 백업됩니다. 따라서 다른 사람의 계정이나
+                  외부 서버에 자동으로 노출되지는 않습니다.
+                </Text>
+              </View>
+            </>
+          )}
+        </View>
 
         {/* ─── 프로필 ─── */}
         <Text style={s.sectionHeader}>프로필</Text>
@@ -4875,6 +4934,45 @@ const s = StyleSheet.create({
     marginBottom: 2,
   },
   actionDesc: { fontSize: 12, color: "#A0AEC0" },
+  helpSection: {
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F0F4F8",
+  },
+  helpTitle: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#2D3748",
+    marginBottom: 4,
+  },
+  helpAccordionItem: {
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F0F4F8",
+  },
+  helpAccordionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 4,
+  },
+  helpAccordionTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#2D3748",
+    marginBottom: 0,
+  },
+  helpAccordionArrow: {
+    fontSize: 16,
+    color: "#A0AEC0",
+    marginBottom: 2,
+  },
+  helpText: {
+    fontSize: 13,
+    lineHeight: 20,
+    color: "#4A5568",
+    paddingBottom: 0,
+  },
 
   editIconBtn: {
     paddingHorizontal: 12,
