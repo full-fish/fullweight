@@ -10,10 +10,11 @@ import {
 } from "@/types";
 import {
   calcDailyNutrition,
-  fmtDate,
   fmtLabel,
   fmtMonthLabel,
   fmtWeekLabel,
+  formatChartNumber,
+  formatChartPeriodDate,
   getMetricValue,
   hexToRGBA,
   monthKey,
@@ -604,27 +605,48 @@ export default function ChartScreen() {
 
     const metrics: { icon: string; val: string }[] = [];
     if (record.weight != null)
-      metrics.push({ icon: "", val: `${record.weight} kg` });
+      metrics.push({ icon: "", val: `${formatChartNumber(record.weight)} kg` });
     if (record.waist != null)
-      metrics.push({ icon: "허리", val: `${record.waist} cm` });
+      metrics.push({
+        icon: "허리",
+        val: `${formatChartNumber(record.waist)} cm`,
+      });
     if (record.muscleMass != null)
-      metrics.push({ icon: "골격근", val: `${record.muscleMass} kg` });
+      metrics.push({
+        icon: "골격근",
+        val: `${formatChartNumber(record.muscleMass)} kg`,
+      });
     if (record.bodyFatPercent != null)
-      metrics.push({ icon: "체지방", val: `${record.bodyFatPercent} %` });
+      metrics.push({
+        icon: "체지방",
+        val: `${formatChartNumber(record.bodyFatPercent)} %`,
+      });
     if (record.bodyFatMass != null)
-      metrics.push({ icon: "체지방량", val: `${record.bodyFatMass} kg` });
+      metrics.push({
+        icon: "체지방량",
+        val: `${formatChartNumber(record.bodyFatMass)} kg`,
+      });
 
     // 영양소 정보 추가
     const dm = dailyMealMap[record.date];
     if (dm) {
       if (dm.kcal > 0)
-        metrics.push({ icon: "칼로리", val: `${Math.round(dm.kcal)} kcal` });
+        metrics.push({
+          icon: "칼로리",
+          val: `${formatChartNumber(dm.kcal)} kcal`,
+        });
       if (dm.carb > 0)
-        metrics.push({ icon: "탄수화물", val: `${Math.round(dm.carb)} g` });
+        metrics.push({
+          icon: "탄수화물",
+          val: `${formatChartNumber(dm.carb)} g`,
+        });
       if (dm.protein > 0)
-        metrics.push({ icon: "단백질", val: `${Math.round(dm.protein)} g` });
+        metrics.push({
+          icon: "단백질",
+          val: `${formatChartNumber(dm.protein)} g`,
+        });
       if (dm.fat > 0)
-        metrics.push({ icon: "지방", val: `${Math.round(dm.fat)} g` });
+        metrics.push({ icon: "지방", val: `${formatChartNumber(dm.fat)} g` });
     }
 
     const fixedTop = 0;
@@ -642,7 +664,9 @@ export default function ChartScreen() {
           },
         ]}
       >
-        <Text style={s.tooltipDate}>{fmtDate(record.date)}</Text>
+        <Text style={s.tooltipDate}>
+          {formatChartPeriodDate(record.date, periodMode)}
+        </Text>
         {metrics.map((m, i) => (
           <Text key={i} style={s.tooltipMetric}>
             {m.icon} {m.val}
@@ -922,7 +946,10 @@ export default function ChartScreen() {
               <TouchableOpacity
                 key={m}
                 style={[s.periodBtn, periodMode === m && s.periodBtnActive]}
-                onPress={() => setPeriodMode(m)}
+                onPress={() => {
+                  setTooltipPoint(null);
+                  setPeriodMode(m);
+                }}
               >
                 <Text
                   style={[s.periodText, periodMode === m && s.periodTextActive]}
@@ -1291,7 +1318,7 @@ export default function ChartScreen() {
                         formatYLabel={(v) =>
                           NUTRITION_KEYS.has(info.key)
                             ? Math.round(parseFloat(v)).toString()
-                            : parseFloat(v).toFixed(1)
+                            : formatChartNumber(parseFloat(v))
                         }
                         decorator={makeDecorator(
                           160,
@@ -1896,7 +1923,9 @@ export default function ChartScreen() {
                   },
                 ]}
               >
-                <Text style={s.tooltipDate}>{fmtDate(record.date)}</Text>
+                <Text style={s.tooltipDate}>
+                  {formatChartPeriodDate(record.date, periodMode)}
+                </Text>
                 {metrics.map((m, i) => (
                   <Text key={i} style={s.tooltipMetric}>
                     {m.icon} {m.val}

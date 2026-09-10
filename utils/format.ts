@@ -27,6 +27,44 @@ export function fmtDate(dateStr: string): string {
   return `${y}년 ${parseInt(m)}월 ${parseInt(d)}일`;
 }
 
+/** 차트/집계 라벨용 숫자 포맷: 소수점 1자리 */
+export function formatChartNumber(value: number | null | undefined): string {
+  if (value == null || !Number.isFinite(value)) return "—";
+  return Number(value).toFixed(1);
+}
+
+/** 주/월 집계 키를 사용자 친화적 타이틀로 변환 */
+export function formatChartPeriodDate(
+  dateKey: string,
+  periodMode: "daily" | "weekly" | "monthly" | "custom"
+): string {
+  if (periodMode === "monthly") {
+    const [y, m] = dateKey.split("-");
+    if (y && m) return `${Number(y)}년 ${Number(m)}월`;
+    return dateKey;
+  }
+
+  if (periodMode === "weekly") {
+    const [y, weekPart] = dateKey.split("-W");
+    const year = Number(y);
+    const week = Number(weekPart);
+    if (!Number.isFinite(year) || !Number.isFinite(week) || week <= 0) {
+      return dateKey;
+    }
+
+    const jan4 = new Date(Date.UTC(year, 0, 4));
+    const day = jan4.getUTCDay() || 7;
+    const weekStart = new Date(Date.UTC(year, 0, 4));
+    weekStart.setUTCDate(jan4.getUTCDate() + 1 - day + (week - 1) * 7);
+
+    const month = weekStart.getUTCMonth() + 1;
+    const monthWeek = Math.ceil(weekStart.getUTCDate() / 7);
+    return `${year}년 ${month}월 ${monthWeek}째주`;
+  }
+
+  return fmtDate(dateKey);
+}
+
 /** "YYYY-MM-DD" → "M/D" (차트 라벨용) */
 export function fmtLabel(dateStr: string): string {
   const [, m, d] = dateStr.split("-");
