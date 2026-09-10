@@ -3,7 +3,7 @@
  * index.tsx / calendar.tsx에서 동일하게 사용되던 식사 추가 모달을 통합
  */
 import { mealInputModalStyles as ms } from "@/constants/common-styles";
-import { MEAL_LABELS, MealType } from "@/types";
+import { FavoriteFood, MEAL_LABELS, MealType } from "@/types";
 import React from "react";
 import {
   ActivityIndicator,
@@ -15,6 +15,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { FoodFavoritesModal } from "./food-favorites-modal";
 
 type MealInputModalProps = {
   visible: boolean;
@@ -27,12 +28,27 @@ type MealInputModalProps = {
   kcal: string;
   aiAnalyzing: boolean;
   kbOffset: number;
+  favorites: FavoriteFood[];
+  favoritesVisible: boolean;
   onClose: () => void;
   onPhotoSelect: (source: "camera" | "gallery") => void;
   onRemovePhoto: () => void;
   onChangeDesc: (v: string) => void;
   onChangeMacro: (key: "carb" | "protein" | "fat", v: string) => void;
   onSave: () => void;
+  onOpenFavorites: () => void;
+  onCloseFavorites: () => void;
+  onSelectFavorite: (food: FavoriteFood) => void;
+  onAddFavorite: (food: {
+    name: string;
+    carb: number;
+    protein: number;
+    fat: number;
+  }) => void;
+  onRemoveFavorite: (id: string) => void;
+  onToggleFavorite: (id: string) => void;
+  onReorderFavorites: (next: FavoriteFood[]) => void;
+  onQuickAddFavorite: () => void;
 };
 
 export const MealInputModal = React.memo(function MealInputModal({
@@ -46,12 +62,22 @@ export const MealInputModal = React.memo(function MealInputModal({
   kcal,
   aiAnalyzing,
   kbOffset,
+  favorites,
+  favoritesVisible,
   onClose,
   onPhotoSelect,
   onRemovePhoto,
   onChangeDesc,
   onChangeMacro,
   onSave,
+  onOpenFavorites,
+  onCloseFavorites,
+  onSelectFavorite,
+  onAddFavorite,
+  onRemoveFavorite,
+  onToggleFavorite,
+  onReorderFavorites,
+  onQuickAddFavorite,
 }: MealInputModalProps) {
   if (!visible) return null;
 
@@ -117,7 +143,12 @@ export const MealInputModal = React.memo(function MealInputModal({
             </View>
 
             {/* 음식 이름 */}
-            <Text style={ms.label}>음식 이름 *</Text>
+            <View style={ms.nameRow}>
+              <Text style={ms.label}>음식 이름 *</Text>
+              <TouchableOpacity style={ms.favBtn} onPress={onOpenFavorites}>
+                <Text style={ms.favBtnText}>즐겨찾기</Text>
+              </TouchableOpacity>
+            </View>
             <TextInput
               style={ms.input}
               value={desc}
@@ -180,12 +211,38 @@ export const MealInputModal = React.memo(function MealInputModal({
               * 칼로리는 탄단지 입력 시 자동 계산됩니다
             </Text>
 
+            <TouchableOpacity
+              style={[ms.favAddBtn, !desc.trim() && ms.favAddBtnDisabled]}
+              onPress={onQuickAddFavorite}
+              disabled={!desc.trim()}
+            >
+              <Text
+                style={[
+                  ms.favAddBtnText,
+                  !desc.trim() && ms.favAddBtnTextDisabled,
+                ]}
+              >
+                즐겨찾기에 저장
+              </Text>
+            </TouchableOpacity>
+
             <TouchableOpacity style={ms.saveBtn} onPress={onSave}>
               <Text style={ms.saveBtnText}>저장</Text>
             </TouchableOpacity>
           </ScrollView>
         </View>
       </View>
+
+      <FoodFavoritesModal
+        visible={favoritesVisible}
+        favorites={favorites}
+        onClose={onCloseFavorites}
+        onSelect={onSelectFavorite}
+        onAdd={onAddFavorite}
+        onDelete={onRemoveFavorite}
+        onToggleFavorite={onToggleFavorite}
+        onReorder={onReorderFavorites}
+      />
     </Modal>
   );
 });

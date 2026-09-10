@@ -4,6 +4,7 @@
  */
 import {
   AiModelOption,
+  FavoriteFood,
   FoodPhotoQuality,
   MEAL_LABELS,
   MealEntry,
@@ -16,7 +17,17 @@ import {
 } from "@/utils/ad-manager";
 import { analyzeFood } from "@/utils/food-ai";
 import { captureFoodPhoto, deletePhoto } from "@/utils/photo";
-import { addMeal, deleteMeal, loadMeals, saveMeals } from "@/utils/storage";
+import {
+  addFavoriteFood,
+  addMeal,
+  deleteFavoriteFood,
+  deleteMeal,
+  loadFavoriteFoods,
+  loadMeals,
+  saveMeals,
+  setFavoriteFoodOrder,
+  toggleFavoriteFood,
+} from "@/utils/storage";
 import { useCallback, useState } from "react";
 import { Alert } from "react-native";
 
@@ -42,6 +53,8 @@ export function useMealInputModal(options: MealEditorOptions = {}) {
   const [fat, setFat] = useState("");
   const [kcal, setKcal] = useState("");
   const [aiAnalyzing, setAiAnalyzing] = useState(false);
+  const [favorites, setFavorites] = useState<FavoriteFood[]>([]);
+  const [favoritesVisible, setFavoritesVisible] = useState(false);
 
   const open = useCallback((type: MealType) => {
     setMealType(type);
@@ -177,6 +190,92 @@ export function useMealInputModal(options: MealEditorOptions = {}) {
     [desc, carb, protein, fat, kcal, mealType, photoUri]
   );
 
+  /** 즐겨찾기 모달 열기 (목록 로드) */
+  const openFavorites = useCallback(async () => {
+    const list = await loadFavoriteFoods();
+    setFavorites(list);
+    setFavoritesVisible(true);
+  }, []);
+
+  const closeFavorites = useCallback(() => {
+    setFavoritesVisible(false);
+  }, []);
+
+  /** 즐겨찾기 항목 선택 → 입력 필드에 반영 */
+  const selectFavorite = useCallback((food: FavoriteFood) => {
+    setDesc(food.name);
+    setCarb(String(food.carb));
+    setProtein(String(food.protein));
+    setFat(String(food.fat));
+    setKcal(String(food.kcal));
+    setFavoritesVisible(false);
+  }, []);
+
+  /** 즐겨찾기 모달에서 새 항목 직접 추가 */
+  const addFavorite = useCallback(
+    async (food: {
+      name: string;
+      carb: number;
+      protein: number;
+      fat: number;
+    }) => {
+      try {
+        const kcalVal = Math.round(
+          food.carb * 4 + food.protein * 4 + food.fat * 9
+        );
+        const updated = await addFavoriteFood({ ...food, kcal: kcalVal });
+        setFavorites(updated);
+      } catch (error: any) {
+        Alert.alert("중복 저장", error?.message || "이미 저장된 음식입니다.");
+      }
+    },
+    []
+  );
+
+  const removeFavorite = useCallback(async (id: string) => {
+    const updated = await deleteFavoriteFood(id);
+    setFavorites(updated);
+  }, []);
+
+  const toggleFavorite = useCallback(async (id: string) => {
+    const updated = await toggleFavoriteFood(id);
+    setFavorites(updated);
+  }, []);
+
+  const reorderFavorites = useCallback(async (next: FavoriteFood[]) => {
+    const updated = await setFavoriteFoodOrder(next);
+    setFavorites(updated);
+  }, []);
+
+  /** 즐겨찾기 모달 진입 없이 현재 입력값을 바로 즐겨찾기로 저장 */
+  const quickAddFavorite = useCallback(async () => {
+    if (!desc.trim()) {
+      Alert.alert("입력 오류", "음식 이름을 입력해주세요.");
+      return;
+    }
+    const carbVal = parseFloat(carb) || 0;
+    const proteinVal = parseFloat(protein) || 0;
+    const fatVal = parseFloat(fat) || 0;
+    const kcalVal =
+      parseFloat(kcal) || Math.round(carbVal * 4 + proteinVal * 4 + fatVal * 9);
+    try {
+      const updated = await addFavoriteFood({
+        name: desc.trim(),
+        carb: carbVal,
+        protein: proteinVal,
+        fat: fatVal,
+        kcal: kcalVal,
+      });
+      setFavorites(updated);
+      Alert.alert(
+        "즐겨찾기 추가",
+        `${desc.trim()}이(가) 즐겨찾기에 저장되었습니다.`
+      );
+    } catch (error: any) {
+      Alert.alert("중복 저장", error?.message || "이미 저장된 음식입니다.");
+    }
+  }, [desc, carb, protein, fat, kcal]);
+
   return {
     visible,
     mealType,
@@ -194,6 +293,16 @@ export function useMealInputModal(options: MealEditorOptions = {}) {
     handlePhotoSelect,
     updateMacro,
     save,
+    favorites,
+    favoritesVisible,
+    openFavorites,
+    closeFavorites,
+    selectFavorite,
+    addFavorite,
+    removeFavorite,
+    toggleFavorite,
+    reorderFavorites,
+    quickAddFavorite,
   };
 }
 

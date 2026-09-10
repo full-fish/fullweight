@@ -316,7 +316,7 @@ export function PaywallModal({
                           },
                           {
                             icon: "eye-off-outline",
-                            text: "모든 광고 제거 (배너 + 전면)",
+                            text: "모든 광고 제거",
                           },
                         ].map((f) => (
                           <View

@@ -14,11 +14,7 @@ import {
   UserSettings,
   WeightRecord,
 } from "@/types";
-import {
-  recordWeightSave,
-  showInterstitialAd,
-  showRewardedAdForAi,
-} from "@/utils/ad-manager";
+import { recordWeightSave, showInterstitialAd } from "@/utils/ad-manager";
 import {
   calcDailyNutrition,
   daysBetween,
@@ -1351,12 +1347,22 @@ export default function HomeScreen() {
           kcal={mealModal.kcal}
           aiAnalyzing={mealModal.aiAnalyzing}
           kbOffset={kbOffset}
+          favorites={mealModal.favorites}
+          favoritesVisible={mealModal.favoritesVisible}
           onClose={mealModal.close}
           onPhotoSelect={mealModal.handlePhotoSelect}
           onRemovePhoto={() => mealModal.setPhotoUri(undefined)}
           onChangeDesc={mealModal.setDesc}
           onChangeMacro={mealModal.updateMacro}
           onSave={handleSaveMealEntry}
+          onOpenFavorites={mealModal.openFavorites}
+          onCloseFavorites={mealModal.closeFavorites}
+          onSelectFavorite={mealModal.selectFavorite}
+          onAddFavorite={mealModal.addFavorite}
+          onRemoveFavorite={mealModal.removeFavorite}
+          onToggleFavorite={mealModal.toggleFavorite}
+          onReorderFavorites={mealModal.reorderFavorites}
+          onQuickAddFavorite={mealModal.quickAddFavorite}
         />
 
         {/* 편집 팝업 모달 */}

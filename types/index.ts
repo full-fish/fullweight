@@ -165,6 +165,21 @@ export type MealEntry = {
   createdAt: string;
 };
 
+/** 즐겨찾기 음식 정렬 모드 */
+export type FavoriteSortMode = "created" | "nameAsc" | "nameDesc" | "custom";
+
+/** 즐겨찾기 음식 (자주 먹는 음식 저장) */
+export type FavoriteFood = {
+  id: string;
+  name: string;
+  carb: number;
+  protein: number;
+  fat: number;
+  kcal: number;
+  isFavorite?: boolean;
+  createdAt: string;
+};
+
 /** 사용자 설정 (키, 생년월일, 성별 등) */
 export type UserSettings = {
   height?: number; // cm

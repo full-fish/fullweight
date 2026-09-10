@@ -2019,11 +2019,21 @@ export default function CalendarScreen() {
           kcal={mealModal.kcal}
           aiAnalyzing={mealModal.aiAnalyzing}
           kbOffset={kbOffset}
+          favorites={mealModal.favorites}
+          favoritesVisible={mealModal.favoritesVisible}
           onClose={mealModal.close}
           onPhotoSelect={mealModal.handlePhotoSelect}
           onRemovePhoto={() => mealModal.setPhotoUri(undefined)}
           onChangeDesc={mealModal.setDesc}
           onChangeMacro={mealModal.updateMacro}
+          onOpenFavorites={mealModal.openFavorites}
+          onCloseFavorites={mealModal.closeFavorites}
+          onSelectFavorite={mealModal.selectFavorite}
+          onAddFavorite={mealModal.addFavorite}
+          onRemoveFavorite={mealModal.removeFavorite}
+          onToggleFavorite={mealModal.toggleFavorite}
+          onReorderFavorites={mealModal.reorderFavorites}
+          onQuickAddFavorite={mealModal.quickAddFavorite}
           onSave={async () => {
             const dateStr = selectedRecord?.date ?? addDate;
             const allUpdated = await mealModal.save(dateStr);

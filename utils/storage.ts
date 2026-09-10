@@ -1,6 +1,7 @@
 import {
   Challenge,
   ChallengeHistory,
+  FavoriteFood,
   MealEntry,
   MealType,
   UserSettings,
@@ -13,6 +14,7 @@ const CHALLENGE_KEY = "weight_challenge_v1";
 const CHALLENGE_HISTORY_KEY = "weight_challenge_history_v1";
 const USER_SETTINGS_KEY = "user_settings_v1";
 const MEAL_STORAGE_KEY = "meal_entries_v1";
+const FAVORITE_FOOD_KEY = "favorite_foods_v1";
 
 /** 로컬 날짜를 YYYY-MM-DD 형식으로 반환 */
 export function getLocalDateString(date: Date = new Date()): string {
@@ -61,12 +63,13 @@ export async function deleteRecord(date: string): Promise<WeightRecord[]> {
   return filtered;
 }
 
-/** 전체 기록 삭제 (체중 + 식사 + 챌린지 + 히스토리 + 토글 + 사용자 설정 전체) */
+/** 전체 기록 삭제 (체중 + 식사 + 챌린지 + 히스토리 + 토글 + 사용자 설정 + 즐겨찾기 음식 전체) */
 export async function clearAllRecords(): Promise<void> {
   await AsyncStorage.removeItem(STORAGE_KEY);
   await AsyncStorage.removeItem(MEAL_STORAGE_KEY);
   await AsyncStorage.removeItem(CHALLENGE_KEY);
   await AsyncStorage.removeItem(CHALLENGE_HISTORY_KEY);
+  await AsyncStorage.removeItem(FAVORITE_FOOD_KEY);
   // 프로필 포함 사용자 설정 전체 초기화
   await AsyncStorage.removeItem(USER_SETTINGS_KEY);
 }
@@ -588,6 +591,190 @@ export async function seedDummyData(): Promise<WeightRecord[]> {
 
   await saveMeals(meals);
 
+  const favoriteFoods: FavoriteFood[] = [
+    {
+      id: "dummy_favorite_01",
+      name: "닭가슴살 샐러드",
+      carb: 12,
+      protein: 32,
+      fat: 6,
+      kcal: 270,
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: "dummy_favorite_02",
+      name: "현미밥 한 공기",
+      carb: 45,
+      protein: 7,
+      fat: 2,
+      kcal: 210,
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: "dummy_favorite_03",
+      name: "계란 2개",
+      carb: 1,
+      protein: 12,
+      fat: 10,
+      kcal: 140,
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: "dummy_favorite_04",
+      name: "그릭요거트",
+      carb: 14,
+      protein: 18,
+      fat: 4,
+      kcal: 180,
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: "dummy_favorite_05",
+      name: "바나나",
+      carb: 27,
+      protein: 1,
+      fat: 0,
+      kcal: 105,
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: "dummy_favorite_06",
+      name: "아보카도",
+      carb: 12,
+      protein: 2,
+      fat: 15,
+      kcal: 160,
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: "dummy_favorite_07",
+      name: "연어 스테이크",
+      carb: 0,
+      protein: 23,
+      fat: 18,
+      kcal: 260,
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: "dummy_favorite_08",
+      name: "두부 도시락",
+      carb: 30,
+      protein: 20,
+      fat: 15,
+      kcal: 300,
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: "dummy_favorite_09",
+      name: "샐러드 파스타",
+      carb: 50,
+      protein: 15,
+      fat: 10,
+      kcal: 360,
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: "dummy_favorite_10",
+      name: "닭가슴살 볶음밥",
+      carb: 38,
+      protein: 28,
+      fat: 8,
+      kcal: 330,
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: "dummy_favorite_11",
+      name: "오트밀",
+      carb: 35,
+      protein: 8,
+      fat: 5,
+      kcal: 220,
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: "dummy_favorite_12",
+      name: "아몬드",
+      carb: 6,
+      protein: 6,
+      fat: 14,
+      kcal: 170,
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: "dummy_favorite_13",
+      name: "쌀국수",
+      carb: 55,
+      protein: 14,
+      fat: 7,
+      kcal: 390,
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: "dummy_favorite_14",
+      name: "치킨 샐러드",
+      carb: 18,
+      protein: 35,
+      fat: 12,
+      kcal: 320,
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: "dummy_favorite_15",
+      name: "토스트",
+      carb: 26,
+      protein: 7,
+      fat: 4,
+      kcal: 170,
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: "dummy_favorite_16",
+      name: "단백질 쉐이크",
+      carb: 10,
+      protein: 25,
+      fat: 2,
+      kcal: 180,
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: "dummy_favorite_17",
+      name: "고구마",
+      carb: 32,
+      protein: 2,
+      fat: 0,
+      kcal: 140,
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: "dummy_favorite_18",
+      name: "김치볶음밥",
+      carb: 60,
+      protein: 16,
+      fat: 18,
+      kcal: 500,
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: "dummy_favorite_19",
+      name: "두부 스테이크",
+      carb: 12,
+      protein: 22,
+      fat: 14,
+      kcal: 260,
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: "dummy_favorite_20",
+      name: "삶은 고구마 + 삶은 계란",
+      carb: 28,
+      protein: 14,
+      fat: 7,
+      kcal: 280,
+      createdAt: new Date().toISOString(),
+    },
+  ];
+  await saveFavoriteFoods(favoriteFoods);
+
   return records;
 }
 
@@ -691,5 +878,104 @@ export async function deleteMeal(id: string): Promise<MealEntry[]> {
   const all = await loadMeals();
   const filtered = all.filter((m) => m.id !== id);
   await saveMeals(filtered);
+  return filtered;
+}
+
+/* ───── 즐겨찾기 음식 ───── */
+
+export function normalizeFavoriteFoodName(value: string): string {
+  return value.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+export async function loadFavoriteFoods(): Promise<FavoriteFood[]> {
+  try {
+    const data = await AsyncStorage.getItem(FAVORITE_FOOD_KEY);
+    if (!data) return [];
+    return JSON.parse(data) as FavoriteFood[];
+  } catch {
+    return [];
+  }
+}
+
+export async function saveFavoriteFoods(foods: FavoriteFood[]): Promise<void> {
+  await AsyncStorage.setItem(FAVORITE_FOOD_KEY, JSON.stringify(foods));
+}
+
+export async function sortFavoriteFoods(
+  foods: FavoriteFood[],
+  mode: "created" | "nameAsc" | "nameDesc" | "custom"
+): Promise<FavoriteFood[]> {
+  const next = [...foods];
+  if (mode === "nameAsc") {
+    next.sort((a, b) => a.name.localeCompare(b.name, "ko"));
+  } else if (mode === "nameDesc") {
+    next.sort((a, b) => b.name.localeCompare(a.name, "ko"));
+  } else if (mode === "created") {
+    next.sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+  }
+  return next;
+}
+
+export async function reorderFavoriteFoods(
+  foods: FavoriteFood[],
+  fromIndex: number,
+  toIndex: number
+): Promise<FavoriteFood[]> {
+  const next = [...foods];
+  const clampedFrom = Math.max(0, Math.min(fromIndex, next.length - 1));
+  const clampedTo = Math.max(0, Math.min(toIndex, next.length - 1));
+  const [moved] = next.splice(clampedFrom, 1);
+  next.splice(clampedTo, 0, moved);
+  await saveFavoriteFoods(next);
+  return next;
+}
+
+export async function toggleFavoriteFood(id: string): Promise<FavoriteFood[]> {
+  const all = await loadFavoriteFoods();
+  const updated = all.map((food) =>
+    food.id === id ? { ...food, isFavorite: !food.isFavorite } : food
+  );
+  await saveFavoriteFoods(updated);
+  return updated;
+}
+
+export async function addFavoriteFood(
+  food: Omit<FavoriteFood, "id" | "createdAt">
+): Promise<FavoriteFood[]> {
+  const all = await loadFavoriteFoods();
+  const normalized = normalizeFavoriteFoodName(food.name);
+  const exists = all.some(
+    (item) => normalizeFavoriteFoodName(item.name) === normalized
+  );
+  if (exists) {
+    throw new Error("이미 저장된 음식입니다.");
+  }
+
+  const entry: FavoriteFood = {
+    id: `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+    createdAt: new Date().toISOString(),
+    isFavorite: Boolean(food.isFavorite),
+    ...food,
+    name: food.name.trim(),
+  };
+  all.unshift(entry);
+  await saveFavoriteFoods(all);
+  return all;
+}
+
+export async function setFavoriteFoodOrder(
+  foods: FavoriteFood[]
+): Promise<FavoriteFood[]> {
+  await saveFavoriteFoods(foods);
+  return foods;
+}
+
+export async function deleteFavoriteFood(id: string): Promise<FavoriteFood[]> {
+  const all = await loadFavoriteFoods();
+  const filtered = all.filter((f) => f.id !== id);
+  await saveFavoriteFoods(filtered);
   return filtered;
 }
