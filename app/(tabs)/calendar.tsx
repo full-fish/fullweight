@@ -240,6 +240,47 @@ export default function CalendarScreen() {
       return { first: withWeight[0], last: withWeight[withWeight.length - 1] };
     };
 
+    const summaryItems = [
+      {
+        key: "record",
+        label: "기록일",
+        count: filtered.length,
+        alwaysVisible: true,
+      },
+      ...(userSettings.metricDisplayVisibility?.exercised === false
+        ? []
+        : [
+            {
+              key: "exercised",
+              label: "운동",
+              count: filtered.filter((r) => r.exercised).length,
+              alwaysVisible: false,
+            },
+          ]),
+      ...(userSettings.metricDisplayVisibility?.drank === false
+        ? []
+        : [
+            {
+              key: "drank",
+              label: "음주",
+              count: filtered.filter((r) => r.drank).length,
+              alwaysVisible: false,
+            },
+          ]),
+      ...(userSettings.customBoolMetrics ?? []).flatMap((cbm) =>
+        userSettings.metricDisplayVisibility?.[cbm.key] === false
+          ? []
+          : [
+              {
+                key: `custom:${cbm.key}`,
+                label: cbm.label,
+                count: customBoolCounts[cbm.key] ?? 0,
+                alwaysVisible: false,
+              },
+            ]
+      ),
+    ];
+
     return {
       records: filtered,
       periodLabel,
@@ -253,6 +294,7 @@ export default function CalendarScreen() {
       drinkCount: filtered.filter((r) => r.drank).length,
       customMetricRanges,
       customBoolCounts,
+      summaryItems,
     };
   }, [records, year, month, summaryMode, userSettings]);
 
@@ -596,20 +638,30 @@ export default function CalendarScreen() {
         </View>
 
         {/* 요약 칩 */}
-        <View style={s.monthSummary}>
-          <View style={s.summaryChip}>
-            <Text style={s.summaryNum}>{summaryData.records.length}</Text>
-            <Text style={s.summaryLabel}>기록일</Text>
+        {(summaryData.summaryItems ?? []).length > 3 ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={s.summaryScrollContent}
+            style={s.summaryScroll}
+          >
+            {(summaryData.summaryItems ?? []).map((item) => (
+              <View key={item.key} style={s.summaryChipCompact}>
+                <Text style={s.summaryNum}>{item.count}</Text>
+                <Text style={s.summaryLabel}>{item.label}</Text>
+              </View>
+            ))}
+          </ScrollView>
+        ) : (
+          <View style={s.summaryRow}>
+            {(summaryData.summaryItems ?? []).map((item) => (
+              <View key={item.key} style={s.summaryChipFull}>
+                <Text style={s.summaryNum}>{item.count}</Text>
+                <Text style={s.summaryLabel}>{item.label}</Text>
+              </View>
+            ))}
           </View>
-          <View style={s.summaryChip}>
-            <Text style={s.summaryNum}>{summaryData.exerciseCount}</Text>
-            <Text style={s.summaryLabel}>운동</Text>
-          </View>
-          <View style={s.summaryChip}>
-            <Text style={s.summaryNum}>{summaryData.drinkCount}</Text>
-            <Text style={s.summaryLabel}>음주</Text>
-          </View>
-        </View>
+        )}
 
         {/* 기간 변화 */}
         {summaryData.first &&
@@ -2099,8 +2151,29 @@ const s = StyleSheet.create({
   navTitle: { fontSize: 20, fontWeight: "700", color: "#2D3748" },
 
   /* month summary */
-  monthSummary: { flexDirection: "row", gap: 10, marginBottom: 16 },
+  summaryScroll: { marginBottom: 16 },
+  summaryScrollContent: {
+    flexDirection: "row",
+    gap: 10,
+    paddingRight: 6,
+  },
+  summaryRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 16,
+  },
   summaryChip: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  summaryChipFull: {
     flex: 1,
     backgroundColor: "#fff",
     borderRadius: 12,
@@ -2111,6 +2184,21 @@ const s = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 4,
     elevation: 2,
+  },
+  summaryChipCompact: {
+    width: 102,
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  summaryChipFirst: {
+    marginLeft: 0,
   },
   summaryNum: { fontSize: 22, fontWeight: "700", color: "#2D3748" },
   summaryLabel: { fontSize: 12, color: "#A0AEC0", marginTop: 2 },
