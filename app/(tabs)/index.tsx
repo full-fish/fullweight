@@ -22,6 +22,7 @@ import {
   getBmiInfo,
 } from "@/utils/format";
 import { deletePhoto, pickPhoto, takePhoto } from "@/utils/photo";
+import { sanitizeNumericInput } from "@/utils/format";
 import {
   deleteRecord,
   getLocalDateString,
@@ -708,7 +709,7 @@ export default function HomeScreen() {
                 ]}
                 value={skipWeight ? "" : weight}
                 onChangeText={(next) => {
-                  setWeight(next);
+                  setWeight(sanitizeNumericInput(next));
                   setIsAutoWeight(false);
                 }}
                 placeholder={skipWeight ? "미입력" : "0.0"}
@@ -753,7 +754,7 @@ export default function HomeScreen() {
                   <TextInput
                     style={styles.input}
                     value={waist}
-                    onChangeText={setWaist}
+                    onChangeText={(v) => setWaist(sanitizeNumericInput(v))}
                     placeholder="0.0"
                     placeholderTextColor="#aaa"
                     keyboardType="decimal-pad"
@@ -770,7 +771,7 @@ export default function HomeScreen() {
                   <TextInput
                     style={styles.input}
                     value={muscleMass}
-                    onChangeText={setMuscleMass}
+                    onChangeText={(v) => setMuscleMass(sanitizeNumericInput(v))}
                     placeholder="0.0"
                     placeholderTextColor="#aaa"
                     keyboardType="decimal-pad"
@@ -788,9 +789,10 @@ export default function HomeScreen() {
                     style={styles.input}
                     value={bodyFatPercent}
                     onChangeText={(v) => {
-                      setBodyFatPercent(v);
+                      const sanitized = sanitizeNumericInput(v);
+                      setBodyFatPercent(sanitized);
                       const w = parseFloat(weight);
-                      const p = parseFloat(v);
+                      const p = parseFloat(sanitized);
                       if (w > 0 && p >= 0 && !isNaN(p)) {
                         setBodyFatMass(((w * p) / 100).toFixed(1));
                       }
@@ -812,9 +814,10 @@ export default function HomeScreen() {
                     style={styles.input}
                     value={bodyFatMass}
                     onChangeText={(v) => {
-                      setBodyFatMass(v);
+                      const sanitized = sanitizeNumericInput(v);
+                      setBodyFatMass(sanitized);
                       const w = parseFloat(weight);
-                      const m = parseFloat(v);
+                      const m = parseFloat(sanitized);
                       if (w > 0 && m >= 0 && !isNaN(m)) {
                         setBodyFatPercent(((m / w) * 100).toFixed(1));
                       }
@@ -843,7 +846,7 @@ export default function HomeScreen() {
                       onChangeText={(v) =>
                         setCustomInputs((prev) => ({
                           ...prev,
-                          [cm.key]: v,
+                          [cm.key]: sanitizeNumericInput(v),
                         }))
                       }
                       placeholder="0.0"

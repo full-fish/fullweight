@@ -10,6 +10,17 @@ export function pad2(n: number): string {
   return String(n).padStart(2, "0");
 }
 
+/** 숫자 입력용 문자열 정리: 숫자와 소수점만 유지, 잘못된 문자 즉시 제거 */
+export function sanitizeNumericInput(value: string): string {
+  if (value === "") return "";
+  const normalized = value.replace(/[^0-9.]/g, "");
+  const parts = normalized.split(".");
+  if (parts.length > 2) {
+    return `${parts[0]}.${parts.slice(1).join("")}`;
+  }
+  return normalized;
+}
+
 /** "YYYY-MM-DD" → "YYYY년 M월 D일" */
 export function fmtDate(dateStr: string): string {
   const [y, m, d] = dateStr.split("-");

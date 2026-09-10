@@ -5,6 +5,7 @@
 import { foodFavoritesModalStyles as fs } from "@/constants/common-styles";
 import { useKeyboardOffset } from "@/hooks/use-keyboard-offset";
 import { FavoriteFood, FavoriteSortMode } from "@/types";
+import { sanitizeNumericInput } from "@/utils/format";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useRef, useState } from "react";
 import {

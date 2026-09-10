@@ -4,6 +4,7 @@
  */
 import { mealInputModalStyles as ms } from "@/constants/common-styles";
 import { FavoriteFood, MEAL_LABELS, MealType } from "@/types";
+import { sanitizeNumericInput } from "@/utils/format";
 import React from "react";
 import {
   ActivityIndicator,
@@ -187,7 +188,7 @@ export const MealInputModal = React.memo(function MealInputModal({
                   <TextInput
                     style={ms.macroInput}
                     value={value}
-                    onChangeText={(v) => onChangeMacro(key, v)}
+                    onChangeText={(v) => onChangeMacro(key, sanitizeNumericInput(v))}
                     keyboardType="numeric"
                     placeholder="0"
                     placeholderTextColor="#CBD5E0"

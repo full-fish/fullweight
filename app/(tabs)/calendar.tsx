@@ -12,6 +12,7 @@ import {
   getDaysInMonth,
   getFirstDayOfWeek,
   pad2,
+  sanitizeNumericInput,
   WEEKDAY_LABELS,
 } from "@/utils/format";
 import { pickPhoto, takePhoto } from "@/utils/photo";
@@ -1403,7 +1404,7 @@ export default function CalendarScreen() {
                     <TextInput
                       style={s.editInput}
                       value={eWeight}
-                      onChangeText={setEWeight}
+                      onChangeText={(v) => setEWeight(sanitizeNumericInput(v))}
                       keyboardType="decimal-pad"
                       placeholder="0.0"
                       placeholderTextColor="#aaa"
@@ -1415,7 +1416,7 @@ export default function CalendarScreen() {
                         <TextInput
                           style={s.editInput}
                           value={eWaist}
-                          onChangeText={setEWaist}
+                          onChangeText={(v) => setEWaist(sanitizeNumericInput(v))}
                           keyboardType="decimal-pad"
                           placeholder="선택"
                           placeholderTextColor="#aaa"
@@ -1430,7 +1431,9 @@ export default function CalendarScreen() {
                         <TextInput
                           style={s.editInput}
                           value={eMuscleMass}
-                          onChangeText={setEMuscleMass}
+                          onChangeText={(v) =>
+                            setEMuscleMass(sanitizeNumericInput(v))
+                          }
                           keyboardType="decimal-pad"
                           placeholder="선택"
                           placeholderTextColor="#aaa"
@@ -1446,9 +1449,10 @@ export default function CalendarScreen() {
                           style={s.editInput}
                           value={eBodyFatPercent}
                           onChangeText={(v) => {
-                            setEBodyFatPercent(v);
+                            const sanitized = sanitizeNumericInput(v);
+                            setEBodyFatPercent(sanitized);
                             const w = parseFloat(eWeight);
-                            const p = parseFloat(v);
+                            const p = parseFloat(sanitized);
                             if (w > 0 && p >= 0 && !isNaN(p)) {
                               setEBodyFatMass(((w * p) / 100).toFixed(1));
                             }
@@ -1468,9 +1472,10 @@ export default function CalendarScreen() {
                           style={s.editInput}
                           value={eBodyFatMass}
                           onChangeText={(v) => {
-                            setEBodyFatMass(v);
+                            const sanitized = sanitizeNumericInput(v);
+                            setEBodyFatMass(sanitized);
                             const w = parseFloat(eWeight);
-                            const m = parseFloat(v);
+                            const m = parseFloat(sanitized);
                             if (w > 0 && m >= 0 && !isNaN(m)) {
                               setEBodyFatPercent(((m / w) * 100).toFixed(1));
                             }
@@ -1499,7 +1504,7 @@ export default function CalendarScreen() {
                             onChangeText={(v) =>
                               setECustomInputs((prev) => ({
                                 ...prev,
-                                [cm.key]: v,
+                                [cm.key]: sanitizeNumericInput(v),
                               }))
                             }
                             keyboardType="decimal-pad"
@@ -1723,7 +1728,7 @@ export default function CalendarScreen() {
                   <TextInput
                     style={s.editInput}
                     value={eWeight}
-                    onChangeText={setEWeight}
+                    onChangeText={(v) => setEWeight(sanitizeNumericInput(v))}
                     keyboardType="decimal-pad"
                     placeholder="0.0"
                     placeholderTextColor="#aaa"
@@ -1735,7 +1740,7 @@ export default function CalendarScreen() {
                       <TextInput
                         style={s.editInput}
                         value={eWaist}
-                        onChangeText={setEWaist}
+                        onChangeText={(v) => setEWaist(sanitizeNumericInput(v))}
                         keyboardType="decimal-pad"
                         placeholder="선택"
                         placeholderTextColor="#aaa"
@@ -1749,7 +1754,9 @@ export default function CalendarScreen() {
                       <TextInput
                         style={s.editInput}
                         value={eMuscleMass}
-                        onChangeText={setEMuscleMass}
+                        onChangeText={(v) =>
+                          setEMuscleMass(sanitizeNumericInput(v))
+                        }
                         keyboardType="decimal-pad"
                         placeholder="선택"
                         placeholderTextColor="#aaa"
@@ -1765,9 +1772,10 @@ export default function CalendarScreen() {
                         style={s.editInput}
                         value={eBodyFatPercent}
                         onChangeText={(v) => {
-                          setEBodyFatPercent(v);
+                          const sanitized = sanitizeNumericInput(v);
+                          setEBodyFatPercent(sanitized);
                           const w = parseFloat(eWeight);
-                          const p = parseFloat(v);
+                          const p = parseFloat(sanitized);
                           if (w > 0 && p >= 0 && !isNaN(p)) {
                             setEBodyFatMass(((w * p) / 100).toFixed(1));
                           }
@@ -1787,9 +1795,10 @@ export default function CalendarScreen() {
                         style={s.editInput}
                         value={eBodyFatMass}
                         onChangeText={(v) => {
-                          setEBodyFatMass(v);
+                          const sanitized = sanitizeNumericInput(v);
+                          setEBodyFatMass(sanitized);
                           const w = parseFloat(eWeight);
-                          const m = parseFloat(v);
+                          const m = parseFloat(sanitized);
                           if (w > 0 && m >= 0 && !isNaN(m)) {
                             setEBodyFatPercent(((m / w) * 100).toFixed(1));
                           }
@@ -1818,7 +1827,7 @@ export default function CalendarScreen() {
                           onChangeText={(v) =>
                             setECustomInputs((prev) => ({
                               ...prev,
-                              [cm.key]: v,
+                              [cm.key]: sanitizeNumericInput(v),
                             }))
                           }
                           keyboardType="decimal-pad"
