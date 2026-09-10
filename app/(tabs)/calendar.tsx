@@ -1416,7 +1416,9 @@ export default function CalendarScreen() {
                         <TextInput
                           style={s.editInput}
                           value={eWaist}
-                          onChangeText={(v) => setEWaist(sanitizeNumericInput(v))}
+                          onChangeText={(v) =>
+                            setEWaist(sanitizeNumericInput(v))
+                          }
                           keyboardType="decimal-pad"
                           placeholder="선택"
                           placeholderTextColor="#aaa"

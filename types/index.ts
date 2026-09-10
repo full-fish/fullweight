@@ -166,7 +166,12 @@ export type MealEntry = {
 };
 
 /** 즐겨찾기 음식 정렬 모드 */
-export type FavoriteSortMode = "created" | "nameAsc" | "nameDesc" | "custom";
+export type FavoriteSortMode =
+  | "newest"
+  | "oldest"
+  | "nameAsc"
+  | "nameDesc"
+  | "custom";
 
 /** 즐겨찾기 음식 (자주 먹는 음식 저장) */
 export type FavoriteFood = {

@@ -903,18 +903,31 @@ export async function saveFavoriteFoods(foods: FavoriteFood[]): Promise<void> {
 
 export async function sortFavoriteFoods(
   foods: FavoriteFood[],
-  mode: "created" | "nameAsc" | "nameDesc" | "custom"
+  mode: "newest" | "oldest" | "nameAsc" | "nameDesc" | "custom"
 ): Promise<FavoriteFood[]> {
   const next = [...foods];
   if (mode === "nameAsc") {
-    next.sort((a, b) => a.name.localeCompare(b.name, "ko"));
-  } else if (mode === "nameDesc") {
-    next.sort((a, b) => b.name.localeCompare(a.name, "ko"));
-  } else if (mode === "created") {
     next.sort(
-      (a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      (a, b) => a.name.localeCompare(b.name, "ko") || a.id.localeCompare(b.id)
     );
+  } else if (mode === "nameDesc") {
+    next.sort(
+      (a, b) => b.name.localeCompare(a.name, "ko") || a.id.localeCompare(b.id)
+    );
+  } else if (mode === "newest") {
+    next.sort((a, b) => {
+      const timeDiff =
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      if (timeDiff !== 0) return timeDiff;
+      return a.name.localeCompare(b.name, "ko") || a.id.localeCompare(b.id);
+    });
+  } else if (mode === "oldest") {
+    next.sort((a, b) => {
+      const timeDiff =
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      if (timeDiff !== 0) return timeDiff;
+      return a.name.localeCompare(b.name, "ko") || a.id.localeCompare(b.id);
+    });
   }
   return next;
 }

@@ -188,7 +188,9 @@ export const MealInputModal = React.memo(function MealInputModal({
                   <TextInput
                     style={ms.macroInput}
                     value={value}
-                    onChangeText={(v) => onChangeMacro(key, sanitizeNumericInput(v))}
+                    onChangeText={(v) =>
+                      onChangeMacro(key, sanitizeNumericInput(v))
+                    }
                     keyboardType="numeric"
                     placeholder="0"
                     placeholderTextColor="#CBD5E0"

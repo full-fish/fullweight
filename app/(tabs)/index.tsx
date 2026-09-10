@@ -20,9 +20,9 @@ import {
   daysBetween,
   fmtDate,
   getBmiInfo,
+  sanitizeNumericInput,
 } from "@/utils/format";
 import { deletePhoto, pickPhoto, takePhoto } from "@/utils/photo";
-import { sanitizeNumericInput } from "@/utils/format";
 import {
   deleteRecord,
   getLocalDateString,

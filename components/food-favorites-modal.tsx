@@ -5,7 +5,6 @@
 import { foodFavoritesModalStyles as fs } from "@/constants/common-styles";
 import { useKeyboardOffset } from "@/hooks/use-keyboard-offset";
 import { FavoriteFood, FavoriteSortMode } from "@/types";
-import { sanitizeNumericInput } from "@/utils/format";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useRef, useState } from "react";
 import {
@@ -59,21 +58,31 @@ export const FoodFavoritesModal = React.memo(function FoodFavoritesModal(
     const next = [...group];
     if (sortMode === "nameAsc") {
       next.sort(function (a, b) {
-        return a.name.localeCompare(b.name, "ko");
+        return a.name.localeCompare(b.name, "ko") || a.id.localeCompare(b.id);
       });
       return next;
     }
     if (sortMode === "nameDesc") {
       next.sort(function (a, b) {
-        return b.name.localeCompare(a.name, "ko");
+        return b.name.localeCompare(a.name, "ko") || a.id.localeCompare(b.id);
       });
       return next;
     }
-    if (sortMode === "created") {
+    if (sortMode === "newest") {
       next.sort(function (a, b) {
-        return (
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        );
+        const timeDiff =
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        if (timeDiff !== 0) return timeDiff;
+        return a.name.localeCompare(b.name, "ko") || a.id.localeCompare(b.id);
+      });
+      return next;
+    }
+    if (sortMode === "oldest") {
+      next.sort(function (a, b) {
+        const timeDiff =
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        if (timeDiff !== 0) return timeDiff;
+        return a.name.localeCompare(b.name, "ko") || a.id.localeCompare(b.id);
       });
       return next;
     }
@@ -263,7 +272,8 @@ export const FoodFavoritesModal = React.memo(function FoodFavoritesModal(
                 ["사용자 정의", "custom"],
                 ["오름차순", "nameAsc"],
                 ["내림차순", "nameDesc"],
-                ["생성순", "created"],
+                ["최신순", "newest"],
+                ["오래된순", "oldest"],
               ].map(function (menuItem) {
                 const label = menuItem[0];
                 const value = menuItem[1];
