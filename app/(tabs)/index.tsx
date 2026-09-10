@@ -14,7 +14,11 @@ import {
   UserSettings,
   WeightRecord,
 } from "@/types";
-import { recordWeightSave, showInterstitialAd } from "@/utils/ad-manager";
+import {
+  recordWeightSave,
+  showInterstitialAd,
+  showRewardedAdForAi,
+} from "@/utils/ad-manager";
 import {
   calcDailyNutrition,
   daysBetween,
@@ -402,7 +406,7 @@ export default function HomeScreen() {
     setRecords([...updated].sort((a, b) => b.date.localeCompare(a.date)));
     Alert.alert("저장 완료", `${fmtDate(selectedDate)} 기록이 저장되었습니다.`);
 
-    // 무료 유저: 체중 저장 3회마다 전면 광고
+    // 저장 3회마다 전면 광고
     if (!aiPro) {
       const shouldShowAd = await recordWeightSave();
       if (shouldShowAd) {

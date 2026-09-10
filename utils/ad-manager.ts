@@ -9,6 +9,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
 import { Platform } from "react-native";
 
+import { initMobileAds } from "@/utils/ads-init";
+
 /* ─── Storage Keys ─── */
 const AI_COUNT_KEY = "ad_ai_daily_count"; // { date: "YYYY-MM-DD", count: number }
 const WEIGHT_SAVE_COUNT_KEY = "ad_weight_save_count"; // number (누적)
@@ -147,11 +149,15 @@ function getInterstitialUnitId(): string | null {
  * 전면 광고를 로드하고 즉시 표시
  * 네이티브 모듈이 없거나 로드 실패 시 조용히 무시
  */
-export function showInterstitialAd(): Promise<void> {
+export async function showInterstitialAd(): Promise<boolean> {
+  try {
+    await initMobileAds();
+  } catch {}
+
   return new Promise((resolve) => {
     const unitId = getInterstitialUnitId();
     if (!InterstitialAd || !AdEventType || !unitId) {
-      resolve();
+      resolve(false);
       return;
     }
 
@@ -161,33 +167,33 @@ export function showInterstitialAd(): Promise<void> {
       });
 
       let resolved = false;
-      const done = () => {
+      const done = (success: boolean) => {
         if (!resolved) {
           resolved = true;
-          resolve();
+          resolve(success);
         }
       };
 
       // 광고 닫힘
-      ad.addAdEventListener(AdEventType.CLOSED, done);
+      ad.addAdEventListener(AdEventType.CLOSED, () => done(true));
 
       // 로드 실패 → 조용히 넘김
       ad.addAdEventListener(AdEventType.ERROR, () => {
         console.log("[InterstitialAd] 로드 실패, 건너뜀");
-        done();
+        done(false);
       });
 
       // 로드 완료 → 표시
       ad.addAdEventListener(AdEventType.LOADED, () => {
-        ad.show().catch(done);
+        ad.show().catch(() => done(false));
       });
 
       ad.load();
 
       // 10초 타임아웃 (광고 서버 무응답 대비)
-      setTimeout(done, 10000);
+      setTimeout(() => done(false), 10000);
     } catch {
-      resolve();
+      resolve(false);
     }
   });
 }
@@ -207,13 +213,14 @@ try {
 } catch {}
 
 function getRewardedUnitId(): string | null {
-  if (!TestIds) return null;
-  if (__DEV__ || isPreviewVariant()) return TestIds.REWARDED;
+  const testRewardedId = "ca-app-pub-3940256099942544/5224354917";
+  if (TestIds?.REWARDED) return TestIds.REWARDED;
+  if (__DEV__ || isPreviewVariant()) return testRewardedId;
   return (
     Platform.select({
       android: "ca-app-pub-1379550026930118/9813815068",
       ios: "ca-app-pub-1379550026930118/9813815068",
-      default: TestIds.REWARDED,
+      default: testRewardedId,
     }) ?? null
   );
 }
@@ -222,10 +229,20 @@ function getRewardedUnitId(): string | null {
  * 리워드 광고를 로드·표시하고, 시청 완료 시 AI 일일 카운터를 리셋
  * @returns 리워드 획득 성공 여부
  */
-export function showRewardedAdForAi(): Promise<boolean> {
+export async function showRewardedAdForAi(): Promise<boolean> {
+  try {
+    await initMobileAds();
+  } catch {}
+
   return new Promise((resolve) => {
     const unitId = getRewardedUnitId();
     if (!RewardedAd || !RewardedAdEventType || !AdEventType || !unitId) {
+      console.log("[RewardedAd] unavailable", {
+        RewardedAd: !!RewardedAd,
+        RewardedAdEventType: !!RewardedAdEventType,
+        AdEventType: !!AdEventType,
+        unitId,
+      });
       resolve(false);
       return;
     }
@@ -244,34 +261,38 @@ export function showRewardedAdForAi(): Promise<boolean> {
         }
       };
 
-      // 보상 획득
-      ad.addAdEventListener(RewardedAdEventType.EARNED_REWARD, async () => {
-        rewarded = true;
-        // AI 일일 카운터 리셋 → 다시 2회 사용 가능
-        await resetAiCount();
+      ad.addAdEventListener(RewardedAdEventType.LOADED, () => {
+        ad.show().catch((error: any) => {
+          console.log("[RewardedAd] show failed:", error);
+          done(false);
+        });
       });
 
-      // 광고 닫힘
+      ad.addAdEventListener(
+        RewardedAdEventType.EARNED_REWARD,
+        async (reward: any) => {
+          rewarded = true;
+          await resetAiCount();
+        }
+      );
+
       ad.addAdEventListener(AdEventType.CLOSED, () => {
         done(rewarded);
       });
 
-      // 로드 실패
-      ad.addAdEventListener(AdEventType.ERROR, () => {
-        console.log("[RewardedAd] 로드 실패");
+      ad.addAdEventListener(AdEventType.ERROR, (error: any) => {
+        console.log("[RewardedAd] exception while creating/loading ad:", error);
         done(false);
-      });
-
-      // 로드 완료 → 표시
-      ad.addAdEventListener(AdEventType.LOADED, () => {
-        ad.show().catch(() => done(false));
       });
 
       ad.load();
 
-      // 15초 타임아웃
-      setTimeout(() => done(false), 15000);
-    } catch {
+      setTimeout(() => {
+        console.log("[RewardedAd] timeout reached");
+        done(false);
+      }, 15000);
+    } catch (error) {
+      console.log("[RewardedAd] exception while creating/loading ad:", error);
       resolve(false);
     }
   });
