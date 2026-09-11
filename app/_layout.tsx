@@ -87,7 +87,6 @@ export default function RootLayout() {
 
   /* ── 버전 체크: 구버전이면 업데이트 안내 ── */
   useEffect(() => {
-    if (__DEV__) return;
     fetch("https://fullweight.vercel.app/api/version")
       .then((r) => r.json())
       .then(({ minVersionCode }: { minVersionCode: number }) => {

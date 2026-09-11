@@ -24,8 +24,6 @@ export default function UpdateRequiredModal({
   onClose,
   forceUpdate = false,
 }: UpdateRequiredModalProps) {
-  if (!visible) return null;
-
   const openStore = async () => {
     const canOpen = await Linking.canOpenURL("market://");
     const url = canOpen
@@ -36,11 +34,9 @@ export default function UpdateRequiredModal({
     );
   };
 
-  React.useEffect(() => {
-    if (forceUpdate) {
-      openStore();
-    }
-  }, [forceUpdate]);
+  // 강제 업데이트는 앱 자체에서 막는 방식으로 운영하므로,
+  // 여기서는 자동으로 스토어나 이동 URL을 열지 않도록 유지한다.
+  if (!visible) return null;
 
   return (
     <Modal
