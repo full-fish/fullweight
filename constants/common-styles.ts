@@ -8,7 +8,7 @@ const { width } = Dimensions.get("window");
 
 /** 식사 카드 & 목록 스타일 (기록탭 / 캘린더 공용) */
 export const mealCardStyles = StyleSheet.create({
-  section: { marginBottom: 24 },
+  section: { marginBottom: 12 },
   mealCard: {
     backgroundColor: "#fff",
     borderRadius: 14,

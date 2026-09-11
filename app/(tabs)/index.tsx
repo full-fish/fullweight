@@ -115,6 +115,10 @@ export default function HomeScreen() {
   const RECORDS_PER_PAGE = 7;
   const [visibleRecordCount, setVisibleRecordCount] =
     useState(RECORDS_PER_PAGE);
+  const [memoOnly, setMemoOnly] = useState(false);
+  const [photoOnly, setPhotoOnly] = useState(false);
+  const [flagFilter, setFlagFilter] = useState<"all" | string>("all");
+  const [showFlagFilterMenu, setShowFlagFilterMenu] = useState(false);
   const [editRecord, setEditRecord] = useState<WeightRecord | null>(null);
   const [emWeight, setEmWeight] = useState("");
   const [emWaist, setEmWaist] = useState("");
@@ -333,9 +337,63 @@ export default function HomeScreen() {
     );
     extraDates.forEach((d) => items.push({ date: d }));
     items.sort((a, b) => b.date.localeCompare(a.date));
-    recordListLengthRef.current = items.length;
     return items;
   }, [records, allMeals]);
+
+  const flagFilterOptions = useMemo(() => {
+    const options: { key: string; label: string }[] = [
+      { key: "all", label: "체크전체" },
+    ];
+
+    const builtins = [
+      {
+        key: "exercised",
+        label: "운동",
+        enabled: userSettings.metricDisplayVisibility?.exercised !== false,
+      },
+      {
+        key: "drank",
+        label: "음주",
+        enabled: userSettings.metricDisplayVisibility?.drank !== false,
+      },
+    ];
+
+    builtins.forEach((item) => {
+      if (item.enabled) options.push({ key: item.key, label: item.label });
+    });
+
+    (userSettings.customBoolMetrics ?? []).forEach((cbm) => {
+      if (userSettings.metricDisplayVisibility?.[cbm.key] !== false) {
+        options.push({ key: cbm.key, label: cbm.label });
+      }
+    });
+
+    return options;
+  }, [userSettings]);
+
+  const filteredRecordListItems = useMemo(() => {
+    let items = recordListItems;
+
+    if (memoOnly) {
+      items = items.filter((item) => !!item.record?.memo);
+    }
+
+    if (photoOnly) {
+      items = items.filter((item) => !!item.record?.photoUri);
+    }
+
+    if (flagFilter !== "all") {
+      items = items.filter((item) => {
+        if (!item.record) return false;
+        if (flagFilter === "exercised") return !!item.record.exercised;
+        if (flagFilter === "drank") return !!item.record.drank;
+        return !!item.record.customBoolValues?.[flagFilter];
+      });
+    }
+
+    recordListLengthRef.current = items.length;
+    return items;
+  }, [recordListItems, memoOnly, photoOnly, flagFilter]);
 
   const handleSave = async () => {
     const w = parseFloat(weight);
@@ -1117,209 +1175,300 @@ export default function HomeScreen() {
           </View>
 
           {/* 기록 목록 */}
-          <Text style={styles.sectionTitle}>기록 목록</Text>
-          {recordListItems.length === 0 ? (
+          <View style={styles.recordListHeaderRow}>
+            <Text style={styles.sectionTitle}>기록 목록</Text>
+            <View style={styles.recordFilterRail}>
+              <TouchableOpacity
+                style={[
+                  styles.recordFilterChip,
+                  memoOnly && styles.recordFilterChipActive,
+                ]}
+                onPress={() => setMemoOnly((v) => !v)}
+              >
+                <Text
+                  style={[
+                    styles.recordFilterChipText,
+                    memoOnly && styles.recordFilterChipTextActive,
+                  ]}
+                >
+                  메모만
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.recordFilterChip,
+                  photoOnly && styles.recordFilterChipActive,
+                ]}
+                onPress={() => setPhotoOnly((v) => !v)}
+              >
+                <Text
+                  style={[
+                    styles.recordFilterChipText,
+                    photoOnly && styles.recordFilterChipTextActive,
+                  ]}
+                >
+                  사진만
+                </Text>
+              </TouchableOpacity>
+
+              <View style={styles.recordFilterMenuWrap}>
+                <TouchableOpacity
+                  style={[
+                    styles.recordFilterChip,
+                    flagFilter !== "all" && styles.recordFilterChipActive,
+                  ]}
+                  onPress={() => setShowFlagFilterMenu((v) => !v)}
+                >
+                  <Text
+                    style={[
+                      styles.recordFilterChipText,
+                      flagFilter !== "all" && styles.recordFilterChipTextActive,
+                    ]}
+                  >
+                    {flagFilterOptions.find((opt) => opt.key === flagFilter)
+                      ?.label ?? "표시"}
+                  </Text>
+                </TouchableOpacity>
+
+                {showFlagFilterMenu && (
+                  <View style={styles.recordFilterMenu}>
+                    {flagFilterOptions.map((option) => (
+                      <TouchableOpacity
+                        key={option.key}
+                        style={[
+                          styles.recordFilterMenuItem,
+                          flagFilter === option.key &&
+                            styles.recordFilterMenuItemActive,
+                        ]}
+                        onPress={() => {
+                          setFlagFilter(option.key);
+                          setShowFlagFilterMenu(false);
+                        }}
+                      >
+                        <Text style={styles.recordFilterMenuText}>
+                          {option.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </View>
+            </View>
+          </View>
+          {filteredRecordListItems.length === 0 ? (
             <Text style={styles.emptyText}>
-              아직 기록이 없습니다.{"\n"}첫 번째 기록을 추가해보세요!
+              아직 표시할 기록이 없습니다.{"\n"}필터를 바꿔서 다시 확인해보세요.
             </Text>
           ) : (
             <>
-              {recordListItems.slice(0, visibleRecordCount).map((item) => {
-                const record = item.record;
-                return (
-                  <View key={item.date} style={styles.recordCard}>
-                    <View style={styles.recordTop}>
-                      <Text style={styles.recordDate}>
-                        {fmtDate(item.date)}
-                      </Text>
-                      <View style={styles.recordActions}>
-                        {record && (
+              {filteredRecordListItems
+                .slice(0, visibleRecordCount)
+                .map((item) => {
+                  const record = item.record;
+                  return (
+                    <View key={item.date} style={styles.recordCard}>
+                      <View style={styles.recordTop}>
+                        <Text style={styles.recordDate}>
+                          {fmtDate(item.date)}
+                        </Text>
+                        <View style={styles.recordActions}>
+                          {record && (
+                            <TouchableOpacity
+                              style={styles.editBtnContainer}
+                              onPress={() => handleEdit(record)}
+                            >
+                              <Text style={styles.editBtn}>수정</Text>
+                            </TouchableOpacity>
+                          )}
                           <TouchableOpacity
-                            style={styles.editBtnContainer}
-                            onPress={() => handleEdit(record)}
+                            style={styles.deleteBtnContainer}
+                            onPress={() => handleDelete(item.date)}
                           >
-                            <Text style={styles.editBtn}>수정</Text>
+                            <Text style={styles.deleteBtn}>삭제</Text>
                           </TouchableOpacity>
-                        )}
-                        <TouchableOpacity
-                          style={styles.deleteBtnContainer}
-                          onPress={() => handleDelete(item.date)}
-                        >
-                          <Text style={styles.deleteBtn}>삭제</Text>
-                        </TouchableOpacity>
+                        </View>
                       </View>
-                    </View>
-                    {record && record.weight != null && (
-                      <Text style={styles.recordWeight}>
-                        {record.weight} kg
-                      </Text>
-                    )}
-                    {record && record.weight != null && (
-                      <>
-                        {userSettings.height &&
-                          (() => {
-                            const info = getBmiInfo(
-                              record.weight,
-                              userSettings.height
-                            );
-                            if (!info) return null;
-                            return (
-                              <View style={styles.bmiRow}>
-                                <Text style={styles.recordSub}>
-                                  BMI: {info.bmi}
-                                </Text>
-                                <View style={styles.bmiBadge}>
-                                  <Text
-                                    style={[
-                                      styles.bmiBadgeText,
-                                      { color: info.color },
-                                    ]}
-                                  >
-                                    {info.label}
+                      {record && record.weight != null && (
+                        <Text style={styles.recordWeight}>
+                          {record.weight} kg
+                        </Text>
+                      )}
+                      {record && record.weight != null && (
+                        <>
+                          {userSettings.height &&
+                            (() => {
+                              const info = getBmiInfo(
+                                record.weight,
+                                userSettings.height
+                              );
+                              if (!info) return null;
+                              return (
+                                <View style={styles.bmiRow}>
+                                  <Text style={styles.recordSub}>
+                                    BMI: {info.bmi}
                                   </Text>
-                                </View>
-                                <View style={styles.bmiBarWrap}>
-                                  <View style={styles.bmiBarTrack}>
-                                    <View
+                                  <View style={styles.bmiBadge}>
+                                    <Text
                                       style={[
-                                        styles.bmiBarZone,
-                                        {
-                                          flex: 18.5,
-                                          backgroundColor: "#BEE3F8",
-                                        },
+                                        styles.bmiBadgeText,
+                                        { color: info.color },
                                       ]}
-                                    />
+                                    >
+                                      {info.label}
+                                    </Text>
+                                  </View>
+                                  <View style={styles.bmiBarWrap}>
+                                    <View style={styles.bmiBarTrack}>
+                                      <View
+                                        style={[
+                                          styles.bmiBarZone,
+                                          {
+                                            flex: 18.5,
+                                            backgroundColor: "#BEE3F8",
+                                          },
+                                        ]}
+                                      />
+                                      <View
+                                        style={[
+                                          styles.bmiBarZone,
+                                          {
+                                            flex: 4.5,
+                                            backgroundColor: "#C6F6D5",
+                                          },
+                                        ]}
+                                      />
+                                      <View
+                                        style={[
+                                          styles.bmiBarZone,
+                                          {
+                                            flex: 2,
+                                            backgroundColor: "#FEEBC8",
+                                          },
+                                        ]}
+                                      />
+                                      <View
+                                        style={[
+                                          styles.bmiBarZone,
+                                          {
+                                            flex: 15,
+                                            backgroundColor: "#FED7D7",
+                                          },
+                                        ]}
+                                      />
+                                    </View>
                                     <View
                                       style={[
-                                        styles.bmiBarZone,
+                                        styles.bmiIndicator,
                                         {
-                                          flex: 4.5,
-                                          backgroundColor: "#C6F6D5",
-                                        },
-                                      ]}
-                                    />
-                                    <View
-                                      style={[
-                                        styles.bmiBarZone,
-                                        { flex: 2, backgroundColor: "#FEEBC8" },
-                                      ]}
-                                    />
-                                    <View
-                                      style={[
-                                        styles.bmiBarZone,
-                                        {
-                                          flex: 15,
-                                          backgroundColor: "#FED7D7",
+                                          left: `${Math.min(95, Math.max(2, ((info.bmi - 10) / 30) * 100))}%`,
                                         },
                                       ]}
                                     />
                                   </View>
-                                  <View
-                                    style={[
-                                      styles.bmiIndicator,
-                                      {
-                                        left: `${Math.min(95, Math.max(2, ((info.bmi - 10) / 30) * 100))}%`,
-                                      },
-                                    ]}
-                                  />
                                 </View>
-                              </View>
-                            );
-                          })()}
-                        {userSettings.metricDisplayVisibility?.waist !==
-                          false &&
-                          record.waist != null && (
-                            <Text style={styles.recordSub}>
-                              허리: {record.waist} cm
-                            </Text>
-                          )}
-                        {userSettings.metricDisplayVisibility?.muscleMass !==
-                          false &&
-                          record.muscleMass != null && (
-                            <Text style={styles.recordSub}>
-                              골격근: {record.muscleMass} kg
-                            </Text>
-                          )}
-                        {userSettings.metricDisplayVisibility
-                          ?.bodyFatPercent !== false &&
-                          record.bodyFatPercent != null && (
-                            <Text style={styles.recordSub}>
-                              체지방률: {record.bodyFatPercent} %
-                            </Text>
-                          )}
-                        {userSettings.metricDisplayVisibility?.bodyFatMass !==
-                          false &&
-                          record.bodyFatMass != null && (
-                            <Text style={styles.recordSub}>
-                              체지방량: {record.bodyFatMass} kg
-                            </Text>
-                          )}
-                        {/* 사용자 정의 수치 표시 */}
-                        {(userSettings.customMetrics ?? [])
-                          .filter(
-                            (cm) =>
-                              userSettings.metricDisplayVisibility?.[cm.key] !==
-                              false
-                          )
-                          .map((cm) => {
-                            const val = record.customValues?.[cm.key];
-                            if (val == null) return null;
-                            return (
-                              <Text key={cm.key} style={styles.recordSub}>
-                                {cm.label}: {val} {cm.unit}
+                              );
+                            })()}
+                          {userSettings.metricDisplayVisibility?.waist !==
+                            false &&
+                            record.waist != null && (
+                              <Text style={styles.recordSub}>
+                                허리: {record.waist} cm
                               </Text>
-                            );
-                          })}
-                        {record.photoUri && (
-                          <Image
-                            source={{ uri: record.photoUri }}
-                            style={styles.recordPhoto}
-                          />
-                        )}
-                        <View style={styles.badgeRow}>
-                          {record.exercised && (
-                            <View style={[styles.badge, styles.badgeExercise]}>
-                              <Text style={styles.badgeText}>운동</Text>
-                            </View>
+                            )}
+                          {userSettings.metricDisplayVisibility?.muscleMass !==
+                            false &&
+                            record.muscleMass != null && (
+                              <Text style={styles.recordSub}>
+                                골격근: {record.muscleMass} kg
+                              </Text>
+                            )}
+                          {userSettings.metricDisplayVisibility
+                            ?.bodyFatPercent !== false &&
+                            record.bodyFatPercent != null && (
+                              <Text style={styles.recordSub}>
+                                체지방률: {record.bodyFatPercent} %
+                              </Text>
+                            )}
+                          {userSettings.metricDisplayVisibility?.bodyFatMass !==
+                            false &&
+                            record.bodyFatMass != null && (
+                              <Text style={styles.recordSub}>
+                                체지방량: {record.bodyFatMass} kg
+                              </Text>
+                            )}
+                          {/* 사용자 정의 수치 표시 */}
+                          {(userSettings.customMetrics ?? [])
+                            .filter(
+                              (cm) =>
+                                userSettings.metricDisplayVisibility?.[
+                                  cm.key
+                                ] !== false
+                            )
+                            .map((cm) => {
+                              const val = record.customValues?.[cm.key];
+                              if (val == null) return null;
+                              return (
+                                <Text key={cm.key} style={styles.recordSub}>
+                                  {cm.label}: {val} {cm.unit}
+                                </Text>
+                              );
+                            })}
+                          {record.photoUri && (
+                            <Image
+                              source={{ uri: record.photoUri }}
+                              style={styles.recordPhoto}
+                            />
                           )}
-                          {record.drank && (
-                            <View style={[styles.badge, styles.badgeDrank]}>
-                              <Text style={styles.badgeText}>음주</Text>
-                            </View>
-                          )}
+                          <View style={styles.badgeRow}>
+                            {record.exercised && (
+                              <View
+                                style={[styles.badge, styles.badgeExercise]}
+                              >
+                                <Text style={styles.badgeText}>운동</Text>
+                              </View>
+                            )}
+                            {record.drank && (
+                              <View style={[styles.badge, styles.badgeDrank]}>
+                                <Text style={styles.badgeText}>음주</Text>
+                              </View>
+                            )}
+                          </View>
+                        </>
+                      )}
+                      {/* 해당 날짜 식사 기록 */}
+                      {(() => {
+                        const dayMeals = allMeals.filter(
+                          (m) => m.date === item.date
+                        );
+                        if (dayMeals.length === 0) return null;
+                        return (
+                          <View style={styles.recordMealsSection}>
+                            <Text style={styles.recordMealsTitle}>
+                              식사 {dayMeals.reduce((s, m) => s + m.kcal, 0)}
+                              kcal
+                            </Text>
+                            <MealCardList
+                              meals={dayMeals}
+                              onPhotoPress={setZoomPhotoUri}
+                            />
+                          </View>
+                        );
+                      })()}
+                      {record?.memo && (
+                        <View style={memoStyles.section}>
+                          <Text style={memoStyles.sectionTitle}>메모</Text>
+                          <View style={memoStyles.card}>
+                            <Text style={memoStyles.cardText}>
+                              {record.memo}
+                            </Text>
+                          </View>
                         </View>
-                      </>
-                    )}
-                    {/* 해당 날짜 식사 기록 */}
-                    {(() => {
-                      const dayMeals = allMeals.filter(
-                        (m) => m.date === item.date
-                      );
-                      if (dayMeals.length === 0) return null;
-                      return (
-                        <View style={styles.recordMealsSection}>
-                          <Text style={styles.recordMealsTitle}>
-                            식사 {dayMeals.reduce((s, m) => s + m.kcal, 0)}kcal
-                          </Text>
-                          <MealCardList
-                            meals={dayMeals}
-                            onPhotoPress={setZoomPhotoUri}
-                          />
-                        </View>
-                      );
-                    })()}
-                    {record?.memo && (
-                      <View style={memoStyles.section}>
-                        <Text style={memoStyles.sectionTitle}>메모</Text>
-                        <View style={memoStyles.card}>
-                          <Text style={memoStyles.cardText}>{record.memo}</Text>
-                        </View>
-                      </View>
-                    )}
-                  </View>
-                );
-              })}
-              {visibleRecordCount < recordListItems.length && (
+                      )}
+                    </View>
+                  );
+                })}
+              {visibleRecordCount < filteredRecordListItems.length && (
                 <ActivityIndicator
                   size="small"
                   color="#4CAF50"
@@ -2037,7 +2186,88 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "600",
     color: "#2D3748",
+    marginBottom: 0,
+    lineHeight: 28,
+    includeFontPadding: false,
+  },
+  recordListHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 10,
     marginBottom: 12,
+  },
+  recordFilterRail: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    flexWrap: "wrap",
+    gap: 8,
+    maxWidth: "60%",
+  },
+  recordFilterMenuWrap: {
+    position: "relative",
+    zIndex: 20,
+  },
+  recordFilterChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: "#F3F4F6",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
+    minHeight: 30,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  recordFilterChipActive: {
+    backgroundColor: "#E8F5E9",
+    borderColor: "#A7F3D0",
+  },
+  recordFilterChipText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#4A5568",
+    lineHeight: 14,
+    includeFontPadding: false,
+  },
+  recordFilterChipTextActive: {
+    color: "#2E7D32",
+  },
+  recordFilterMenu: {
+    position: "absolute",
+    right: 0,
+    top: 36,
+    minWidth: 150,
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    elevation: 6,
+    overflow: "hidden",
+  },
+  recordFilterMenuItem: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+  },
+  recordFilterMenuItemActive: {
+    backgroundColor: "#F0FDF4",
+  },
+  recordFilterMenuText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#2D3748",
   },
   emptyText: {
     textAlign: "center",
