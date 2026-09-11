@@ -184,19 +184,24 @@ export function getBmiInfo(
   const heightM = heightCm / 100;
   const bmi = weight / (heightM * heightM);
   let label: string, color: string;
+
   if (bmi < 18.5) {
     label = "저체중";
-    color = "#3182CE";
+    color = "#60A5FA";
   } else if (bmi < 23) {
     label = "정상";
-    color = "#38A169";
+    color = "#34D399";
   } else if (bmi < 25) {
     label = "과체중";
-    color = "#DD6B20";
-  } else {
+    color = "#FBBF24";
+  } else if (bmi < 30) {
     label = "비만";
-    color = "#E53E3E";
+    color = "#F97316";
+  } else {
+    label = "고도비만";
+    color = "#DC2626";
   }
+
   return { bmi: Math.round(bmi * 10) / 10, label, color };
 }
 

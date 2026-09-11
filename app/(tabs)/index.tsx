@@ -1324,8 +1324,8 @@ export default function HomeScreen() {
                                         style={[
                                           styles.bmiBarZone,
                                           {
-                                            flex: 18.5,
-                                            backgroundColor: "#BEE3F8",
+                                            flex: 10,
+                                            backgroundColor: "#BFDBFE",
                                           },
                                         ]}
                                       />
@@ -1333,8 +1333,8 @@ export default function HomeScreen() {
                                         style={[
                                           styles.bmiBarZone,
                                           {
-                                            flex: 4.5,
-                                            backgroundColor: "#C6F6D5",
+                                            flex: 7,
+                                            backgroundColor: "#A7F3D0",
                                           },
                                         ]}
                                       />
@@ -1343,7 +1343,7 @@ export default function HomeScreen() {
                                           styles.bmiBarZone,
                                           {
                                             flex: 2,
-                                            backgroundColor: "#FEEBC8",
+                                            backgroundColor: "#FDE68A",
                                           },
                                         ]}
                                       />
@@ -1351,8 +1351,17 @@ export default function HomeScreen() {
                                         style={[
                                           styles.bmiBarZone,
                                           {
-                                            flex: 15,
-                                            backgroundColor: "#FED7D7",
+                                            flex: 4,
+                                            backgroundColor: "#FDBA74",
+                                          },
+                                        ]}
+                                      />
+                                      <View
+                                        style={[
+                                          styles.bmiBarZone,
+                                          {
+                                            flex: 8,
+                                            backgroundColor: "#FCA5A5",
                                           },
                                         ]}
                                       />
