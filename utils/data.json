@@ -1,0 +1,1002 @@
+[
+  {
+    "id": "1725957328001_f001",
+    "name": "계란 프라이",
+    "carb": 1,
+    "protein": 6,
+    "fat": 10,
+    "kcal": 120,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T08:35:00.000Z"
+  },
+  {
+    "id": "1725957328002_f002",
+    "name": "자장면",
+    "carb": 110,
+    "protein": 20,
+    "fat": 30,
+    "kcal": 800,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T08:35:00.000Z"
+  },
+  {
+    "id": "1725957328003_f003",
+    "name": "후라이드 치킨 (1조각)",
+    "carb": 10,
+    "protein": 15,
+    "fat": 15,
+    "kcal": 250,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T08:35:00.000Z"
+  },
+  {
+    "id": "1725957328004_f004",
+    "name": "김치찌개",
+    "carb": 20,
+    "protein": 15,
+    "fat": 12,
+    "kcal": 250,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T08:35:00.000Z"
+  },
+  {
+    "id": "1725957328005_f005",
+    "name": "된장찌개",
+    "carb": 25,
+    "protein": 12,
+    "fat": 6,
+    "kcal": 200,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T08:35:00.000Z"
+  },
+  {
+    "id": "1725957328006_f006",
+    "name": "삼겹살 구이 (200g)",
+    "carb": 2,
+    "protein": 30,
+    "fat": 58,
+    "kcal": 660,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T08:35:00.000Z"
+  },
+  {
+    "id": "1725957328007_f007",
+    "name": "흰 쌀밥 (1공기)",
+    "carb": 65,
+    "protein": 6,
+    "fat": 1,
+    "kcal": 300,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T08:35:00.000Z"
+  },
+  {
+    "id": "1725957328008_f008",
+    "name": "현미밥",
+    "carb": 70,
+    "protein": 7,
+    "fat": 2,
+    "kcal": 320,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T08:35:00.000Z"
+  },
+  {
+    "id": "1725957328009_f009",
+    "name": "떡볶이 (1인분)",
+    "carb": 90,
+    "protein": 12,
+    "fat": 8,
+    "kcal": 500,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T08:35:00.000Z"
+  },
+  {
+    "id": "1725957328010_f010",
+    "name": "참치 김밥 (1줄)",
+    "carb": 60,
+    "protein": 10,
+    "fat": 12,
+    "kcal": 400,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T08:35:00.000Z"
+  },
+  {
+    "id": "1725957328011_f011",
+    "name": "라면 (1봉지)",
+    "carb": 80,
+    "protein": 10,
+    "fat": 16,
+    "kcal": 500,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T08:35:00.000Z"
+  },
+  {
+    "id": "1725957328012_f012",
+    "name": "비빔밥",
+    "carb": 85,
+    "protein": 15,
+    "fat": 15,
+    "kcal": 550,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T08:35:00.000Z"
+  },
+  {
+    "id": "1725957328013_f013",
+    "name": "소고기 미역국",
+    "carb": 10,
+    "protein": 10,
+    "fat": 7,
+    "kcal": 150,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T08:35:00.000Z"
+  },
+  {
+    "id": "1725957328014_f014",
+    "name": "제육볶음",
+    "carb": 25,
+    "protein": 25,
+    "fat": 28,
+    "kcal": 450,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T08:35:00.000Z"
+  },
+  {
+    "id": "1725957328015_f015",
+    "name": "뚝배기 불고기",
+    "carb": 20,
+    "protein": 30,
+    "fat": 20,
+    "kcal": 400,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T08:35:00.000Z"
+  },
+  {
+    "id": "1725957328016_f016",
+    "name": "돈까스",
+    "carb": 45,
+    "protein": 25,
+    "fat": 35,
+    "kcal": 600,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T08:35:00.000Z"
+  },
+  {
+    "id": "1725957328017_f017",
+    "name": "바지락 칼국수",
+    "carb": 95,
+    "protein": 15,
+    "fat": 5,
+    "kcal": 500,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T08:35:00.000Z"
+  },
+  {
+    "id": "1725957328018_f018",
+    "name": "물냉면",
+    "carb": 90,
+    "protein": 12,
+    "fat": 3,
+    "kcal": 450,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T08:35:00.000Z"
+  },
+  {
+    "id": "1725957328019_f019",
+    "name": "고기 만두 (5개)",
+    "carb": 40,
+    "protein": 15,
+    "fat": 15,
+    "kcal": 350,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T08:35:00.000Z"
+  },
+  {
+    "id": "1725957328020_f020",
+    "name": "짬뽕",
+    "carb": 100,
+    "protein": 25,
+    "fat": 20,
+    "kcal": 700,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T08:35:00.000Z"
+  },
+  {
+    "id": "1725957328021_f021",
+    "name": "닭가슴살 (생것, 100g)",
+    "carb": 0,
+    "protein": 23,
+    "fat": 1,
+    "kcal": 110,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T08:35:00.000Z"
+  },
+  {
+    "id": "1725957328022_f022",
+    "name": "연어 스테이크",
+    "carb": 0,
+    "protein": 30,
+    "fat": 20,
+    "kcal": 300,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T08:35:00.000Z"
+  },
+  {
+    "id": "1725957328023_f023",
+    "name": "고등어 조림",
+    "carb": 15,
+    "protein": 25,
+    "fat": 25,
+    "kcal": 400,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T08:35:00.000Z"
+  },
+  {
+    "id": "1725957328024_f024",
+    "name": "순대국",
+    "carb": 20,
+    "protein": 40,
+    "fat": 40,
+    "kcal": 600,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T08:35:00.000Z"
+  },
+  {
+    "id": "1725957328025_f025",
+    "name": "닭고기 육개장",
+    "carb": 25,
+    "protein": 20,
+    "fat": 12,
+    "kcal": 300,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T08:35:00.000Z"
+  },
+  {
+    "id": "1725957328026_f026",
+    "name": "달걀말이",
+    "carb": 5,
+    "protein": 15,
+    "fat": 18,
+    "kcal": 250,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T08:35:00.000Z"
+  },
+  {
+    "id": "1725957328027_f027",
+    "name": "애호박전",
+    "carb": 15,
+    "protein": 5,
+    "fat": 8,
+    "kcal": 150,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T08:35:00.000Z"
+  },
+  {
+    "id": "1725957328028_f028",
+    "name": "바나나 (생것, 1개)",
+    "carb": 27,
+    "protein": 1,
+    "fat": 0,
+    "kcal": 105,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T08:35:00.000Z"
+  },
+  {
+    "id": "1725957328029_f029",
+    "name": "단호박 (생것, 100g)",
+    "carb": 15,
+    "protein": 1,
+    "fat": 0,
+    "kcal": 66,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T08:35:00.000Z"
+  },
+  {
+    "id": "1725957328030_f030",
+    "name": "불고기버거",
+    "carb": 50,
+    "protein": 15,
+    "fat": 15,
+    "kcal": 400,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T08:35:00.000Z"
+  },
+  {
+    "id": "1725957328031_f031",
+    "name": "김치볶음밥",
+    "carb": 65,
+    "protein": 10,
+    "fat": 15,
+    "kcal": 435,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T14:23:00.000Z"
+  },
+  {
+    "id": "1725957328032_f032",
+    "name": "오므라이스",
+    "carb": 70,
+    "protein": 15,
+    "fat": 20,
+    "kcal": 520,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T14:23:00.000Z"
+  },
+  {
+    "id": "1725957328033_f033",
+    "name": "일반 김밥 (1줄)",
+    "carb": 60,
+    "protein": 8,
+    "fat": 10,
+    "kcal": 360,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T14:23:00.000Z"
+  },
+  {
+    "id": "1725957328034_f034",
+    "name": "떡국",
+    "carb": 75,
+    "protein": 15,
+    "fat": 5,
+    "kcal": 400,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T14:23:00.000Z"
+  },
+  {
+    "id": "1725957328035_f035",
+    "name": "갈비탕",
+    "carb": 10,
+    "protein": 35,
+    "fat": 20,
+    "kcal": 360,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T14:23:00.000Z"
+  },
+  {
+    "id": "1725957328036_f036",
+    "name": "육개장",
+    "carb": 15,
+    "protein": 20,
+    "fat": 15,
+    "kcal": 280,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T14:23:00.000Z"
+  },
+  {
+    "id": "1725957328037_f037",
+    "name": "찜닭 (1인분)",
+    "carb": 40,
+    "protein": 35,
+    "fat": 15,
+    "kcal": 450,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T14:23:00.000Z"
+  },
+  {
+    "id": "1725957328038_f038",
+    "name": "뼈해장국",
+    "carb": 15,
+    "protein": 40,
+    "fat": 25,
+    "kcal": 450,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T14:23:00.000Z"
+  },
+  {
+    "id": "1725957328039_f039",
+    "name": "감자탕 (1인분)",
+    "carb": 20,
+    "protein": 45,
+    "fat": 30,
+    "kcal": 530,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T14:23:00.000Z"
+  },
+  {
+    "id": "1725957328040_f040",
+    "name": "닭갈비 (1인분)",
+    "carb": 35,
+    "protein": 30,
+    "fat": 20,
+    "kcal": 440,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T14:23:00.000Z"
+  },
+  {
+    "id": "1725957328041_f041",
+    "name": "해물파전",
+    "carb": 45,
+    "protein": 10,
+    "fat": 25,
+    "kcal": 450,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T14:23:00.000Z"
+  },
+  {
+    "id": "1725957328042_f042",
+    "name": "부대찌개 (1인분)",
+    "carb": 30,
+    "protein": 20,
+    "fat": 35,
+    "kcal": 500,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T14:23:00.000Z"
+  },
+  {
+    "id": "1725957328043_f043",
+    "name": "카레라이스",
+    "carb": 80,
+    "protein": 12,
+    "fat": 15,
+    "kcal": 500,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T14:23:00.000Z"
+  },
+  {
+    "id": "1725957328044_f044",
+    "name": "가락국수(우동)",
+    "carb": 85,
+    "protein": 10,
+    "fat": 2,
+    "kcal": 400,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T14:23:00.000Z"
+  },
+  {
+    "id": "1725957328045_f045",
+    "name": "쫄면",
+    "carb": 90,
+    "protein": 10,
+    "fat": 5,
+    "kcal": 450,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T14:23:00.000Z"
+  },
+  {
+    "id": "1725957328046_f046",
+    "name": "잔치국수",
+    "carb": 75,
+    "protein": 10,
+    "fat": 2,
+    "kcal": 360,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T14:23:00.000Z"
+  },
+  {
+    "id": "1725957328047_f047",
+    "name": "콩국수",
+    "carb": 65,
+    "protein": 25,
+    "fat": 10,
+    "kcal": 450,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T14:23:00.000Z"
+  },
+  {
+    "id": "1725957328048_f048",
+    "name": "수제비",
+    "carb": 80,
+    "protein": 12,
+    "fat": 5,
+    "kcal": 400,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T14:23:00.000Z"
+  },
+  {
+    "id": "1725957328049_f049",
+    "name": "돼지고기 보쌈 (200g)",
+    "carb": 5,
+    "protein": 40,
+    "fat": 45,
+    "kcal": 600,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T14:23:00.000Z"
+  },
+  {
+    "id": "1725957328050_f050",
+    "name": "족발 (200g)",
+    "carb": 10,
+    "protein": 45,
+    "fat": 40,
+    "kcal": 580,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T14:23:00.000Z"
+  },
+  {
+    "id": "1725957328051_f051",
+    "name": "탕수육 (1인분)",
+    "carb": 60,
+    "protein": 20,
+    "fat": 25,
+    "kcal": 550,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T14:23:00.000Z"
+  },
+  {
+    "id": "1725957328052_f052",
+    "name": "중국식 볶음밥",
+    "carb": 70,
+    "protein": 12,
+    "fat": 20,
+    "kcal": 500,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T14:23:00.000Z"
+  },
+  {
+    "id": "1725957328053_f053",
+    "name": "마라탕 (1인분)",
+    "carb": 40,
+    "protein": 20,
+    "fat": 35,
+    "kcal": 550,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T14:23:00.000Z"
+  },
+  {
+    "id": "1725957328054_f054",
+    "name": "순두부찌개",
+    "carb": 15,
+    "protein": 15,
+    "fat": 15,
+    "kcal": 250,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T14:23:00.000Z"
+  },
+  {
+    "id": "1725957328055_f055",
+    "name": "청국장찌개",
+    "carb": 20,
+    "protein": 15,
+    "fat": 10,
+    "kcal": 230,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T14:23:00.000Z"
+  },
+  {
+    "id": "1725957328056_f056",
+    "name": "고등어 구이 (1토막)",
+    "carb": 2,
+    "protein": 25,
+    "fat": 20,
+    "kcal": 300,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T14:23:00.000Z"
+  },
+  {
+    "id": "1725957328057_f057",
+    "name": "갈치조림",
+    "carb": 15,
+    "protein": 20,
+    "fat": 10,
+    "kcal": 230,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T14:23:00.000Z"
+  },
+  {
+    "id": "1725957328058_f058",
+    "name": "오징어볶음",
+    "carb": 20,
+    "protein": 25,
+    "fat": 5,
+    "kcal": 230,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T14:23:00.000Z"
+  },
+  {
+    "id": "1725957328059_f059",
+    "name": "낙지볶음",
+    "carb": 25,
+    "protein": 20,
+    "fat": 5,
+    "kcal": 230,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T14:23:00.000Z"
+  },
+  {
+    "id": "1725957328060_f060",
+    "name": "두부김치",
+    "carb": 20,
+    "protein": 18,
+    "fat": 15,
+    "kcal": 300,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T14:23:00.000Z"
+  },
+  {
+    "id": "1725957328061_f061",
+    "name": "소고기 뭇국",
+    "carb": 5,
+    "protein": 15,
+    "fat": 5,
+    "kcal": 130,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T14:23:00.000Z"
+  },
+  {
+    "id": "1725957328062_f062",
+    "name": "떡만둣국",
+    "carb": 80,
+    "protein": 20,
+    "fat": 10,
+    "kcal": 500,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T14:23:00.000Z"
+  },
+  {
+    "id": "1725957328063_f063",
+    "name": "알밥",
+    "carb": 70,
+    "protein": 15,
+    "fat": 10,
+    "kcal": 430,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T14:23:00.000Z"
+  },
+  {
+    "id": "1725957328064_f064",
+    "name": "회덮밥",
+    "carb": 75,
+    "protein": 25,
+    "fat": 5,
+    "kcal": 450,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T14:23:00.000Z"
+  },
+  {
+    "id": "1725957328065_f065",
+    "name": "양념치킨 (1조각)",
+    "carb": 20,
+    "protein": 15,
+    "fat": 15,
+    "kcal": 280,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T14:23:00.000Z"
+  },
+  {
+    "id": "1725957328066_f066",
+    "name": "피자 (1조각)",
+    "carb": 35,
+    "protein": 12,
+    "fat": 10,
+    "kcal": 280,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T14:23:00.000Z"
+  },
+  {
+    "id": "1725957328067_f067",
+    "name": "핫도그 (1개)",
+    "carb": 35,
+    "protein": 8,
+    "fat": 15,
+    "kcal": 300,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T14:23:00.000Z"
+  },
+  {
+    "id": "1725957328068_f068",
+    "name": "샌드위치 (1개)",
+    "carb": 40,
+    "protein": 15,
+    "fat": 12,
+    "kcal": 320,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T14:23:00.000Z"
+  },
+  {
+    "id": "1725957328069_f069",
+    "name": "닭가슴살 샐러드",
+    "carb": 10,
+    "protein": 25,
+    "fat": 5,
+    "kcal": 190,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T14:23:00.000Z"
+  },
+  {
+    "id": "1725957328070_f070",
+    "name": "시리얼과 우유 (1그릇)",
+    "carb": 45,
+    "protein": 10,
+    "fat": 5,
+    "kcal": 270,
+    "isFavorite": false,
+    "createdAt": "2026-09-10T14:23:00.000Z"
+  },
+  {
+    "id": "1725957328071_f071",
+    "name": "달걀찜",
+    "carb": 2,
+    "protein": 12,
+    "fat": 10,
+    "kcal": 150,
+    "isFavorite": false,
+    "createdAt": "2026-09-11T10:55:00.000Z"
+  },
+  {
+    "id": "1725957328072_f072",
+    "name": "소고기 곱창구이 (150g)",
+    "carb": 5,
+    "protein": 15,
+    "fat": 40,
+    "kcal": 450,
+    "isFavorite": false,
+    "createdAt": "2026-09-11T10:55:00.000Z"
+  },
+  {
+    "id": "1725957328073_f073",
+    "name": "호박죽",
+    "carb": 40,
+    "protein": 4,
+    "fat": 1,
+    "kcal": 180,
+    "isFavorite": false,
+    "createdAt": "2026-09-11T10:55:00.000Z"
+  },
+  {
+    "id": "1725957328074_f074",
+    "name": "바나나우유 (240ml)",
+    "carb": 25,
+    "protein": 6,
+    "fat": 6,
+    "kcal": 180,
+    "isFavorite": false,
+    "createdAt": "2026-09-11T10:55:00.000Z"
+  },
+  {
+    "id": "1725957328075_f075",
+    "name": "치즈버거",
+    "carb": 35,
+    "protein": 15,
+    "fat": 18,
+    "kcal": 350,
+    "isFavorite": false,
+    "createdAt": "2026-09-11T10:55:00.000Z"
+  },
+  {
+    "id": "1725957328076_f076",
+    "name": "새우볶음밥",
+    "carb": 60,
+    "protein": 12,
+    "fat": 15,
+    "kcal": 420,
+    "isFavorite": false,
+    "createdAt": "2026-09-11T10:55:00.000Z"
+  },
+  {
+    "id": "1725957328077_f077",
+    "name": "메밀소바",
+    "carb": 70,
+    "protein": 12,
+    "fat": 2,
+    "kcal": 350,
+    "isFavorite": false,
+    "createdAt": "2026-09-11T10:55:00.000Z"
+  },
+  {
+    "id": "1725957328078_f078",
+    "name": "유부초밥 (5개)",
+    "carb": 50,
+    "protein": 10,
+    "fat": 12,
+    "kcal": 350,
+    "isFavorite": false,
+    "createdAt": "2026-09-11T10:55:00.000Z"
+  },
+  {
+    "id": "1725957328079_f079",
+    "name": "연어초밥 (10개)",
+    "carb": 70,
+    "protein": 25,
+    "fat": 15,
+    "kcal": 500,
+    "isFavorite": false,
+    "createdAt": "2026-09-11T10:55:00.000Z"
+  },
+  {
+    "id": "1725957328080_f080",
+    "name": "광어회 (150g)",
+    "carb": 0,
+    "protein": 30,
+    "fat": 3,
+    "kcal": 150,
+    "isFavorite": false,
+    "createdAt": "2026-09-11T10:55:00.000Z"
+  },
+  {
+    "id": "1725957328081_f081",
+    "name": "육회 (150g)",
+    "carb": 10,
+    "protein": 30,
+    "fat": 12,
+    "kcal": 270,
+    "isFavorite": false,
+    "createdAt": "2026-09-11T10:55:00.000Z"
+  },
+  {
+    "id": "1725957328082_f082",
+    "name": "간장게장 (1마리)",
+    "carb": 15,
+    "protein": 25,
+    "fat": 5,
+    "kcal": 200,
+    "isFavorite": false,
+    "createdAt": "2026-09-11T10:55:00.000Z"
+  },
+  {
+    "id": "1725957328083_f083",
+    "name": "양념게장 (1마리)",
+    "carb": 25,
+    "protein": 20,
+    "fat": 5,
+    "kcal": 230,
+    "isFavorite": false,
+    "createdAt": "2026-09-11T10:55:00.000Z"
+  },
+  {
+    "id": "1725957328084_f084",
+    "name": "꽁치구이 (1마리)",
+    "carb": 1,
+    "protein": 25,
+    "fat": 20,
+    "kcal": 280,
+    "isFavorite": false,
+    "createdAt": "2026-09-11T10:55:00.000Z"
+  },
+  {
+    "id": "1725957328085_f085",
+    "name": "소갈비찜 (250g)",
+    "carb": 25,
+    "protein": 35,
+    "fat": 30,
+    "kcal": 500,
+    "isFavorite": false,
+    "createdAt": "2026-09-11T10:55:00.000Z"
+  },
+  {
+    "id": "1725957328086_f086",
+    "name": "소갈비구이 (200g)",
+    "carb": 15,
+    "protein": 40,
+    "fat": 35,
+    "kcal": 550,
+    "isFavorite": false,
+    "createdAt": "2026-09-11T10:55:00.000Z"
+  },
+  {
+    "id": "1725957328087_f087",
+    "name": "닭강정 (200g)",
+    "carb": 40,
+    "protein": 25,
+    "fat": 20,
+    "kcal": 450,
+    "isFavorite": false,
+    "createdAt": "2026-09-11T10:55:00.000Z"
+  },
+  {
+    "id": "1725957328088_f088",
+    "name": "김치전 (1장)",
+    "carb": 45,
+    "protein": 8,
+    "fat": 20,
+    "kcal": 400,
+    "isFavorite": false,
+    "createdAt": "2026-09-11T10:55:00.000Z"
+  },
+  {
+    "id": "1725957328089_f089",
+    "name": "부추전 (1장)",
+    "carb": 40,
+    "protein": 8,
+    "fat": 20,
+    "kcal": 380,
+    "isFavorite": false,
+    "createdAt": "2026-09-11T10:55:00.000Z"
+  },
+  {
+    "id": "1725957328090_f090",
+    "name": "동태찌개",
+    "carb": 10,
+    "protein": 25,
+    "fat": 8,
+    "kcal": 200,
+    "isFavorite": false,
+    "createdAt": "2026-09-11T10:55:00.000Z"
+  },
+  {
+    "id": "1725957328091_f091",
+    "name": "알탕",
+    "carb": 15,
+    "protein": 30,
+    "fat": 12,
+    "kcal": 280,
+    "isFavorite": false,
+    "createdAt": "2026-09-11T10:55:00.000Z"
+  },
+  {
+    "id": "1725957328092_f092",
+    "name": "아귀찜 (1인분)",
+    "carb": 25,
+    "protein": 35,
+    "fat": 10,
+    "kcal": 330,
+    "isFavorite": false,
+    "createdAt": "2026-09-11T10:55:00.000Z"
+  },
+  {
+    "id": "1725957328093_f093",
+    "name": "해물찜 (1인분)",
+    "carb": 30,
+    "protein": 40,
+    "fat": 12,
+    "kcal": 380,
+    "isFavorite": false,
+    "createdAt": "2026-09-11T10:55:00.000Z"
+  },
+  {
+    "id": "1725957328094_f094",
+    "name": "조개구이 (200g)",
+    "carb": 5,
+    "protein": 25,
+    "fat": 3,
+    "kcal": 150,
+    "isFavorite": false,
+    "createdAt": "2026-09-11T10:55:00.000Z"
+  },
+  {
+    "id": "1725957328095_f095",
+    "name": "삼계탕 (1그릇)",
+    "carb": 20,
+    "protein": 60,
+    "fat": 30,
+    "kcal": 600,
+    "isFavorite": false,
+    "createdAt": "2026-09-11T10:55:00.000Z"
+  },
+  {
+    "id": "1725957328096_f096",
+    "name": "추어탕",
+    "carb": 25,
+    "protein": 25,
+    "fat": 15,
+    "kcal": 350,
+    "isFavorite": false,
+    "createdAt": "2026-09-11T10:55:00.000Z"
+  },
+  {
+    "id": "1725957328097_f097",
+    "name": "장어구이 (200g)",
+    "carb": 10,
+    "protein": 35,
+    "fat": 45,
+    "kcal": 600,
+    "isFavorite": false,
+    "createdAt": "2026-09-11T10:55:00.000Z"
+  },
+  {
+    "id": "1725957328098_f098",
+    "name": "곰탕",
+    "carb": 5,
+    "protein": 20,
+    "fat": 15,
+    "kcal": 250,
+    "isFavorite": false,
+    "createdAt": "2026-09-11T10:55:00.000Z"
+  },
+  {
+    "id": "1725957328099_f099",
+    "name": "콩나물국밥",
+    "carb": 70,
+    "protein": 15,
+    "fat": 5,
+    "kcal": 400,
+    "isFavorite": false,
+    "createdAt": "2026-09-11T10:55:00.000Z"
+  },
+  {
+    "id": "1725957328100_f100",
+    "name": "쭈꾸미볶음 (1인분)",
+    "carb": 20,
+    "protein": 25,
+    "fat": 10,
+    "kcal": 280,
+    "isFavorite": false,
+    "createdAt": "2026-09-11T10:55:00.000Z"
+  }
+]

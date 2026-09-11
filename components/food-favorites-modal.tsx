@@ -8,6 +8,8 @@ import { FavoriteFood, FavoriteSortMode } from "@/types";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useRef, useState } from "react";
 import {
+  Alert,
+  Dimensions,
   LayoutAnimation,
   Modal,
   PanResponder,
@@ -17,6 +19,18 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+
+const WINDOW_HEIGHT = Dimensions.get("window").height;
+
+const DEFAULT_FAVORITE_FOODS = (
+  require("@/utils/data.json") as {
+    name: string;
+    carb: number;
+    protein: number;
+    fat: number;
+    kcal?: number;
+  }[]
+).filter((food) => food && typeof food.name === "string");
 
 type FoodFavoritesModalProps = {
   visible: boolean;
@@ -30,6 +44,15 @@ type FoodFavoritesModalProps = {
     fat: number;
   }) => void;
   onDelete: (id: string) => void;
+  onBulkAdd: (
+    foods: {
+      name: string;
+      carb: number;
+      protein: number;
+      fat: number;
+    }[]
+  ) => void;
+  onClearAll: () => void;
   onToggleFavorite: (id: string) => void;
   onReorder: (next: FavoriteFood[]) => void;
 };
@@ -46,6 +69,19 @@ export const FoodFavoritesModal = React.memo(function FoodFavoritesModal(
   const [searchText, setSearchText] = useState("");
   const [sortMode, setSortMode] = useState<FavoriteSortMode>("custom");
   const [sortMenuVisible, setSortMenuVisible] = useState(false);
+  const [sheetLayout, setSheetLayout] = useState({
+    x: 0,
+    y: 0,
+    width: 0,
+    height: 0,
+  });
+  const [menuAnchorLayout, setMenuAnchorLayout] = useState({
+    x: 0,
+    y: 0,
+    width: 0,
+    height: 0,
+  });
+  const [menuDirection, setMenuDirection] = useState<"down" | "up">("down");
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [reorderActiveId, setReorderActiveId] = useState<string | null>(null);
 
@@ -209,6 +245,71 @@ export const FoodFavoritesModal = React.memo(function FoodFavoritesModal(
     setSortMenuVisible(false);
   }
 
+  function handleAddDefaultFavorites() {
+    const existing = new Set(
+      props.favorites.map((food) => food.name.trim().toLowerCase())
+    );
+    const toAdd = DEFAULT_FAVORITE_FOODS.filter(
+      (food) => !existing.has(food.name.trim().toLowerCase())
+    );
+
+    if (toAdd.length === 0) {
+      Alert.alert("알림", "기본 즐겨찾기 음식이 모두 이미 등록되어 있습니다.");
+      return;
+    }
+
+    Alert.alert(
+      "기본 음식 추가",
+      `${toAdd.length}개의 음식이 즐겨찾기에 등록 됩니다. 계속할까요?`,
+      [
+        { text: "취소", style: "cancel" },
+        {
+          text: "확인",
+          style: "default",
+          onPress: function () {
+            props.onBulkAdd(
+              toAdd.map((food) => ({
+                name: food.name,
+                carb: Number(food.carb) || 0,
+                protein: Number(food.protein) || 0,
+                fat: Number(food.fat) || 0,
+              }))
+            );
+
+            setSortMenuVisible(false);
+            Alert.alert(
+              "기본 음식 추가",
+              `${toAdd.length}개의 음식이 즐겨찾기에 등록 됩니다`
+            );
+          },
+        },
+      ]
+    );
+  }
+
+  function handleClearAllFavorites() {
+    if (props.favorites.length === 0) {
+      Alert.alert("알림", "삭제할 즐겨찾기가 없습니다.");
+      return;
+    }
+
+    Alert.alert(
+      "즐겨찾기 전체 삭제",
+      `저장된 ${props.favorites.length}개의 모든 즐겨찾기를 삭제할까요?`,
+      [
+        { text: "취소", style: "cancel" },
+        {
+          text: "삭제",
+          style: "destructive",
+          onPress: function () {
+            props.onClearAll();
+            setSortMenuVisible(false);
+          },
+        },
+      ]
+    );
+  }
+
   function toggleFavoritePriority() {
     setFavoritePriorityEnabled(function (v) {
       return !v;
@@ -221,6 +322,45 @@ export const FoodFavoritesModal = React.memo(function FoodFavoritesModal(
     });
   }
 
+  function handleSheetLayout(event: {
+    nativeEvent: {
+      layout: { x: number; y: number; width: number; height: number };
+    };
+  }) {
+    const nextLayout = event.nativeEvent.layout;
+    setSheetLayout(nextLayout);
+
+    const triggerBottomY =
+      nextLayout.y + menuAnchorLayout.y + menuAnchorLayout.height;
+    const dropdownNeededHeight = 260;
+    const availableBelow =
+      WINDOW_HEIGHT - (triggerBottomY + 36 + dropdownNeededHeight);
+    const availableAbove = triggerBottomY - 36 - dropdownNeededHeight;
+
+    const shouldOpenUp = availableBelow < 0 && availableAbove > 0;
+
+    setMenuDirection(shouldOpenUp ? "up" : "down");
+  }
+
+  function handleMenuAnchorLayout(event: {
+    nativeEvent: {
+      layout: { x: number; y: number; width: number; height: number };
+    };
+  }) {
+    const nextLayout = event.nativeEvent.layout;
+    setMenuAnchorLayout(nextLayout);
+
+    const triggerBottomY = sheetLayout.y + nextLayout.y + nextLayout.height;
+    const dropdownNeededHeight = 260;
+    const availableBelow =
+      WINDOW_HEIGHT - (triggerBottomY + 36 + dropdownNeededHeight);
+    const availableAbove = triggerBottomY - 36 - dropdownNeededHeight;
+
+    const shouldOpenUp = availableBelow < 0 && availableAbove > 0;
+
+    setMenuDirection(shouldOpenUp ? "up" : "down");
+  }
+
   function toggleAddForm() {
     setShowAddForm(function (v) {
       return !v;
@@ -228,6 +368,9 @@ export const FoodFavoritesModal = React.memo(function FoodFavoritesModal(
   }
 
   if (!props.visible) return null;
+
+  const dropdownStyle =
+    menuDirection === "up" ? [fs.sortMenu, fs.sortMenuUp] : fs.sortMenu;
 
   return (
     <Modal
@@ -237,7 +380,10 @@ export const FoodFavoritesModal = React.memo(function FoodFavoritesModal(
       onRequestClose={props.onClose}
     >
       <View style={fs.overlay}>
-        <View style={[fs.sheet, { transform: [{ translateY: kbOffset }] }]}>
+        <View
+          style={[fs.sheet, { transform: [{ translateY: kbOffset }] }]}
+          onLayout={handleSheetLayout}
+        >
           <View style={fs.header}>
             <Text style={fs.title}>즐겨찾기</Text>
             <View style={fs.headerActions}>
@@ -254,46 +400,70 @@ export const FoodFavoritesModal = React.memo(function FoodFavoritesModal(
                   color={favoritePriorityEnabled ? "#ef0d0d" : "#94A3B8"}
                 />
               </TouchableOpacity>
-              <TouchableOpacity onPress={toggleSortMenu}>
-                <Text style={fs.sortBtn}>☰</Text>
-              </TouchableOpacity>
+
+              <View style={fs.filterMenuWrap} onLayout={handleMenuAnchorLayout}>
+                <TouchableOpacity
+                  onPress={toggleSortMenu}
+                  style={fs.sortTrigger}
+                >
+                  <Text style={fs.sortTriggerText}>☰</Text>
+                </TouchableOpacity>
+
+                {sortMenuVisible && (
+                  <View style={dropdownStyle}>
+                    {[
+                      ["사용자 정의", "custom"],
+                      ["오름차순", "nameAsc"],
+                      ["내림차순", "nameDesc"],
+                      ["최신순", "newest"],
+                      ["오래된순", "oldest"],
+                    ].map(function (menuItem) {
+                      const label = menuItem[0];
+                      const value = menuItem[1];
+                      return (
+                        <TouchableOpacity
+                          key={value}
+                          style={[
+                            fs.sortMenuItem,
+                            sortMode === value && fs.sortMenuItemActive,
+                          ]}
+                          onPress={function () {
+                            handleSortChange(value as FavoriteSortMode);
+                          }}
+                        >
+                          <Text style={fs.sortMenuText}>{label}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+
+                    <View style={fs.sortMenuDivider} />
+
+                    <TouchableOpacity
+                      style={fs.sortMenuItem}
+                      onPress={handleClearAllFavorites}
+                    >
+                      <Text style={fs.sortMenuText}>전체 삭제</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={fs.sortMenuItem}
+                      onPress={handleAddDefaultFavorites}
+                    >
+                      <Text style={fs.sortMenuText}>기본 음식 추가</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+
               <TouchableOpacity onPress={toggleAddForm}>
                 <Text style={fs.addHeaderBtn}>＋</Text>
               </TouchableOpacity>
+
               <TouchableOpacity onPress={props.onClose}>
                 <Text style={fs.closeBtn}>✕</Text>
               </TouchableOpacity>
             </View>
           </View>
-
-          {sortMenuVisible && (
-            <View style={fs.sortMenu}>
-              {[
-                ["사용자 정의", "custom"],
-                ["오름차순", "nameAsc"],
-                ["내림차순", "nameDesc"],
-                ["최신순", "newest"],
-                ["오래된순", "oldest"],
-              ].map(function (menuItem) {
-                const label = menuItem[0];
-                const value = menuItem[1];
-                return (
-                  <TouchableOpacity
-                    key={value}
-                    style={[
-                      fs.sortMenuItem,
-                      sortMode === value && fs.sortMenuItemActive,
-                    ]}
-                    onPress={function () {
-                      handleSortChange(value as FavoriteSortMode);
-                    }}
-                  >
-                    <Text style={fs.sortMenuText}>{label}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          )}
 
           <View style={fs.searchBox}>
             <Ionicons name="search-outline" size={15} color="#94A3B8" />

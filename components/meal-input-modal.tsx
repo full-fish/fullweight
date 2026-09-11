@@ -46,6 +46,15 @@ type MealInputModalProps = {
     protein: number;
     fat: number;
   }) => void;
+  onBulkAddFavorites: (
+    foods: Array<{
+      name: string;
+      carb: number;
+      protein: number;
+      fat: number;
+    }>
+  ) => void;
+  onClearAllFavorites: () => void;
   onRemoveFavorite: (id: string) => void;
   onToggleFavorite: (id: string) => void;
   onReorderFavorites: (next: FavoriteFood[]) => void;
@@ -75,6 +84,8 @@ export const MealInputModal = React.memo(function MealInputModal({
   onCloseFavorites,
   onSelectFavorite,
   onAddFavorite,
+  onBulkAddFavorites,
+  onClearAllFavorites,
   onRemoveFavorite,
   onToggleFavorite,
   onReorderFavorites,
@@ -242,7 +253,9 @@ export const MealInputModal = React.memo(function MealInputModal({
         onClose={onCloseFavorites}
         onSelect={onSelectFavorite}
         onAdd={onAddFavorite}
+        onBulkAdd={onBulkAddFavorites}
         onDelete={onRemoveFavorite}
+        onClearAll={onClearAllFavorites}
         onToggleFavorite={onToggleFavorite}
         onReorder={onReorderFavorites}
       />

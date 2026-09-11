@@ -2093,6 +2093,8 @@ export default function CalendarScreen() {
           onCloseFavorites={mealModal.closeFavorites}
           onSelectFavorite={mealModal.selectFavorite}
           onAddFavorite={mealModal.addFavorite}
+          onBulkAddFavorites={mealModal.bulkAddFavorites}
+          onClearAllFavorites={mealModal.clearFavorites}
           onRemoveFavorite={mealModal.removeFavorite}
           onToggleFavorite={mealModal.toggleFavorite}
           onReorderFavorites={mealModal.reorderFavorites}

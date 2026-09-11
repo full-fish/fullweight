@@ -24,6 +24,7 @@ import {
   deleteMeal,
   loadFavoriteFoods,
   loadMeals,
+  saveFavoriteFoods,
   saveMeals,
   setFavoriteFoodOrder,
   toggleFavoriteFood,
@@ -242,6 +243,51 @@ export function useMealInputModal(options: MealEditorOptions = {}) {
     setFavorites(updated);
   }, []);
 
+  const bulkAddFavorites = useCallback(
+    async (
+      foods: Array<{ name: string; carb: number; protein: number; fat: number }>
+    ) => {
+      if (!foods.length) return;
+
+      const current = await loadFavoriteFoods();
+      const existing = new Set(
+        current.map((food) => food.name.trim().toLowerCase())
+      );
+      const normalized = foods.filter(
+        (food) => !existing.has(food.name.trim().toLowerCase())
+      );
+
+      if (!normalized.length) return;
+
+      const next = [
+        ...normalized.map((food) => ({
+          id: `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+          name: food.name.trim(),
+          carb: Number(food.carb) || 0,
+          protein: Number(food.protein) || 0,
+          fat: Number(food.fat) || 0,
+          kcal: Math.round(
+            (Number(food.carb) || 0) * 4 +
+              (Number(food.protein) || 0) * 4 +
+              (Number(food.fat) || 0) * 9
+          ),
+          isFavorite: false,
+          createdAt: new Date().toISOString(),
+        })),
+        ...current,
+      ];
+
+      await saveFavoriteFoods(next);
+      setFavorites(next);
+    },
+    []
+  );
+
+  const clearFavorites = useCallback(async () => {
+    await saveFavoriteFoods([]);
+    setFavorites([]);
+  }, []);
+
   const reorderFavorites = useCallback(async (next: FavoriteFood[]) => {
     const updated = await setFavoriteFoodOrder(next);
     setFavorites(updated);
@@ -299,6 +345,8 @@ export function useMealInputModal(options: MealEditorOptions = {}) {
     closeFavorites,
     selectFavorite,
     addFavorite,
+    bulkAddFavorites,
+    clearFavorites,
     removeFavorite,
     toggleFavorite,
     reorderFavorites,
