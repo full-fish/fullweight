@@ -14,10 +14,12 @@ import { initMobileAds } from "@/utils/ads-init";
 /* ─── Storage Keys ─── */
 const AI_COUNT_KEY = "ad_ai_daily_count"; // { date: "YYYY-MM-DD", count: number }
 const WEIGHT_SAVE_COUNT_KEY = "ad_weight_save_count"; // number (누적)
+const WEIGHT_SAVE_AD_COOLDOWN_KEY = "ad_weight_save_cooldown_ts"; // number (ms, 마지막 광고 노출 시각)
 
 /* ─── 상수 ─── */
 export const FREE_AI_LIMIT = 2; // 무료 AI 분석 횟수/일
 const WEIGHT_AD_INTERVAL = 3; // 3회마다 전면 광고
+const WEIGHT_SAVE_AD_COOLDOWN_MS = 15 * 60 * 1000; // 15분 쿨다운
 
 /* ─── KST 오늘 날짜 ─── */
 function getKSTDateString(): string {
@@ -89,11 +91,34 @@ async function loadWeightSaveCount(): Promise<number> {
   }
 }
 
+async function loadWeightSaveAdCooldownTs(): Promise<number> {
+  try {
+    const raw = await AsyncStorage.getItem(WEIGHT_SAVE_AD_COOLDOWN_KEY);
+    const value = raw ? Number(raw) : 0;
+    return Number.isFinite(value) ? value : 0;
+  } catch {
+    return 0;
+  }
+}
+
+export async function markWeightSaveAdShown(): Promise<void> {
+  await AsyncStorage.setItem(WEIGHT_SAVE_AD_COOLDOWN_KEY, String(Date.now()));
+}
+
 /**
  * 체중 저장 1회 기록
  * @returns 전면 광고를 보여야 하면 true
+ *
+ * 마지막 광고 노출 후 15분 동안은 저장 카운트를 올리지 않는다.
  */
 export async function recordWeightSave(): Promise<boolean> {
+  const lastShownAt = await loadWeightSaveAdCooldownTs();
+  const now = Date.now();
+
+  if (lastShownAt > 0 && now - lastShownAt < WEIGHT_SAVE_AD_COOLDOWN_MS) {
+    return false;
+  }
+
   const count = (await loadWeightSaveCount()) + 1;
   await AsyncStorage.setItem(WEIGHT_SAVE_COUNT_KEY, String(count));
   // 3, 6, 9, 12, ... 번째에 광고
@@ -108,6 +133,7 @@ export async function getWeightSaveCount(): Promise<number> {
 /** 체중 저장 카운터 초기화 */
 export async function resetWeightSaveCount(): Promise<void> {
   await AsyncStorage.removeItem(WEIGHT_SAVE_COUNT_KEY);
+  await AsyncStorage.removeItem(WEIGHT_SAVE_AD_COOLDOWN_KEY);
 }
 
 /* ═══════════════════════════════════════════════════
@@ -178,7 +204,10 @@ export async function showInterstitialAd(): Promise<boolean> {
       };
 
       // 광고 닫힘
-      ad.addAdEventListener(AdEventType.CLOSED, () => done(true));
+      ad.addAdEventListener(AdEventType.CLOSED, async () => {
+        await markWeightSaveAdShown();
+        done(true);
+      });
 
       // 로드 실패 → 조용히 넘김
       ad.addAdEventListener(AdEventType.ERROR, () => {
