@@ -841,6 +841,119 @@ export async function saveUserSettings(settings: UserSettings): Promise<void> {
   await AsyncStorage.setItem(USER_SETTINGS_KEY, JSON.stringify(settings));
 }
 
+/** Delete a metric or bool metric by key. If preserve=false, remove associated values from records and back them up in user settings. */
+export async function deleteMetricByKey(
+  key: string,
+  isBool: boolean,
+  preserve: boolean
+): Promise<void> {
+  const settings = await loadUserSettings();
+  const nextSettings = { ...settings } as any;
+
+  // remove from custom lists
+  if (isBool) {
+    nextSettings.customBoolMetrics = (
+      nextSettings.customBoolMetrics ?? []
+    ).filter((c: any) => c.key !== key);
+    nextSettings.boolMetricConfigs = (
+      nextSettings.boolMetricConfigs ?? []
+    ).filter((c: any) => c.key !== key);
+  } else {
+    nextSettings.customMetrics = (nextSettings.customMetrics ?? []).filter(
+      (c: any) => c.key !== key
+    );
+    nextSettings.metricConfigs = (nextSettings.metricConfigs ?? []).filter(
+      (c: any) => c.key !== key
+    );
+  }
+
+  // if preserve=false, remove values from records with backup
+  if (!preserve) {
+    const records = await loadRecords();
+    const backupValues: Record<string, number | boolean> = {};
+    const nextRecords = records.map((r) => {
+      const nr = { ...r } as any;
+      if (isBool) {
+        if (nr.customBoolValues && nr.customBoolValues[key] !== undefined) {
+          backupValues[nr.date] = nr.customBoolValues[key];
+          delete nr.customBoolValues[key];
+        }
+        // builtin bools
+        if (key === "exercised" && nr.exercised !== undefined) {
+          backupValues[nr.date] = nr.exercised;
+          delete nr.exercised;
+        }
+        if (key === "drank" && nr.drank !== undefined) {
+          backupValues[nr.date] = nr.drank;
+          delete nr.drank;
+        }
+      } else {
+        // numeric metrics
+        if (nr.customValues && nr.customValues[key] !== undefined) {
+          backupValues[nr.date] = nr.customValues[key];
+          delete nr.customValues[key];
+        }
+        // builtin metrics
+        if (key === "waist" && nr.waist !== undefined) {
+          backupValues[nr.date] = nr.waist;
+          delete nr.waist;
+        }
+        if (key === "muscleMass" && nr.muscleMass !== undefined) {
+          backupValues[nr.date] = nr.muscleMass;
+          delete nr.muscleMass;
+        }
+        if (key === "bodyFatPercent" && nr.bodyFatPercent !== undefined) {
+          backupValues[nr.date] = nr.bodyFatPercent;
+          delete nr.bodyFatPercent;
+        }
+        if (key === "bodyFatMass" && nr.bodyFatMass !== undefined) {
+          backupValues[nr.date] = nr.bodyFatMass;
+          delete nr.bodyFatMass;
+        }
+      }
+      return nr;
+    });
+    // save updated records
+    await saveRecords(nextRecords as WeightRecord[]);
+
+    // attach backup to settings
+    nextSettings.deletedMetricBackups = {
+      ...(nextSettings.deletedMetricBackups ?? {}),
+      [key]: { type: isBool ? "bool" : "metric", values: backupValues },
+    };
+  }
+
+  await saveUserSettings(nextSettings);
+}
+
+/** Restore a previously deleted metric's backed up values into records (merge). */
+export async function restoreDeletedMetric(key: string): Promise<void> {
+  const settings = await loadUserSettings();
+  const backup = settings.deletedMetricBackups?.[key];
+  if (!backup) return;
+  const records = await loadRecords();
+  const next = records.map((r) => {
+    const nr = { ...r } as any;
+    const v = backup.values?.[r.date];
+    if (v === undefined) return nr;
+    if (backup.type === "bool") {
+      nr.customBoolValues = nr.customBoolValues ?? {};
+      nr.customBoolValues[key] = Boolean(v);
+    } else {
+      nr.customValues = nr.customValues ?? {};
+      nr.customValues[key] = typeof v === "number" ? v : Number(v);
+    }
+    return nr;
+  });
+  await saveRecords(next as WeightRecord[]);
+  // remove backup after restore
+  const nextSettings = { ...settings } as any;
+  if (nextSettings.deletedMetricBackups) {
+    delete nextSettings.deletedMetricBackups[key];
+  }
+  await saveUserSettings(nextSettings);
+}
+
 /* ───── 식사 기록 ───── */
 
 export async function loadMeals(date?: string): Promise<MealEntry[]> {

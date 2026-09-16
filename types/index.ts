@@ -68,6 +68,28 @@ export type CustomBoolMetric = {
   iconLibrary?: string;
 };
 
+/** 항목 구성 정보 (온보딩/설정에서 관리) */
+export type MetricConfig = {
+  id: string; // 내부 고유 id
+  key: string; // 내부 키 (예: waist, custom_123)
+  label: string; // 표시 라벨
+  unit?: string; // 단위(수치 항목)
+  color?: string; // 표시 색상
+  createdAt: string; // ISO
+  deletedAt?: string | null; // 삭제 시점
+  preserveOnDelete?: boolean; // 삭제 시 데이터 보존 옵션
+};
+
+export type BoolMetricConfig = {
+  id: string;
+  key: string;
+  label: string;
+  color?: string;
+  createdAt: string;
+  deletedAt?: string | null;
+  preserveOnDelete?: boolean;
+};
+
 /** 사용자 정의 체크항목 색상 팔레트 */
 export const CUSTOM_BOOL_COLORS = [
   "#E91E63",
@@ -207,6 +229,14 @@ export type UserSettings = {
   customMetrics?: CustomMetric[];
   /** 사용자 정의 체크항목 목록 */
   customBoolMetrics?: CustomBoolMetric[];
+  /** 항목 구성(온보딩/설정용) */
+  metricConfigs?: MetricConfig[];
+  boolMetricConfigs?: BoolMetricConfig[];
+  /** 삭제된 항목의 백업: 키 -> { type, values(date->value) } */
+  deletedMetricBackups?: Record<
+    string,
+    { type: "metric" | "bool"; values: Record<string, number | boolean> }
+  >;
   /** 자동 백업 주기 (일 단위, 기본 1) */
   backupIntervalDays?: number;
   /** OpenAI API 키 (음식 사진 분석용) */

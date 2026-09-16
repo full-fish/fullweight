@@ -167,6 +167,7 @@ export default function RootLayout() {
             visible={showOnboarding}
             onStart={handleOnboardingStart}
           />
+          {/* onboarding modal shown on first run */}
           <UpdateRequiredModal
             visible={showUpdateNotice}
             forceUpdate={false}
