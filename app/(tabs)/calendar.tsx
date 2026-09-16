@@ -1283,19 +1283,48 @@ export default function CalendarScreen() {
                         if (!info) return null;
                         return (
                           <View style={{ marginTop: 8 }}>
-                            <View style={s.modalRow}>
-                              <Text style={s.modalLabel}>BMI</Text>
+                            <View
+                              style={{
+                                flexDirection: "row",
+                                alignItems: "center",
+                                gap: 8,
+                                marginBottom: 4,
+                              }}
+                            >
                               <Text
-                                style={[s.modalValue, { color: info.color }]}
+                                style={{
+                                  fontSize: 14,
+                                  color: "#718096",
+                                  marginBottom: 2,
+                                }}
                               >
-                                {info.bmi} ({info.label})
+                                BMI: {info.bmi}
                               </Text>
+                              <View
+                                style={{
+                                  paddingHorizontal: 8,
+                                  paddingVertical: 2,
+                                  borderRadius: 10,
+                                  backgroundColor: "#F7FAFC",
+                                  alignSelf: "flex-start",
+                                }}
+                              >
+                                <Text
+                                  style={{
+                                    fontSize: 12,
+                                    fontWeight: "600",
+                                    color: info.color,
+                                  }}
+                                >
+                                  {info.label}
+                                </Text>
+                              </View>
                             </View>
                             <View
                               style={{
+                                position: "relative",
                                 marginTop: 4,
                                 height: 10,
-                                position: "relative",
                               }}
                             >
                               <View
@@ -1308,26 +1337,32 @@ export default function CalendarScreen() {
                               >
                                 <View
                                   style={{
-                                    flex: 18.5,
-                                    backgroundColor: "#BEE3F8",
+                                    flex: 10,
+                                    backgroundColor: "#BFDBFE",
                                   }}
                                 />
                                 <View
                                   style={{
-                                    flex: 4.5,
-                                    backgroundColor: "#C6F6D5",
+                                    flex: 7,
+                                    backgroundColor: "#A7F3D0",
                                   }}
                                 />
                                 <View
                                   style={{
                                     flex: 2,
-                                    backgroundColor: "#FEEBC8",
+                                    backgroundColor: "#FDE68A",
                                   }}
                                 />
                                 <View
                                   style={{
-                                    flex: 15,
-                                    backgroundColor: "#FED7D7",
+                                    flex: 4,
+                                    backgroundColor: "#FDBA74",
+                                  }}
+                                />
+                                <View
+                                  style={{
+                                    flex: 8,
+                                    backgroundColor: "#FCA5A5",
                                   }}
                                 />
                               </View>

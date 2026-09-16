@@ -40,7 +40,7 @@ export function PaywallModal({
   onClose,
   initialSection,
 }: PaywallModalProps) {
-  const { refresh, aiPro, bannerRemoved } = usePro();
+  const { refresh, aiPro, bannerRemoved, aiProExpiresAt } = usePro();
   const [offering, setOffering] = useState<PurchasesOffering | null>(null);
   const [loadingOffering, setLoadingOffering] = useState(false);
   const [purchasing, setPurchasing] = useState(false);
@@ -65,9 +65,10 @@ export function PaywallModal({
         setOffering(result);
         // null은 dev 모드에서는 정상(결제 스킵) — 예외 발생 시만 오류 표시
       })
-      .catch(() => {
+      .catch((e: any) => {
         setOfferingError(
-          "스토어 연결에 실패했습니다. 잠시 후 다시 시도해 주세요."
+          e?.message ||
+            "스토어 연결에 실패했습니다. 잠시 후 다시 시도해 주세요."
         );
       })
       .finally(() => setLoadingOffering(false));
@@ -142,6 +143,26 @@ export function PaywallModal({
         p.identifier.toLowerCase().includes("donate")
     ) ?? []
   ).sort((a, b) => a.product.price - b.product.price);
+
+  const getAiProRemainingText = () => {
+    if (!aiProExpiresAt) return null;
+    const expiry = new Date(aiProExpiresAt);
+    if (Number.isNaN(expiry.getTime())) return null;
+
+    const msLeft = expiry.getTime() - Date.now();
+    const daysLeft = Math.ceil(msLeft / (1000 * 60 * 60 * 24));
+    const expiryLabel = expiry.toLocaleDateString("ko-KR");
+
+    if (daysLeft > 0) {
+      return `남은 기간 ${daysLeft}일 · 만료일 ${expiryLabel}`;
+    }
+    if (daysLeft === 0) {
+      return `오늘 만료 예정 · 만료일 ${expiryLabel}`;
+    }
+    return `만료일 ${expiryLabel}`;
+  };
+
+  const aiProRemainingText = getAiProRemainingText();
 
   return (
     <Modal
@@ -341,15 +362,32 @@ export function PaywallModal({
                         <View
                           style={[
                             st.purchasedBadge,
-                            { flexDirection: "row", gap: 6 },
+                            {
+                              gap: 4,
+                              alignItems: "center",
+                              justifyContent: "center",
+                            },
                           ]}
                         >
-                          <Ionicons
-                            name="checkmark-circle"
-                            size={18}
-                            color="#38A169"
-                          />
-                          <Text style={st.purchasedText}>구독 중</Text>
+                          <View
+                            style={{
+                              flexDirection: "row",
+                              alignItems: "center",
+                              gap: 6,
+                            }}
+                          >
+                            <Ionicons
+                              name="checkmark-circle"
+                              size={18}
+                              color="#38A169"
+                            />
+                            <Text style={st.purchasedText}>구독 중</Text>
+                          </View>
+                          {aiProRemainingText ? (
+                            <Text style={st.subscriptionMetaText}>
+                              {aiProRemainingText}
+                            </Text>
+                          ) : null}
                         </View>
                       ) : (
                         <View style={{ gap: 10 }}>
@@ -673,6 +711,12 @@ const st = StyleSheet.create({
     borderColor: "#C6F6D5",
   },
   purchasedText: { fontSize: 14, fontWeight: "600", color: "#38A169" },
+  subscriptionMetaText: {
+    fontSize: 12,
+    color: "#2F855A",
+    textAlign: "center",
+    marginTop: 2,
+  },
 
   /* ─── 활성 뱃지 ─── */
   activeBadge: {

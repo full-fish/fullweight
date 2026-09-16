@@ -18,6 +18,7 @@ export const DEV_AIPRO_OVERRIDE_KEY = "dev_ai_pro";
 export type MembershipStatus = {
   bannerRemoved: boolean;
   aiPro: boolean;
+  aiProExpiresAt: string | null;
 };
 
 export function initPurchases(): Promise<void> {
@@ -33,9 +34,10 @@ export async function getMembershipStatus(): Promise<MembershipStatus> {
     return {
       bannerRemoved: devBanner === "1" || devAiPro === "1",
       aiPro: devAiPro === "1",
+      aiProExpiresAt: null,
     };
   }
-  return { bannerRemoved: false, aiPro: false };
+  return { bannerRemoved: false, aiPro: false, aiProExpiresAt: null };
 }
 
 export async function hasAnyPurchase(): Promise<boolean> {

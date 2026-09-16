@@ -12,7 +12,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   name: IS_DEV ? "fullweight (Dev)" : "fullweight",
   slug: "fullweight",
   owner: "choimanseon",
-  version: "1.2.0",
+  version: "1.2.6",
   orientation: "portrait",
   icon: "./assets/images/icon.png",
   scheme: IS_DEV ? "fullweight-dev" : "fullweight",
@@ -28,14 +28,14 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     package: IS_DEV
       ? "com.choimanseon.fullweight.dev"
       : "com.choimanseon.fullweight",
-    versionCode: 20,
+    versionCode: 26,
     adaptiveIcon: {
       backgroundColor: "#E6F4FE",
       foregroundImage: "./assets/images/android-icon-foreground.png",
       monochromeImage: "./assets/images/android-icon-monochrome.png",
     },
     edgeToEdgeEnabled: true,
-    predictiveBackGestureEnabled: false,
+    predictiveBackGestureEnabled: false,5
   },
   web: {
     output: "static",

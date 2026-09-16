@@ -925,7 +925,7 @@ export default function SettingsScreen() {
     await clearAllRecords();
     // 2) 광고 카운터 초기화 (AI 일일횟수, 체중저장 누적)
     await resetAllAdCounters();
-    // 3) RevenueCat 로그아웃 (익명으로 전환)
+    // 3) 개발 빌드에서만 멤버십 시뮬레이션 상태 초기화
     await logoutPurchases();
     // 4) Google 로그인 해제
     try {
@@ -945,7 +945,7 @@ export default function SettingsScreen() {
     await refreshPro();
     setShowDeleteConfirm(false);
     setDeleteInput("");
-    Alert.alert("삭제 완료", "모든 기록, 프로필, 멤버십이 초기화되었습니다.");
+    Alert.alert("삭제 완료", "모든 기록과 프로필이 초기화되었습니다.");
   };
 
   return (
@@ -963,7 +963,7 @@ export default function SettingsScreen() {
           <>
             {aiPro ? (
               /* AI PRO 구독 중 */
-              <View
+              <TouchableOpacity
                 style={[
                   s.card,
                   {
@@ -976,6 +976,8 @@ export default function SettingsScreen() {
                     marginBottom: 16,
                   },
                 ]}
+                onPress={() => setPaywallVisible(true)}
+                activeOpacity={0.85}
               >
                 <Ionicons name="sparkles-outline" size={28} color="#667EEA" />
                 <View style={{ flex: 1 }}>
@@ -991,10 +993,11 @@ export default function SettingsScreen() {
                   <Text
                     style={{ fontSize: 13, color: "#48BB78", marginTop: 2 }}
                   >
-                    무제한 AI · gpt-4o · 모든 광고 제거
+                    무제한 AI · gpt-4o · 모든 광고 제거 · 상세 보기
                   </Text>
                 </View>
-              </View>
+                <Ionicons name="chevron-forward" size={20} color="#68D391" />
+              </TouchableOpacity>
             ) : bannerRemoved ? (
               /* 배너 광고 제거만 구매 */
               <TouchableOpacity

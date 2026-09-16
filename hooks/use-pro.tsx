@@ -14,12 +14,15 @@ import React, {
   useEffect,
   useState,
 } from "react";
+import { AppState } from "react-native";
 
 interface ProContextValue {
   /** 배너 광고 제거 여부 (lifetime 구매 또는 AI PRO 구독 포함) */
   bannerRemoved: boolean;
   /** AI PRO 구독 여부 (무제한 AI + gpt-4o + 모든 광고 제거) */
   aiPro: boolean;
+  /** AI PRO 만료 시각(ISO). 미확인/비구독은 null */
+  aiProExpiresAt: string | null;
   /** 어떤 유료 구매든 있는지 (하위호환) */
   isPro: boolean;
   /** 로딩 중 여부 */
@@ -31,6 +34,7 @@ interface ProContextValue {
 const ProContext = createContext<ProContextValue>({
   bannerRemoved: false,
   aiPro: false,
+  aiProExpiresAt: null,
   isPro: false,
   loading: true,
   refresh: async () => {},
@@ -40,6 +44,7 @@ export function ProProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<MembershipStatus>({
     bannerRemoved: false,
     aiPro: false,
+    aiProExpiresAt: null,
   });
   const [loading, setLoading] = useState(true);
 
@@ -53,11 +58,21 @@ export function ProProvider({ children }: { children: React.ReactNode }) {
     refresh();
   }, [refresh]);
 
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        refresh();
+      }
+    });
+    return () => sub.remove();
+  }, [refresh]);
+
   return (
     <ProContext.Provider
       value={{
         bannerRemoved: status.bannerRemoved,
         aiPro: status.aiPro,
+        aiProExpiresAt: status.aiProExpiresAt,
         isPro: status.bannerRemoved || status.aiPro,
         loading,
         refresh,
