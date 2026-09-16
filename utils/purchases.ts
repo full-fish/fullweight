@@ -54,12 +54,11 @@ function statusFromCustomerInfo(info: any): MembershipStatus {
   const active = info?.entitlements?.active ?? {};
   const aiEntitlement = active[ENTITLEMENT_AI_PRO];
 
-  // entitlement 연결이 안 되어 있어도 활성 구독이 있으면 ai_pro로 간주
-  const hasActiveSubscription = (info?.activeSubscriptions?.length ?? 0) > 0;
-  const aiPro = aiEntitlement !== undefined || hasActiveSubscription;
+  // activeSubscriptions는 환불/해지 후에도 로컬 캐시에 남아 있을 수 있어
+  // entitlement fallback으로 쓰지 않고 entitlements.active만 신뢰한다.
+  const aiPro = aiEntitlement !== undefined;
 
-  const rawExpiry =
-    aiEntitlement?.expirationDate ?? info?.latestExpirationDate ?? null;
+  const rawExpiry = aiEntitlement?.expirationDate ?? null;
   const aiProExpiresAt = typeof rawExpiry === "string" ? rawExpiry : null;
 
   const hasBannerByEntitlement =
