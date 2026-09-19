@@ -7,6 +7,7 @@ import {
   UserSettings,
   WeightRecord,
 } from "@/types";
+import { deleteAllPhotos } from "@/utils/photo";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const STORAGE_KEY = "weight_records_v1";
@@ -72,6 +73,7 @@ export async function clearAllRecords(): Promise<void> {
   await AsyncStorage.removeItem(FAVORITE_FOOD_KEY);
   // 프로필 포함 사용자 설정 전체 초기화
   await AsyncStorage.removeItem(USER_SETTINGS_KEY);
+  await deleteAllPhotos();
 }
 
 /**

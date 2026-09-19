@@ -2121,7 +2121,7 @@ export default function CalendarScreen() {
           favoritesVisible={mealModal.favoritesVisible}
           onClose={mealModal.close}
           onPhotoSelect={mealModal.handlePhotoSelect}
-          onRemovePhoto={() => mealModal.setPhotoUri(undefined)}
+          onRemovePhoto={mealModal.removePhoto}
           onChangeDesc={mealModal.setDesc}
           onChangeMacro={mealModal.updateMacro}
           onOpenFavorites={mealModal.openFavorites}

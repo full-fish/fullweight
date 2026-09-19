@@ -101,6 +101,18 @@ export async function deletePhoto(uri: string): Promise<void> {
   }
 }
 
+/** 앱 내부에 저장된 사진 전체 삭제 */
+export async function deleteAllPhotos(): Promise<void> {
+  try {
+    const info = await LegacyFileSystem.getInfoAsync(PHOTO_DIR);
+    if (info.exists) {
+      await LegacyFileSystem.deleteAsync(PHOTO_DIR, { idempotent: true });
+    }
+  } catch {
+    // ignore
+  }
+}
+
 /**
  * 음식 사진 촬영/선택 — AI용 고화질과 저장용 압축 파일을 분리 반환
  * - aiUri  : 항상 원본 화질 (AI 분석용, 사용 후 호출부에서 deletePhoto 호출)

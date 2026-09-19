@@ -69,13 +69,16 @@ export function useMealInputModal(options: MealEditorOptions = {}) {
   }, []);
 
   const close = useCallback(() => {
+    if (photoUri) deletePhoto(photoUri).catch(() => {});
+    setPhotoUri(undefined);
     setVisible(false);
-  }, []);
+  }, [photoUri]);
 
   const handlePhotoSelect = useCallback(
     async (source: "camera" | "gallery") => {
       const captured = await captureFoodPhoto(source, options.foodPhotoQuality);
       if (!captured) return;
+      if (photoUri) await deletePhoto(photoUri);
       setPhotoUri(captured.savedUri);
       setAiAnalyzing(true);
       try {
@@ -132,8 +135,13 @@ export function useMealInputModal(options: MealEditorOptions = {}) {
         setAiAnalyzing(false);
       }
     },
-    [options.aiModel, options.foodPhotoQuality, options.aiPro]
+    [options.aiModel, options.foodPhotoQuality, options.aiPro, photoUri]
   );
+
+  const removePhoto = useCallback(() => {
+    if (photoUri) deletePhoto(photoUri).catch(() => {});
+    setPhotoUri(undefined);
+  }, [photoUri]);
 
   /** 탄단지 입력 시 칼로리 자동 계산 */
   const updateMacro = useCallback(
@@ -185,6 +193,7 @@ export function useMealInputModal(options: MealEditorOptions = {}) {
         createdAt: new Date().toISOString(),
       };
       const updated = await addMeal(entry);
+      setPhotoUri(undefined);
       setVisible(false);
       return updated;
     },
@@ -245,7 +254,7 @@ export function useMealInputModal(options: MealEditorOptions = {}) {
 
   const bulkAddFavorites = useCallback(
     async (
-      foods: Array<{ name: string; carb: number; protein: number; fat: number }>
+      foods: { name: string; carb: number; protein: number; fat: number }[]
     ) => {
       if (!foods.length) return;
 
@@ -327,6 +336,7 @@ export function useMealInputModal(options: MealEditorOptions = {}) {
     mealType,
     photoUri,
     setPhotoUri,
+    removePhoto,
     desc,
     setDesc,
     carb,

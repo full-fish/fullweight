@@ -1512,7 +1512,7 @@ export default function HomeScreen() {
           favoritesVisible={mealModal.favoritesVisible}
           onClose={mealModal.close}
           onPhotoSelect={mealModal.handlePhotoSelect}
-          onRemovePhoto={() => mealModal.setPhotoUri(undefined)}
+          onRemovePhoto={mealModal.removePhoto}
           onChangeDesc={mealModal.setDesc}
           onChangeMacro={mealModal.updateMacro}
           onSave={handleSaveMealEntry}
