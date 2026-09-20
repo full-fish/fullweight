@@ -217,7 +217,7 @@ export const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
  * @param weight 체중(kg)
  * @returns 하루 평균 운동 칼로리 소비량
  */
-export function calcDailyExerciseCal(
+function calcDailyExerciseCal(
   freq: number,
   mins: number,
   intensity: number,

@@ -53,7 +53,7 @@ export async function googleSignIn(): Promise<{
 }
 
 /** 유효한 Access Token 획득 (라이브러리가 만료 시 자동 갱신) */
-export async function getValidAccessToken(): Promise<string | null> {
+async function getValidAccessToken(): Promise<string | null> {
   try {
     if (!GoogleSignin.hasPreviousSignIn()) return null;
     const { accessToken } = await GoogleSignin.getTokens();

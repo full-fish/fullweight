@@ -484,15 +484,6 @@ export const zoomModalStyles = StyleSheet.create({
   },
 });
 
-/** 카드 공통 그림자 스타일 */
-export const cardShadow = {
-  shadowColor: "#000",
-  shadowOffset: { width: 0, height: 1 },
-  shadowOpacity: 0.05,
-  shadowRadius: 4,
-  elevation: 2,
-} as const;
-
 /** 메모 섹션 스타일 (공용) */
 export const memoStyles = StyleSheet.create({
   section: {

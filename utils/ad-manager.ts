@@ -17,7 +17,7 @@ const WEIGHT_SAVE_COUNT_KEY = "ad_weight_save_count"; // number (누적)
 const WEIGHT_SAVE_AD_COOLDOWN_KEY = "ad_weight_save_cooldown_ts"; // number (ms, 마지막 광고 노출 시각)
 
 /* ─── 상수 ─── */
-export const FREE_AI_LIMIT = 2; // 무료 AI 분석 횟수/일
+const FREE_AI_LIMIT = 2; // 무료 AI 분석 횟수/일
 const WEIGHT_AD_INTERVAL = 3; // 3회마다 전면 광고
 const WEIGHT_SAVE_AD_COOLDOWN_MS = 15 * 60 * 1000; // 15분 쿨다운
 
@@ -56,12 +56,6 @@ export async function getAiRemainingCount(): Promise<number> {
   return Math.max(0, FREE_AI_LIMIT - data.count);
 }
 
-/** 오늘 사용한 AI 분석 횟수 */
-export async function getAiUsedCount(): Promise<number> {
-  const data = await loadAiDailyData();
-  return data.count;
-}
-
 /**
  * AI 분석 1회 사용 기록
  * @returns 무료 범위 내면 true, 초과면 false (전면 광고 필요)
@@ -74,7 +68,7 @@ export async function recordAiUsage(): Promise<boolean> {
 }
 
 /** AI 일일 카운터 초기화 */
-export async function resetAiCount(): Promise<void> {
+async function resetAiCount(): Promise<void> {
   await AsyncStorage.removeItem(AI_COUNT_KEY);
 }
 
@@ -101,7 +95,7 @@ async function loadWeightSaveAdCooldownTs(): Promise<number> {
   }
 }
 
-export async function markWeightSaveAdShown(): Promise<void> {
+async function markWeightSaveAdShown(): Promise<void> {
   await AsyncStorage.setItem(WEIGHT_SAVE_AD_COOLDOWN_KEY, String(Date.now()));
 }
 
@@ -125,13 +119,8 @@ export async function recordWeightSave(): Promise<boolean> {
   return count % WEIGHT_AD_INTERVAL === 0;
 }
 
-/** 누적 체중 저장 횟수 */
-export async function getWeightSaveCount(): Promise<number> {
-  return loadWeightSaveCount();
-}
-
 /** 체중 저장 카운터 초기화 */
-export async function resetWeightSaveCount(): Promise<void> {
+async function resetWeightSaveCount(): Promise<void> {
   await AsyncStorage.removeItem(WEIGHT_SAVE_COUNT_KEY);
   await AsyncStorage.removeItem(WEIGHT_SAVE_AD_COOLDOWN_KEY);
 }
