@@ -3,9 +3,17 @@
  * explore.tsx의 기간 선택, 통계/활동 기간 선택 등에서 공통 사용
  */
 import { useKeyboardOffset } from "@/hooks/use-keyboard-offset";
-import { getDaysInMonth, getFirstDayOfWeek, pad2 } from "@/utils/format";
+import {
+  getDaysInMonth,
+  getFirstDayOfWeek,
+  isValidDateString,
+  normalizeDateString,
+  pad2,
+} from "@/utils/format";
+import { getLocalDateString } from "@/utils/storage";
 import React, { useEffect, useState } from "react";
 import {
+  Alert,
   Dimensions,
   Modal,
   ScrollView,
@@ -28,6 +36,10 @@ type Props = {
   minDate?: string;
   /** 선택 가능한 최대 날짜 (YYYY-MM-DD) */
   maxDate?: string;
+  /** 연도 선택 목록 범위 (기본 1920~올해) */
+  yearRange?: { from: number; to: number };
+  /** 하단 "오늘" 버튼 표시 */
+  showTodayButton?: boolean;
 };
 
 export function CalendarModal({
@@ -37,6 +49,8 @@ export function CalendarModal({
   onClose,
   minDate,
   maxDate,
+  yearRange,
+  showTodayButton,
 }: Props) {
   const now = new Date();
   const parsed = value ? new Date(value) : now;
@@ -53,10 +67,13 @@ export function CalendarModal({
   );
 
   const currYear = new Date().getFullYear();
+  const yFrom = yearRange?.from ?? 1920;
+  const yTo = yearRange?.to ?? currYear;
   const years = Array.from(
-    { length: currYear - 1920 + 1 },
-    (_, i) => 1920 + i
+    { length: yTo - yFrom + 1 },
+    (_, i) => yFrom + i
   ).reverse();
+  const todayStr = getLocalDateString(now);
 
   useEffect(() => {
     if (visible) {
@@ -92,12 +109,30 @@ export function CalendarModal({
   };
 
   const handleTextConfirm = () => {
-    if (/^\d{4}-\d{2}-\d{2}$/.test(textDate)) {
-      if (minDate && textDate < minDate) return;
-      if (maxDate && textDate > maxDate) return;
-      onChange(textDate);
-      onClose();
+    const normalized = normalizeDateString(textDate.trim());
+    if (!normalized) {
+      Alert.alert(
+        "형식 오류",
+        "YYYYMMDD 또는 YYYY-MM-DD 형식으로 입력해주세요."
+      );
+      return;
     }
+    if (!isValidDateString(normalized)) {
+      Alert.alert("날짜 오류", "존재하지 않는 날짜입니다.");
+      return;
+    }
+    if (
+      (minDate && normalized < minDate) ||
+      (maxDate && normalized > maxDate)
+    ) {
+      Alert.alert(
+        "범위 오류",
+        `${minDate ?? "제한 없음"} ~ ${maxDate ?? "제한 없음"} 사이여야 합니다.`
+      );
+      return;
+    }
+    onChange(normalized);
+    onClose();
   };
 
   return (
@@ -292,6 +327,7 @@ export function CalendarModal({
                       return <View key={di} style={cpS.dayCell} />;
                     const dateStr = `${cYear}-${pad2(cMonth + 1)}-${pad2(day)}`;
                     const isSelected = dateStr === value;
+                    const isToday = dateStr === todayStr;
                     const isDisabled =
                       (minDate != null && dateStr < minDate) ||
                       (maxDate != null && dateStr > maxDate);
@@ -300,6 +336,7 @@ export function CalendarModal({
                         key={di}
                         style={[
                           cpS.dayCell,
+                          isToday && !isSelected && cpS.dayCellToday,
                           isSelected && cpS.dayCellSelected,
                           isDisabled && cpS.dayCellDisabled,
                         ]}
@@ -313,6 +350,9 @@ export function CalendarModal({
                         <Text
                           style={[
                             cpS.dayText,
+                            di === 0 && { color: "#E53E3E" },
+                            di === 6 && { color: "#3182CE" },
+                            isToday && !isSelected && cpS.dayTextToday,
                             isSelected && { color: "#fff" },
                             isDisabled && cpS.dayTextDisabled,
                           ]}
@@ -325,6 +365,21 @@ export function CalendarModal({
                 </View>
               ))}
             </>
+          )}
+
+          {showTodayButton && (
+            <TouchableOpacity
+              style={cpS.todayBtn}
+              onPress={() => {
+                setCYear(now.getFullYear());
+                setCMonth(now.getMonth());
+                setPickerMode("calendar");
+                onChange(todayStr);
+                onClose();
+              }}
+            >
+              <Text style={cpS.todayBtnText}>오늘</Text>
+            </TouchableOpacity>
           )}
         </View>
       </TouchableOpacity>
@@ -374,7 +429,17 @@ const cpS = StyleSheet.create({
     borderRadius: CP_DAY / 2,
   },
   dayCellSelected: { backgroundColor: "#4CAF50" },
+  dayCellToday: { borderWidth: 1.5, borderColor: "#4CAF50" },
   dayCellDisabled: { opacity: 0.35 },
   dayText: { fontSize: 13, fontWeight: "500", color: "#2D3748" },
+  dayTextToday: { color: "#4CAF50", fontWeight: "700" },
   dayTextDisabled: { color: "#718096" },
+  todayBtn: {
+    marginTop: 12,
+    alignItems: "center",
+    paddingVertical: 10,
+    backgroundColor: "#F0F4F8",
+    borderRadius: 10,
+  },
+  todayBtnText: { fontSize: 14, fontWeight: "600", color: "#4CAF50" },
 });

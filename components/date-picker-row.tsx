@@ -19,6 +19,10 @@ type Props = {
   onChange: (v: string) => void;
   minDate?: string;
   maxDate?: string;
+  /** 연도 선택 목록 범위 (기본 1920~올해) */
+  yearRange?: { from: number; to: number };
+  /** 라벨 위치 — left: 입력칸 왼쪽, top: 입력칸 위 */
+  labelPosition?: "left" | "top";
 };
 
 export function DatePickerRow({
@@ -27,19 +31,22 @@ export function DatePickerRow({
   onChange,
   minDate,
   maxDate,
+  yearRange,
+  labelPosition = "left",
 }: Props) {
   const [showCal, setShowCal] = useState(false);
+  const isTop = labelPosition === "top";
 
   return (
     <>
-      <View style={s.dateRow}>
-        <Text style={s.dateLabel}>{label}</Text>
+      <View style={isTop ? s.dateColumn : s.dateRow}>
+        <Text style={isTop ? s.dateLabelTop : s.dateLabel}>{label}</Text>
         <TouchableOpacity
-          style={s.dateInputWrap}
+          style={[s.dateInputWrap, isTop && s.dateInputWrapTop]}
           onPress={() => setShowCal(true)}
         >
           <TextInput
-            style={s.dateInput}
+            style={[s.dateInput, isTop && s.dateInputTop]}
             value={value}
             onChangeText={onChange}
             placeholder="YYYY-MM-DD"
@@ -49,7 +56,7 @@ export function DatePickerRow({
               Platform.OS === "ios" ? "numbers-and-punctuation" : "default"
             }
           />
-          <Text style={s.dateCalIcon}>📅</Text>
+          <Text style={[s.dateCalIcon, isTop && s.dateCalIconTop]}>📅</Text>
         </TouchableOpacity>
       </View>
       <CalendarModal
@@ -59,6 +66,7 @@ export function DatePickerRow({
         onClose={() => setShowCal(false)}
         minDate={minDate}
         maxDate={maxDate}
+        yearRange={yearRange}
       />
     </>
   );
@@ -70,11 +78,21 @@ const s = StyleSheet.create({
     alignItems: "center",
     marginBottom: 8,
   },
+  dateColumn: {
+    marginBottom: 8,
+  },
   dateLabel: {
     width: 50,
     fontSize: 13,
     fontWeight: "600",
     color: "#4A5568",
+  },
+  dateLabelTop: {
+    fontSize: 13,
+    fontWeight: "500",
+    color: "#4A5568",
+    marginTop: 12,
+    marginBottom: 4,
   },
   dateInputWrap: {
     flex: 1,
@@ -87,10 +105,20 @@ const s = StyleSheet.create({
     paddingHorizontal: 10,
     height: 36,
   },
+  dateInputWrapTop: {
+    height: 44,
+    borderRadius: 10,
+  },
   dateInput: {
     flex: 1,
     fontSize: 14,
     color: "#2D3748",
   },
+  dateInputTop: {
+    height: 44,
+    paddingHorizontal: 4,
+    fontSize: 15,
+  },
   dateCalIcon: { fontSize: 16 },
+  dateCalIconTop: { fontSize: 18 },
 });
