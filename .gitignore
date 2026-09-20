@@ -57,3 +57,10 @@ google-service-account.json
 *.apk
 
 *plan.md
+# 에이전트 도구 설정
+.claude/
+.serena/
+.ua/
+
+# 네이티브 모듈 빌드 캐시
+modules/expo-downloads/android/.gradle/
