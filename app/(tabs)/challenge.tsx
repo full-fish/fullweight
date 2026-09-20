@@ -1783,12 +1783,6 @@ export default function ChallengeScreen() {
 const st = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F0F4F8" },
   content: { paddingTop: 60, paddingHorizontal: 20, paddingBottom: 40 },
-  title: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: "#1A202C",
-    marginBottom: 20,
-  },
 
   /* empty state */
   emptyCard: {
@@ -2027,16 +2021,6 @@ const st = StyleSheet.create({
     color: "#4CAF50",
     marginTop: -1,
   },
-  formInput: {
-    height: 44,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    fontSize: 15,
-    color: "#2D3748",
-    backgroundColor: "#F7FAFC",
-  },
   formBtnRow: {
     flexDirection: "row",
     gap: 10,
@@ -2062,22 +2046,6 @@ const st = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
-  historyItem: {
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F0F4F8",
-  },
-  historyHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 6,
-  },
-  historyDate: { fontSize: 13, color: "#718096", fontWeight: "500" },
-  historyPercent: { fontSize: 16, fontWeight: "700", color: "#2D3748" },
-  historyDetails: { gap: 2, marginBottom: 4 },
-  historyDetail: { fontSize: 13, color: "#4A5568" },
-  historyCompleted: { fontSize: 11, color: "#A0AEC0", marginTop: 4 },
 
   /* history card (색상 카드) */
   hCard: {
@@ -2099,11 +2067,6 @@ const st = StyleSheet.create({
     fontWeight: "600",
     color: "#2D3748",
   },
-  hCardCompleted: {
-    fontSize: 11,
-    color: "#718096",
-    marginTop: 3,
-  },
   hCardPctBox: {
     alignItems: "flex-end",
     marginLeft: 12,
@@ -2111,11 +2074,6 @@ const st = StyleSheet.create({
   hCardPct: {
     fontSize: 28,
     fontWeight: "800",
-  },
-  hCardPctLabel: {
-    fontSize: 11,
-    fontWeight: "600",
-    marginTop: 1,
   },
 
   /* 수치별 상세 */

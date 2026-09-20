@@ -2157,12 +2157,6 @@ export default function CalendarScreen() {
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F0F4F8" },
   content: { paddingTop: 60, paddingHorizontal: 20, paddingBottom: 40 },
-  title: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: "#1A202C",
-    marginBottom: 20,
-  },
 
   /* nav */
   navRow: {
@@ -2199,17 +2193,6 @@ const s = StyleSheet.create({
     gap: 10,
     marginBottom: 16,
   },
-  summaryChip: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    paddingVertical: 12,
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
-  },
   summaryChipFull: {
     flex: 1,
     backgroundColor: "#fff",
@@ -2233,9 +2216,6 @@ const s = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 4,
     elevation: 2,
-  },
-  summaryChipFirst: {
-    marginLeft: 0,
   },
   summaryNum: { fontSize: 22, fontWeight: "700", color: "#2D3748" },
   summaryLabel: { fontSize: 12, color: "#A0AEC0", marginTop: 2 },

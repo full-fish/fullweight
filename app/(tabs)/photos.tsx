@@ -1,4 +1,5 @@
 import { WeightRecord } from "@/types";
+import { fmtDateShort } from "@/utils/format";
 import { loadRecords } from "@/utils/storage";
 import { useFocusEffect } from "@react-navigation/native";
 import React, { useCallback, useMemo, useRef, useState } from "react";
@@ -23,10 +24,6 @@ const THUMB_SIZE = Math.floor(
 function fmtDate(d: string) {
   const [y, m, day] = d.split("-");
   return `${y}.${m}.${day}`;
-}
-
-function fmtDateShort(d: string) {
-  return d.slice(2).replace(/-/g, ".");
 }
 
 export default function PhotosScreen() {
@@ -407,11 +404,6 @@ const s = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: "#1A202C",
   },
   compareToggle: {
     paddingHorizontal: 16,

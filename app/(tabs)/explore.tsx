@@ -1,6 +1,5 @@
 import { CalendarModal } from "@/components/calendar-modal";
 import { DatePickerRow } from "@/components/date-picker-row";
-import { usePro } from "@/hooks/use-pro";
 import {
   METRIC_COLORS,
   METRIC_UNITS,
@@ -61,8 +60,6 @@ const NUTRITION_COLORS: Record<string, string> = {
 export default function ChartScreen() {
   const _now = new Date();
   const todayStr = `${_now.getFullYear()}-${String(_now.getMonth() + 1).padStart(2, "0")}-${String(_now.getDate()).padStart(2, "0")}`;
-  const { bannerRemoved } = usePro();
-
   const [allRecords, setAllRecords] = useState<WeightRecord[]>([]);
   const [userSettings, setUserSettings] = useState<UserSettings>({});
   const [selectedMetrics, setSelectedMetrics] = useState<string[]>(["weight"]);
@@ -2328,12 +2325,6 @@ export default function ChartScreen() {
 
 /* ───── fullscreen chart styles ───── */
 const fsStyles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-    paddingTop: 16,
-    paddingHorizontal: 16,
-  },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -2366,12 +2357,6 @@ const s = StyleSheet.create({
     paddingTop: 60,
     paddingHorizontal: 20,
     paddingBottom: 40,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: "#1A202C",
-    marginBottom: 20,
   },
   metricRow: {
     flexDirection: "row",
@@ -2454,18 +2439,6 @@ const s = StyleSheet.create({
     color: "#A0AEC0",
     textAlign: "center",
   },
-  multiAxisNote: {
-    fontSize: 12,
-    color: "#A0AEC0",
-    textAlign: "center",
-    marginBottom: 8,
-  },
-  pinchHint: {
-    fontSize: 11,
-    color: "#A0AEC0",
-    textAlign: "center",
-    marginBottom: 8,
-  },
   overlayToggleRow: {
     flexDirection: "row",
     backgroundColor: "#EDF2F7",
@@ -2522,13 +2495,6 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
   },
-  legendRow: {
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 16,
-    marginTop: 10,
-  },
-  legendItem: { flexDirection: "row", alignItems: "center" },
   legendDot: {
     width: 8,
     height: 8,
@@ -2614,7 +2580,6 @@ const s = StyleSheet.create({
     paddingVertical: 8,
   },
   summaryItem: { alignItems: "center" },
-  summaryEmoji: { fontSize: 26, marginBottom: 6 },
   summaryCount: { fontSize: 20, fontWeight: "700", color: "#2D3748" },
   summaryPercent: { fontSize: 13, fontWeight: "500", color: "#718096" },
   summaryLabel: { fontSize: 12, color: "#A0AEC0", marginTop: 2 },
