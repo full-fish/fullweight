@@ -14,7 +14,6 @@ import "react-native-reanimated";
 import AppOnboarding from "@/components/app-onboarding";
 import LockScreen from "@/components/lock-screen";
 import UpdateRequiredModal from "@/components/update-required-modal";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 import { ProProvider } from "@/hooks/use-pro";
 import { initMobileAds } from "@/utils/ads-init";
 import { performBackup, shouldAutoBackup } from "@/utils/backup";
@@ -23,7 +22,12 @@ import { loadUserSettings } from "@/utils/storage";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { AppState, InteractionManager, View } from "react-native";
+import {
+  AppState,
+  InteractionManager,
+  useColorScheme,
+  View,
+} from "react-native";
 
 // 스플래시 화면 자동 숨김 방지 (폰트 로딩 완료까지 유지)
 SplashScreen.preventAutoHideAsync();
@@ -157,10 +161,6 @@ export default function RootLayout() {
         >
           <Stack>
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen
-              name="modal"
-              options={{ presentation: "modal", title: "Modal" }}
-            />
           </Stack>
           <StatusBar style="auto" />
           <AppOnboarding

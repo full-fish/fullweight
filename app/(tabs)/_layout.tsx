@@ -2,11 +2,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { BottomTabBar } from "@react-navigation/bottom-tabs";
 import { Tabs } from "expo-router";
 import React from "react";
-import { View } from "react-native";
+import { useColorScheme, View } from "react-native";
 
 import { AdBanner } from "@/components/ad-banner";
 import { HapticTab } from "@/components/haptic-tab";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
