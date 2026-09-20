@@ -1,4 +1,5 @@
 import { AddCustomBool } from "@/components/add-custom-item";
+import { CalendarModal } from "@/components/calendar-modal";
 import { PaywallModal } from "@/components/paywall-modal";
 import {
   CP_W,
@@ -38,11 +39,8 @@ import { hexToHsv, hexToRgb, hsvToHex, rgbToHex } from "@/utils/color";
 import { estimatePhotoSize, exportData, ExportFormat } from "@/utils/export";
 import {
   calcAge,
-  getDaysInMonth,
-  getFirstDayOfWeek,
   isValidDateString,
   normalizeDateString,
-  WEEKDAY_LABELS,
 } from "@/utils/format";
 import { importInBodyCSV } from "@/utils/inbody-import";
 import {
@@ -53,6 +51,7 @@ import {
 import {
   clearAllRecords,
   deleteMetricByKey,
+  getLocalDateString,
   loadRecords,
   loadUserSettings,
   saveUserSettings,
@@ -61,12 +60,11 @@ import Entypo from "@expo/vector-icons/Entypo";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useFocusEffect } from "@react-navigation/native";
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Dimensions,
-  FlatList,
   Modal,
   ScrollView,
   StyleSheet,
@@ -88,307 +86,6 @@ import Svg, {
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
 const CURRENT_YEAR = new Date().getFullYear();
-const YEAR_LIST = Array.from(
-  { length: CURRENT_YEAR - 1920 + 1 },
-  (_, i) => 1920 + i
-).reverse();
-
-/* ───── 캘린더 팝업 컴포넌트 ───── */
-
-type CalendarPopupProps = {
-  visible: boolean;
-  initialDate?: string;
-  onSelect: (date: string) => void;
-  onClose: () => void;
-};
-
-type PickerMode = "calendar" | "year" | "month";
-
-function CalendarPopup({
-  visible,
-  initialDate,
-  onSelect,
-  onClose,
-}: CalendarPopupProps) {
-  const parseInitial = useCallback(() => {
-    if (initialDate && isValidDateString(initialDate)) {
-      const [y, m, d] = initialDate.split("-").map(Number);
-      return { year: y, month: m, day: d };
-    }
-    const now = new Date();
-    return {
-      year: now.getFullYear(),
-      month: now.getMonth() + 1,
-      day: now.getDate(),
-    };
-  }, [initialDate]);
-
-  const init = parseInitial();
-  const [viewYear, setViewYear] = useState(init.year);
-  const [viewMonth, setViewMonth] = useState(init.month);
-  const [selectedDay, setSelectedDay] = useState<number | null>(init.day);
-  const [textValue, setTextValue] = useState(initialDate ?? "");
-  const [pickerMode, setPickerMode] = useState<PickerMode>("calendar");
-  const yearListRef = useRef<FlatList>(null);
-
-  // sync state when popup opens
-  React.useEffect(() => {
-    if (visible) {
-      const v = parseInitial();
-      setViewYear(v.year);
-      setViewMonth(v.month);
-      setSelectedDay(v.day);
-      setTextValue(initialDate ?? "");
-      setPickerMode("calendar");
-    }
-  }, [visible, initialDate, parseInitial]);
-
-  const daysInMonth = getDaysInMonth(viewYear, viewMonth - 1);
-  const firstDay = getFirstDayOfWeek(viewYear, viewMonth - 1);
-
-  const dayGrid = useMemo(() => {
-    const cells: (number | null)[] = [];
-    for (let i = 0; i < firstDay; i++) cells.push(null);
-    for (let d = 1; d <= daysInMonth; d++) cells.push(d);
-    return cells;
-  }, [daysInMonth, firstDay]);
-
-  const handleTextSubmit = () => {
-    const v = textValue.trim();
-    const normalized = normalizeDateString(v);
-    if (!normalized || !isValidDateString(normalized)) {
-      Alert.alert(
-        "형식 오류",
-        "YYYYMMDD 또는 YYYY-MM-DD 형식으로 입력해주세요."
-      );
-      return;
-    }
-    const [y] = normalized.split("-").map(Number);
-    if (y < 1920 || y > CURRENT_YEAR) {
-      Alert.alert("범위 오류", `연도는 1920~${CURRENT_YEAR} 사이여야 합니다.`);
-      return;
-    }
-    onSelect(normalized);
-    onClose();
-  };
-
-  const handleDayPress = (day: number) => {
-    setSelectedDay(day);
-    const mm = String(viewMonth).padStart(2, "0");
-    const dd = String(day).padStart(2, "0");
-    const dateStr = `${viewYear}-${mm}-${dd}`;
-    setTextValue(dateStr);
-    onSelect(dateStr);
-    onClose();
-  };
-
-  const handleYearSelect = (year: number) => {
-    setViewYear(year);
-    setPickerMode("calendar");
-  };
-
-  const handleMonthSelect = (month: number) => {
-    setViewMonth(month);
-    setPickerMode("calendar");
-  };
-
-  const goToPrevMonth = () => {
-    if (viewMonth === 1) {
-      setViewYear((y) => y - 1);
-      setViewMonth(12);
-    } else {
-      setViewMonth((m) => m - 1);
-    }
-  };
-
-  const goToNextMonth = () => {
-    if (viewMonth === 12) {
-      setViewYear((y) => y + 1);
-      setViewMonth(1);
-    } else {
-      setViewMonth((m) => m + 1);
-    }
-  };
-
-  const renderYearPicker = () => {
-    const initialIndex = YEAR_LIST.indexOf(viewYear);
-    return (
-      <FlatList
-        ref={yearListRef}
-        data={YEAR_LIST}
-        keyExtractor={(item) => String(item)}
-        initialScrollIndex={Math.max(0, initialIndex)}
-        getItemLayout={(_, index) => ({
-          length: 48,
-          offset: 48 * index,
-          index,
-        })}
-        style={{ maxHeight: 300 }}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={[cs.yearItem, item === viewYear && cs.yearItemSelected]}
-            onPress={() => handleYearSelect(item)}
-          >
-            <Text
-              style={[
-                cs.yearItemText,
-                item === viewYear && cs.yearItemTextSelected,
-              ]}
-            >
-              {item}년
-            </Text>
-          </TouchableOpacity>
-        )}
-      />
-    );
-  };
-
-  const renderMonthPicker = () => (
-    <View style={cs.monthGrid}>
-      {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
-        <TouchableOpacity
-          key={m}
-          style={[cs.monthCell, m === viewMonth && cs.monthCellSelected]}
-          onPress={() => handleMonthSelect(m)}
-        >
-          <Text
-            style={[
-              cs.monthCellText,
-              m === viewMonth && cs.monthCellTextSelected,
-            ]}
-          >
-            {m}월
-          </Text>
-        </TouchableOpacity>
-      ))}
-    </View>
-  );
-
-  const today = new Date();
-  const isCurrentMonth =
-    viewYear === today.getFullYear() && viewMonth === today.getMonth() + 1;
-  const todayDay = today.getDate();
-
-  const renderCalendar = () => (
-    <View>
-      {/* Weekday headers */}
-      <View style={cs.weekdayRow}>
-        {WEEKDAY_LABELS.map((label, i) => (
-          <Text
-            key={label}
-            style={[
-              cs.weekdayLabel,
-              i === 0 && { color: "#E53E3E" },
-              i === 6 && { color: "#4299E1" },
-            ]}
-          >
-            {label}
-          </Text>
-        ))}
-      </View>
-      {/* Day grid */}
-      <View style={cs.dayGrid}>
-        {dayGrid.map((day, idx) => {
-          if (day === null) {
-            return <View key={`empty-${idx}`} style={cs.dayCell} />;
-          }
-          const isSelected = day === selectedDay;
-          const isToday = isCurrentMonth && day === todayDay;
-          return (
-            <TouchableOpacity
-              key={day}
-              style={[
-                cs.dayCell,
-                isSelected && cs.dayCellSelected,
-                isToday && !isSelected && cs.dayCellToday,
-              ]}
-              onPress={() => handleDayPress(day)}
-            >
-              <Text
-                style={[
-                  cs.dayCellText,
-                  isSelected && cs.dayCellTextSelected,
-                  isToday && !isSelected && cs.dayCellTodayText,
-                  idx % 7 === 0 && !isSelected && { color: "#E53E3E" },
-                  idx % 7 === 6 && !isSelected && { color: "#4299E1" },
-                ]}
-              >
-                {day}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-    </View>
-  );
-
-  return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
-    >
-      <TouchableOpacity style={cs.overlay} activeOpacity={1} onPress={onClose}>
-        <TouchableOpacity activeOpacity={1} style={cs.popup}>
-          {/* Text input at top */}
-          <View style={cs.textInputRow}>
-            <TextInput
-              style={cs.textInput}
-              value={textValue}
-              onChangeText={setTextValue}
-              placeholder="YYYY-MM-DD"
-              placeholderTextColor="#A0AEC0"
-              keyboardType="numbers-and-punctuation"
-              returnKeyType="done"
-              onSubmitEditing={handleTextSubmit}
-              maxLength={10}
-            />
-            <TouchableOpacity
-              style={cs.textInputBtn}
-              onPress={handleTextSubmit}
-            >
-              <Text style={cs.textInputBtnText}>확인</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Navigation header */}
-          <View style={cs.navRow}>
-            <TouchableOpacity onPress={goToPrevMonth} style={cs.navArrow}>
-              <Text style={cs.navArrowText}>◀</Text>
-            </TouchableOpacity>
-
-            <View style={cs.navCenter}>
-              <TouchableOpacity
-                onPress={() =>
-                  setPickerMode((m) => (m === "year" ? "calendar" : "year"))
-                }
-              >
-                <Text style={cs.navTitle}>{viewYear}년</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() =>
-                  setPickerMode((m) => (m === "month" ? "calendar" : "month"))
-                }
-              >
-                <Text style={cs.navTitle}> {viewMonth}월</Text>
-              </TouchableOpacity>
-            </View>
-
-            <TouchableOpacity onPress={goToNextMonth} style={cs.navArrow}>
-              <Text style={cs.navArrowText}>▶</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Body */}
-          {pickerMode === "year" && renderYearPicker()}
-          {pickerMode === "month" && renderMonthPicker()}
-          {pickerMode === "calendar" && renderCalendar()}
-        </TouchableOpacity>
-      </TouchableOpacity>
-    </Modal>
-  );
-}
 
 /* ───── 메인 화면 ───── */
 
@@ -4009,11 +3706,13 @@ export default function SettingsScreen() {
       </ScrollView>
 
       {/* 생년월일 캘린더 팝업 */}
-      <CalendarPopup
+      <CalendarModal
         visible={calendarVisible}
-        initialDate={birthDate}
-        onSelect={(date) => setBirthDate(date)}
+        value={birthDate}
+        onChange={(date) => setBirthDate(date)}
         onClose={() => setCalendarVisible(false)}
+        minDate="1920-01-01"
+        maxDate={getLocalDateString()}
       />
     </View>
   );
@@ -4393,175 +4092,3 @@ const s = StyleSheet.create({
   },
 });
 
-/* ───── 캘린더 팝업 스타일 ───── */
-
-const POPUP_WIDTH = Math.min(SCREEN_WIDTH - 40, 360);
-const DAY_CELL_SIZE = Math.floor((POPUP_WIDTH - 40) / 7);
-
-const cs = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.45)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  popup: {
-    width: POPUP_WIDTH,
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
-    maxHeight: "80%",
-  },
-
-  /* text input */
-  textInputRow: {
-    flexDirection: "row",
-    marginBottom: 16,
-    alignItems: "center",
-  },
-  textInput: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: "500",
-    color: "#2D3748",
-    backgroundColor: "#F7FAFC",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    textAlign: "center",
-  },
-  textInputBtn: {
-    marginLeft: 8,
-    backgroundColor: "#4299E1",
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  textInputBtnText: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "600",
-  },
-
-  /* navigation */
-  navRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 12,
-  },
-  navArrow: {
-    padding: 8,
-  },
-  navArrowText: {
-    fontSize: 14,
-    color: "#4A5568",
-  },
-  navCenter: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  navTitle: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: "#2D3748",
-  },
-
-  /* weekday */
-  weekdayRow: {
-    flexDirection: "row",
-    marginBottom: 4,
-  },
-  weekdayLabel: {
-    width: DAY_CELL_SIZE,
-    textAlign: "center",
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#A0AEC0",
-    paddingVertical: 4,
-  },
-
-  /* day grid */
-  dayGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-  },
-  dayCell: {
-    width: DAY_CELL_SIZE,
-    height: DAY_CELL_SIZE,
-    justifyContent: "center",
-    alignItems: "center",
-    borderRadius: DAY_CELL_SIZE / 2,
-  },
-  dayCellSelected: {
-    backgroundColor: "#4299E1",
-  },
-  dayCellToday: {
-    borderWidth: 1.5,
-    borderColor: "#4299E1",
-  },
-  dayCellText: {
-    fontSize: 14,
-    color: "#2D3748",
-  },
-  dayCellTextSelected: {
-    color: "#fff",
-    fontWeight: "700",
-  },
-  dayCellTodayText: {
-    color: "#4299E1",
-    fontWeight: "600",
-  },
-
-  /* year picker */
-  yearItem: {
-    height: 48,
-    justifyContent: "center",
-    alignItems: "center",
-    borderBottomWidth: 1,
-    borderBottomColor: "#F0F4F8",
-  },
-  yearItemSelected: {
-    backgroundColor: "#EBF8FF",
-  },
-  yearItemText: {
-    fontSize: 16,
-    color: "#4A5568",
-  },
-  yearItemTextSelected: {
-    color: "#4299E1",
-    fontWeight: "700",
-  },
-
-  /* month picker */
-  monthGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "center",
-    paddingVertical: 8,
-  },
-  monthCell: {
-    width: "25%",
-    paddingVertical: 14,
-    alignItems: "center",
-    borderRadius: 8,
-  },
-  monthCellSelected: {
-    backgroundColor: "#EBF8FF",
-  },
-  monthCellText: {
-    fontSize: 15,
-    color: "#4A5568",
-  },
-  monthCellTextSelected: {
-    color: "#4299E1",
-    fontWeight: "700",
-  },
-});

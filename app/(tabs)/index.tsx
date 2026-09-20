@@ -1,6 +1,6 @@
+import { CalendarModal } from "@/components/calendar-modal";
 import { MealCardList } from "@/components/meal-card-list";
 import { MealInputModal } from "@/components/meal-input-modal";
-import { MiniCalendar } from "@/components/mini-calendar";
 import { PhotoZoomModal } from "@/components/photo-zoom-modal";
 import { mealCardStyles, memoStyles } from "@/constants/common-styles";
 import { useKeyboardOffset } from "@/hooks/use-keyboard-offset";
@@ -1489,11 +1489,13 @@ export default function HomeScreen() {
         </ScrollView>
 
         {/* 달력 팝업 */}
-        <MiniCalendar
+        <CalendarModal
           visible={showDatePicker}
-          selectedDate={selectedDate}
-          onSelect={handleDateSelect}
+          value={selectedDate}
+          onChange={handleDateSelect}
           onClose={() => setShowDatePicker(false)}
+          maxDate={getLocalDateString()}
+          showTodayButton
         />
 
         {/* 식사 입력 모달 (공용 컴포넌트) */}
