@@ -56,7 +56,6 @@ import {
   loadRecords,
   loadUserSettings,
   saveUserSettings,
-  seedDummyData,
 } from "@/utils/storage";
 import Entypo from "@expo/vector-icons/Entypo";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -733,6 +732,7 @@ export default function SettingsScreen() {
         {
           text: "생성",
           onPress: async () => {
+            const { seedDummyData } = await import("@/utils/dev-seed");
             const updated = await seedDummyData();
             setRecordCount(updated.length);
             Alert.alert(
@@ -3468,9 +3468,6 @@ export default function SettingsScreen() {
                 >
                   고성능 모델
                 </Text>
-                {/* {!aiPro && (
-                  <Ionicons name="sparkles-outline" size={13} color="#667EEA" />
-                )} */}
               </View>
               <Text
                 style={{
@@ -4047,12 +4044,6 @@ const s = StyleSheet.create({
     height: 1,
     backgroundColor: "#F0F4F8",
     marginVertical: 16,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: "#1A202C",
-    marginBottom: 24,
   },
 
   card: {
