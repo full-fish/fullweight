@@ -168,7 +168,8 @@ export function CalendarModal({
                 backgroundColor: "#F7FAFC",
               }}
               value={textDate}
-              onChangeText={setTextDate}
+              // YYYYMMDD 8자리가 채워지면 YYYY-MM-DD로 바로 정규화
+              onChangeText={(t) => setTextDate(normalizeDateString(t) ?? t)}
               placeholder="YYYY-MM-DD"
               placeholderTextColor="#aaa"
               keyboardType="numbers-and-punctuation"

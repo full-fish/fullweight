@@ -782,7 +782,8 @@ export default function SettingsScreen() {
                 <TextInput
                   style={s.input}
                   value={birthDate}
-                  onChangeText={setBirthDate}
+                  // YYYYMMDD 8자리가 채워지면 YYYY-MM-DD로 바로 정규화
+                  onChangeText={(t) => setBirthDate(normalizeDateString(t) ?? t)}
                   placeholder="YYYY-MM-DD"
                   placeholderTextColor="#A0AEC0"
                   keyboardType="number-pad"

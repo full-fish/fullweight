@@ -233,6 +233,10 @@ export default function ChallengeScreen() {
   }, [records]);
 
   const today = getLocalDateString();
+  // 종료일은 오늘 이후만 허용(handleSave 검증과 동일)
+  const tomorrow = getLocalDateString(
+    new Date(new Date().setDate(new Date().getDate() + 1))
+  );
   const daysLeft = challenge ? daysBetween(today, challenge.endDate) : 0;
   const totalDays = challenge
     ? daysBetween(challenge.startDate, challenge.endDate)
@@ -1121,8 +1125,9 @@ export default function ChallengeScreen() {
                     value={fEndDate}
                     onChange={setFEndDate}
                     labelPosition="top"
+                    minDate={tomorrow}
                     yearRange={{
-                      from: new Date().getFullYear() - 10,
+                      from: new Date().getFullYear(),
                       to: new Date().getFullYear() + 10,
                     }}
                   />
