@@ -3,6 +3,8 @@
  * CalendarModal을 내장하여 캘린더 팝업도 함께 제공
  */
 import { CalendarModal } from "@/components/calendar-modal";
+import { normalizeDateString } from "@/utils/format";
+import Entypo from "@expo/vector-icons/Entypo";
 import React, { useState } from "react";
 import {
   Platform,
@@ -19,7 +21,7 @@ type Props = {
   onChange: (v: string) => void;
   minDate?: string;
   maxDate?: string;
-  /** 연도 선택 목록 범위 (기본 1920~올해) */
+  /** 연도 선택 목록 범위 (기본 1950~올해) */
   yearRange?: { from: number; to: number };
   /** 라벨 위치 — left: 입력칸 왼쪽, top: 입력칸 위 */
   labelPosition?: "left" | "top";
@@ -48,7 +50,8 @@ export function DatePickerRow({
           <TextInput
             style={[s.dateInput, isTop && s.dateInputTop]}
             value={value}
-            onChangeText={onChange}
+            // YYYYMMDD 8자리가 채워지면 YYYY-MM-DD로 바로 정규화
+            onChangeText={(t) => onChange(normalizeDateString(t) ?? t)}
             placeholder="YYYY-MM-DD"
             placeholderTextColor="#aaa"
             maxLength={10}
@@ -56,7 +59,7 @@ export function DatePickerRow({
               Platform.OS === "ios" ? "numbers-and-punctuation" : "default"
             }
           />
-          <Text style={[s.dateCalIcon, isTop && s.dateCalIconTop]}>📅</Text>
+          <Entypo name="calendar" size={24} color="black" />
         </TouchableOpacity>
       </View>
       <CalendarModal
@@ -119,6 +122,4 @@ const s = StyleSheet.create({
     paddingHorizontal: 4,
     fontSize: 15,
   },
-  dateCalIcon: { fontSize: 16 },
-  dateCalIconTop: { fontSize: 18 },
 });

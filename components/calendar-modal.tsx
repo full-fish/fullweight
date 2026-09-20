@@ -36,7 +36,7 @@ type Props = {
   minDate?: string;
   /** 선택 가능한 최대 날짜 (YYYY-MM-DD) */
   maxDate?: string;
-  /** 연도 선택 목록 범위 (기본 1920~올해) */
+  /** 연도 선택 목록 범위 (기본 1950~올해) */
   yearRange?: { from: number; to: number };
   /** 하단 "오늘" 버튼 표시 */
   showTodayButton?: boolean;
@@ -67,7 +67,7 @@ export function CalendarModal({
   );
 
   const currYear = new Date().getFullYear();
-  const yFrom = yearRange?.from ?? 1920;
+  const yFrom = yearRange?.from ?? 1950;
   const yTo = yearRange?.to ?? currYear;
   const years = Array.from(
     { length: yTo - yFrom + 1 },

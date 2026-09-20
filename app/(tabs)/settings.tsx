@@ -397,10 +397,10 @@ export default function SettingsScreen() {
       bd = normalized;
       setBirthDate(bd);
       const [y] = bd.split("-").map(Number);
-      if (y < 1920 || y > CURRENT_YEAR) {
+      if (y < 1950 || y > CURRENT_YEAR) {
         Alert.alert(
           "입력 오류",
-          `연도는 1920~${CURRENT_YEAR} 사이여야 합니다.`
+          `연도는 1950~${CURRENT_YEAR} 사이여야 합니다.`
         );
         return;
       }
@@ -780,10 +780,10 @@ export default function SettingsScreen() {
             {isEditing ? (
               <View style={s.birthDateRow}>
                 <TextInput
-                  style={[s.input, { flex: 1 }]}
+                  style={s.input}
                   value={birthDate}
                   onChangeText={setBirthDate}
-                  placeholder="YYYYMMDD 또는 YYYY-MM-DD"
+                  placeholder="YYYY-MM-DD"
                   placeholderTextColor="#A0AEC0"
                   keyboardType="number-pad"
                   returnKeyType="done"
@@ -793,7 +793,7 @@ export default function SettingsScreen() {
                   style={s.calendarIconBtn}
                   onPress={() => setCalendarVisible(true)}
                 >
-                  <Text style={s.calendarIconText}></Text>
+                  <Entypo name="calendar" size={24} color="black" />
                 </TouchableOpacity>
               </View>
             ) : (
@@ -3711,7 +3711,7 @@ export default function SettingsScreen() {
         value={birthDate}
         onChange={(date) => setBirthDate(date)}
         onClose={() => setCalendarVisible(false)}
-        minDate="1920-01-01"
+        minDate="1950-01-01"
         maxDate={getLocalDateString()}
       />
     </View>
@@ -3789,14 +3789,10 @@ const s = StyleSheet.create({
   birthDateRow: {
     flexDirection: "row",
     alignItems: "center",
-    width: 170,
   },
   calendarIconBtn: {
-    marginLeft: 6,
-    padding: 6,
-  },
-  calendarIconText: {
-    fontSize: 22,
+    marginLeft: 8,
+    padding: 4,
   },
 
   ageInfoRow: {
